@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+<a href="{% url 'clientes:lista' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Clientes</a>
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mt-2 mb-3">
+  <div><h1 class="h3 mb-1">{{ cliente.nombre }}</h1><div class="text-muted small">{{ cliente.rif|default:"Sin RIF" }}{% if not cliente.activo %} · <span class="badge text-bg-secondary">Inactivo</span>{% endif %}</div></div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'clientes:editar' cliente.pk %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil me-1"></i>Editar</a>
+    {% if cliente.activo %}<a href="{% url 'ventas:nuevo' %}?cliente={{ cliente.pk }}" class="btn btn-primary btn-sm"><i class="bi bi-file-earmark-plus me-1"></i>Presupuesto</a>{% endif %}
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col-md-5">
+    <div class="card card-body">
+      <dl class="row mb-0 small">
+        <dt class="col-4">Contacto</dt><dd class="col-8">{{ cliente.contacto|default:"—" }}</dd>
+        <dt class="col-4">Teléfono</dt><dd class="col-8">{{ cliente.telefono|default:"—" }}</dd>
+        <dt class="col-4">Correo</dt><dd class="col-8">{{ cliente.email|default:"—" }}</dd>
+        <dt class="col-4">Dirección</dt><dd class="col-8">{{ cliente.direccion|default:"—"|linebreaksbr }}</dd>
+        <dt class="col-4">Vendedor</dt><dd class="col-8">{{ cliente.vendedor.get_full_name|default:cliente.vendedor.email|default:"—" }}</dd>
+        <dt class="col-4">Notas</dt><dd class="col-8 mb-0">{{ cliente.notas|default:"—"|linebreaksbr }}</dd>
+      </dl>
+    </div>
+  </div>
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header bg-white fw-semibold">Presupuestos y ventas</div>
+      {% if presupuestos %}
+      <div class="table-responsive"><table class="table table-sm table-hover mb-0 align-middle"><thead class="table-light"><tr><th>Número</th><th>Fecha</th><th>Estado</th><th class="text-end">Total</th></tr></thead><tbody>
+        {% for p in presupuestos %}<tr onclick="location.href='{% url 'ventas:detalle' p.pk %}'" role="button"><td class="fw-semibold">{{ p.numero }}</td><td class="small">{{ p.fecha|date:"d/m/Y" }}</td><td><span class="badge text-bg-{{ p.css_estado }}">{{ p.get_estado_display }}</span></td><td class="text-end">{{ p.total_usd|usd }}</td></tr>{% endfor %}
+      </tbody></table></div>
+      {% else %}<div class="card-body text-muted">Sin presupuestos todavía.</div>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

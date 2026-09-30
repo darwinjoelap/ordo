@@ -150,6 +150,9 @@ class PerfilEmpresa(models.Model):
                                             null=True, blank=True, validators=[MinValueValidator(0)],
                                             help_text='Vacío = sin tope.')
     requiere_validacion = models.BooleanField('Las ventas requieren validación', default=True)
+    vendedores_ven_todos_los_clientes = models.BooleanField(
+        'Los vendedores ven todos los clientes', default=False,
+        help_text='Si está apagado, cada vendedor ve solo los clientes que creó o tiene asignados.')
     comision_requiere_pago = models.BooleanField('La comisión exige venta cobrada', default=False)
 
     actualizado_en = models.DateTimeField(auto_now=True)

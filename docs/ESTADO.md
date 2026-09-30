@@ -6,7 +6,7 @@
 | 1 | Esqueleto Django y primer despliegue | Código listo, falta desplegar en staging |
 | 2 | Empresas, usuarios, roles, panel Mi empresa | Código listo, 29 tests en verde |
 | 3 | Catálogo, inventario, proveedores, compras | Código listo (3A + 3B), 79 tests en verde |
-| 4 | Clientes, presupuestos, ventas, precios, validación | Pendiente |
+| 4 | Clientes, presupuestos, ventas, precios, validación | Código listo, 111 tests en verde |
 | 5 | Comisiones | Pendiente |
 | 6 | PWA iPhone, Android y web | Pendiente |
 | 7 | Migración BioLife y producción | Pendiente |
@@ -52,4 +52,20 @@
 - [x] Numeración por empresa sin carreras (`core.Secuencia`): OC-2026-00001
 - [x] Panel de pedido: consumo real (ventas 90 días) o estimado, descuenta lo que ya está en camino, crea la orden
 - [x] PDF de orden de compra (con/sin costos) y PDF de lista de precios, ambos con encabezado_empresa
-- [ ] Lista de precios en Bs (necesita tasa BCV — Fase 4)
+- [x] Lista de precios en Bs (Fase 4)
+
+## Fase 4 — detalle
+- [x] Tasa BCV única para todas las empresas: `actualizar_tasa_bcv` (lee bcv.org.ve), carga manual en el admin,
+      caché de 5 min, indicador en la barra superior (amarillo si no es de hoy)
+- [x] Clientes con vendedor asignado; el vendedor ve solo los suyos (opción en Mi empresa → Comercial para que vean todos)
+- [x] Presupuestos: borrador → emitido → apartado → por validar → venta validada · rechazada · vencido · cancelado
+- [x] Tasa congelada al emitir; totales guardados (subtotal, descuento, IVA, total USD y Bs)
+- [x] Modos de precio: FIJO (vendedor no cambia), LIBRE, RANGO (costo + margen mín/máx; fuera de rango se marca para revisión)
+- [x] Apartado FEFO todo-o-nada con días configurables; vencimiento automático (`tareas_programadas`)
+- [x] Validación por el administrador: descuenta stock y emite la señal `venta_validada` (gancho para comisiones)
+- [x] Si la empresa no exige validación, confirmar valida directo
+- [x] Rechazo con motivo: vuelve a apartado o libera stock
+- [x] Pago (método y fecha) y entrega
+- [x] PDF de presupuesto / nota de venta en USD, Bs o ambos
+- [x] Tablero de inicio: ventas validadas del mes, por validar, apartados, bajo mínimo, actividad, apartados por vencer
+- [ ] Servicio Cron en Railway: `python manage.py tareas_programadas` (ej. `0 11 * * *` UTC = 7:00 Venezuela)

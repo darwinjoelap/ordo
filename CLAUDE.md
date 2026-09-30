@@ -35,6 +35,11 @@ python manage.py runserver
 - `apps/inventario` — catálogo, productos (`con_stock()`), lotes, kardex; `servicios.py` es el ÚNICO que mueve stock
 - `apps/inventario/importacion.py` — columnas de la plantilla Excel (COLUMNAS es la única fuente), validar/aplicar
 - `apps/proveedores` — proveedores
+- `apps/tasas` — TasaCambio (global, sin empresa), `tasa_vigente()` cacheada, `actualizar_tasa_bcv`
+- `apps/clientes` — Cliente con vendedor; `clientes_visibles(request)` aplica la regla de cartera
+- `apps/ventas` — Presupuesto (también es la venta), ítems, Reserva por lote; `servicios.py` tiene TODO el flujo
+  de estados y emite `venta_validada`; `pdf.py` presupuesto en USD/Bs
+- `apps/core/management/commands/tareas_programadas.py` — cron diario (vence apartados + tasa BCV)
 - `apps/compras` — órdenes de compra, recepción (`servicios.py`), panel de pedido (`sugerencias.py`), PDF
 - `apps/core/secuencias.py` — `siguiente_numero('OC')` correlativos por empresa
 - `scripts/biolifeventas_a_ordo.py` — exporta BioLifeVentas a la plantilla (se ejecuta DESDE biolifeventas)
@@ -49,6 +54,7 @@ python manage.py runserver
 - Movimientos de stock solo vía `apps/inventario/servicios.py` (select_for_update + F()).
 - Tests también en PostgreSQL: `$env:DATABASE_URL="postgres://..."; python manage.py test tests`
 - Nada de escrituras en vistas GET.
+- Cambios de estado de presupuestos/ventas solo vía `apps/ventas/servicios.py`.
 - Fuera de un request (tests, comandos) `obj.relacion.all()` de modelos de empresa devuelve vacío: usa `usando_empresa(e)` o `Modelo.todos`.
 - `cloudinary_storage` va DESPUÉS de `django.contrib.staticfiles` en INSTALLED_APPS.
 - Los .js/.css de vendor no llevan `sourceMappingURL` (rompe collectstatic con manifest).

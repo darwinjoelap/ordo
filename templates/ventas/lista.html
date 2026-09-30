@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <h1 class="h3 mb-0">Presupuestos y ventas</h1>
+  <div class="d-flex gap-2">
+    {% if 'ventas.validar' in permisos %}<a href="{% url 'ventas:por_validar' %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-patch-check me-1"></i>Por validar</a>{% endif %}
+    <a href="{% url 'ventas:nuevo' %}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Presupuesto</a>
+  </div>
+</div>
+<div class="d-flex gap-2 flex-wrap mb-2">
+  <a href="?" class="btn btn-sm {% if not f.estado %}btn-dark{% else %}btn-outline-secondary{% endif %}">Todos</a>
+  <a href="?estado=abiertos" class="btn btn-sm {% if f.estado == 'abiertos' %}btn-dark{% else %}btn-outline-secondary{% endif %}">Abiertos</a>
+  <a href="?estado=ventas" class="btn btn-sm {% if f.estado == 'ventas' %}btn-success{% else %}btn-outline-success{% endif %}">Ventas validadas</a>
+  <a href="?estado=POR_VALIDAR" class="btn btn-sm {% if f.estado == 'POR_VALIDAR' %}btn-dark{% else %}btn-outline-secondary{% endif %}">Por validar</a>
+  <a href="?estado=APARTADO" class="btn btn-sm {% if f.estado == 'APARTADO' %}btn-dark{% else %}btn-outline-secondary{% endif %}">Apartados</a>
+</div>
+<form method="get" class="row g-2 mb-3 align-items-end">
+  <input type="hidden" name="estado" value="{{ f.estado }}">
+  <div class="col-sm-6 col-md-4"><input type="search" name="q" value="{{ f.q }}" class="form-control form-control-sm" placeholder="Número, cliente o RIF"></div>
+  {% if vendedores %}
+  <div class="col-sm-4 col-md-3"><select name="vendedor" class="form-select form-select-sm"><option value="">Todos los vendedores</option>
+    {% for v in vendedores %}<option value="{{ v.pk }}" {% if f.vendedor == v.pk|stringformat:"s" %}selected{% endif %}>{{ v.get_full_name|default:v.email }}</option>{% endfor %}</select></div>
+  {% endif %}
+  <div class="col-auto"><button class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Filtrar</button></div>
+</form>
+{% if pagina.object_list %}
+<div class="small text-muted mb-2">{{ totales.n|miles }} documento{{ totales.n|pluralize }} · {{ totales.usd|default:0|usd }}</div>
+<div class="card"><div class="table-responsive">
+  <table class="table table-hover align-middle mb-0 ordo-tabla">
+    <thead class="table-light"><tr><th>Número</th><th>Cliente</th><th class="d-none d-md-table-cell">Fecha</th>{% if 'presupuestos.ver_todos' in permisos %}<th class="d-none d-lg-table-cell">Vendedor</th>{% endif %}<th>Estado</th><th class="text-end">Total</th></tr></thead>
+    <tbody>
+    {% for p in pagina.object_list %}
+      <tr onclick="location.href='{% url 'ventas:detalle' p.pk %}'" role="button">
+        <td class="fw-semibold text-nowrap">{{ p.numero }}{% if p.requiere_revision %} <i class="bi bi-exclamation-triangle-fill text-warning" title="Precio fuera de rango"></i>{% endif %}</td>
+        <td>{{ p.cliente.nombre }}</td>
+        <td class="d-none d-md-table-cell">{{ p.fecha|date:"d/m/Y" }}</td>
+        {% if 'presupuestos.ver_todos' in permisos %}<td class="d-none d-lg-table-cell small">{{ p.vendedor.get_full_name|default:p.vendedor.email }}</td>{% endif %}
+        <td><span class="badge text-bg-{{ p.css_estado }}">{{ p.get_estado_display }}</span>{% if p.pagado %} <i class="bi bi-cash text-success" title="Pagado"></i>{% endif %}{% if p.entregado %} <i class="bi bi-truck text-success" title="Entregado"></i>{% endif %}</td>
+        <td class="text-end text-nowrap">{{ p.total_usd|usd }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% include 'partials/paginacion.html' %}
+{% else %}
+<div class="card card-body text-center text-muted py-5"><i class="bi bi-file-earmark-text fs-1"></i><p class="mt-2">No hay documentos con esos filtros.</p>
+  <div><a href="{% url 'ventas:nuevo' %}" class="btn btn-primary">Crear presupuesto</a></div></div>
+{% endif %}
+{% endblock %}

@@ -8,7 +8,9 @@
   <select name="categoria" id="cat" class="form-select mb-3"><option value="">Todas</option>{% for c in categorias %}<option value="{{ c.pk }}">{{ c.nombre }}</option>{% endfor %}</select>
   <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" name="con_existencia" value="1" id="ce" checked><label class="form-check-label" for="ce">Solo productos con existencia</label></div>
   <div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" name="mostrar_existencia" value="1" id="me"><label class="form-check-label" for="me">Mostrar cantidad disponible</label></div>
-  <p class="small text-muted">Precios en USD. El precio en bolívares se agregará cuando esté la tasa BCV (fase 4).</p>
+  {% if tasa %}
+  <div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" name="en_bs" value="1" id="bs" checked><label class="form-check-label" for="bs">Agregar precio en bolívares (tasa {{ tasa.bs_por_usd|floatformat:"2g" }} del {{ tasa.fecha|date:"d/m/Y" }})</label></div>
+  {% else %}<p class="small text-muted">Sin tasa BCV registrada: la lista sale solo en USD.</p>{% endif %}
   <button class="btn btn-primary"><i class="bi bi-file-earmark-pdf me-1"></i>Generar PDF</button>
 </form>
 {% endblock %}

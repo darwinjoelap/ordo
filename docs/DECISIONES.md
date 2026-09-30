@@ -18,3 +18,9 @@
 | 2026-09-30 | Importación solo .xlsx, validación total antes de guardar ("todo o nada") | Evita cargas a medias; el usuario corrige y reintenta |
 | 2026-09-30 | La importación no modifica stock de productos existentes | Re-importar el mismo archivo no duplica existencias |
 | 2026-09-30 | Los related managers de modelos de empresa también filtran por empresa activa | Consistencia; fuera de un request usar `usando_empresa()` o `Modelo.todos` |
+| 2026-09-30 | El stock se descuenta al VALIDAR; al confirmar queda apartado | Solo las ventas validadas cuentan; el rechazo no deja kardex sucio |
+| 2026-09-30 | Presupuesto y venta son el mismo documento (estados) | Sin duplicar ítems; trazabilidad completa |
+| 2026-09-30 | Tasa BCV global (no por empresa), congelada en cada documento al emitir | Es un dato oficial único; el documento no cambia si cambia la tasa |
+| 2026-09-30 | Modo RANGO no bloquea: marca `requiere_revision` y lo ve quien valida | El vendedor no se traba con el cliente enfrente; el control queda en la validación |
+| 2026-09-30 | El vendedor puede crear clientes y ve solo los suyos (configurable) | Cartera propia por vendedor, como en BioLifeVentas |
+| 2026-09-30 | Señal `venta_validada` como gancho para comisiones | La Fase 5 se engancha sin tocar el flujo de ventas |

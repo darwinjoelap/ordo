@@ -15,6 +15,8 @@ urlpatterns = [
     path('inventario/', include('apps.inventario.urls', namespace='inventario')),
     path('proveedores/', include('apps.proveedores.urls', namespace='proveedores')),
     path('compras/', include('apps.compras.urls', namespace='compras')),
+    path('clientes/', include('apps.clientes.urls', namespace='clientes')),
+    path('ventas/', include('apps.ventas.urls', namespace='ventas')),
     path('favicon.ico', lambda r: redirect(static_url('img/marca/pwa/favicon.ico'), permanent=True)),
     path('admin/', admin.site.urls),
 ]

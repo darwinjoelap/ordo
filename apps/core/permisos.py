@@ -26,6 +26,7 @@ PERMISOS = {
     'clientes.gestionar': GESTION | {Rol.VENDEDOR},
     'presupuestos.crear': GESTION | {Rol.VENDEDOR},
     'presupuestos.ver_todos': GESTION,
+    'precios.fijar': GESTION,
     'ventas.validar': GESTION,
     'reportes.ver': GESTION,
     # Comisiones (Fase 5)

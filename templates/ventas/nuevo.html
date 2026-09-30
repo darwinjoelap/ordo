@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block contenido %}
+<a href="{% url 'ventas:lista' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Presupuestos</a>
+<h1 class="h3 mt-2 mb-3">Nuevo presupuesto</h1>
+<div class="card card-body" style="max-width:640px">
+  {% if cliente %}
+    <p class="text-muted small mb-1">Cliente</p>
+    <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+      <div><div class="fw-semibold">{{ cliente.nombre }}</div><div class="small text-muted">{{ cliente.rif|default:"Sin RIF" }}</div></div>
+      <a href="{% url 'ventas:nuevo' %}" class="btn btn-sm btn-outline-secondary">Cambiar</a>
+    </div>
+    <form method="post">{% csrf_token %}<input type="hidden" name="cliente" value="{{ cliente.pk }}">
+      <button class="btn btn-primary w-100"><i class="bi bi-file-earmark-plus me-1"></i>Crear presupuesto</button></form>
+  {% else %}
+    <label class="form-label" for="buscar-cliente">1. Busca el cliente</label>
+    <input id="buscar-cliente" type="search" name="q" class="form-control" placeholder="Nombre o RIF (mínimo 2 letras)" autocomplete="off" autofocus
+           hx-get="{% url 'ventas:buscar_clientes' %}" hx-trigger="input changed delay:300ms, search" hx-target="#resultados-clientes">
+    <div id="resultados-clientes" class="mt-2"></div>
+    <div class="text-center mt-3"><a href="{% url 'clientes:crear' %}?volver=presupuesto" class="btn btn-outline-primary btn-sm"><i class="bi bi-person-plus me-1"></i>Cliente nuevo</a></div>
+  {% endif %}
+</div>
+{% endblock %}

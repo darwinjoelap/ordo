@@ -1,0 +1,159 @@
+"""
+Presupuestos y ventas.
+
+Un Presupuesto recorre estos estados (la "venta" es el mismo documento validado):
+
+  BORRADOR → EMITIDO → APARTADO → POR_VALIDAR → VALIDADA
+                 ↘         ↘            ↘ RECHAZADA (con motivo; vuelve a APARTADO o se libera)
+                  CANCELADO  VENCIDO (apartado sin confirmar a tiempo)
+
+- APARTADO reserva stock por lote (FEFO) en `Reserva`.
+- VALIDADA descuenta el stock y es lo único que cuenta en reportes y comisiones.
+- Si la empresa no exige validación, confirmar pasa directo a VALIDADA.
+- Los totales se guardan en columnas (snapshot) al cambiar los ítems: reportes rápidos con Sum().
+"""
+from decimal import ROUND_HALF_UP, Decimal
+
+from django.conf import settings
+from django.db import models
+from django.utils import timezone
+
+from apps.core.tenancy import EmpresaModel
+
+D2 = Decimal('0.01')
+
+
+def redondear(valor):
+    return Decimal(valor).quantize(D2, rounding=ROUND_HALF_UP)
+
+
+class Presupuesto(EmpresaModel):
+    class Estado(models.TextChoices):
+        BORRADOR = 'BORRADOR', 'Borrador'
+        EMITIDO = 'EMITIDO', 'Emitido'
+        APARTADO = 'APARTADO', 'Apartado'
+        POR_VALIDAR = 'POR_VALIDAR', 'Por validar'
+        VALIDADA = 'VALIDADA', 'Venta validada'
+        RECHAZADA = 'RECHAZADA', 'Rechazada'
+        VENCIDO = 'VENCIDO', 'Apartado vencido'
+        CANCELADO = 'CANCELADO', 'Cancelado'
+
+    class MetodoPago(models.TextChoices):
+        TRANSFERENCIA = 'TRANSFERENCIA', 'Transferencia'
+        PAGO_MOVIL = 'PAGO_MOVIL', 'Pago móvil'
+        EFECTIVO_USD = 'EFECTIVO_USD', 'Efectivo USD'
+        EFECTIVO_BS = 'EFECTIVO_BS', 'Efectivo Bs'
+        ZELLE = 'ZELLE', 'Zelle'
+        PUNTO = 'PUNTO', 'Punto de venta'
+        MIXTO = 'MIXTO', 'Mixto'
+        CREDITO = 'CREDITO', 'Crédito'
+
+    numero = models.CharField('Número', max_length=30)
+    cliente = models.ForeignKey('clientes.Cliente', on_delete=models.PROTECT, related_name='presupuestos')
+    vendedor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='+')
+    estado = models.CharField('Estado', max_length=12, choices=Estado.choices, default=Estado.BORRADOR)
+
+    fecha = models.DateField('Fecha', default=timezone.localdate)
+    valido_hasta = models.DateField('Válido hasta')
+    tasa_bs = models.DecimalField('Tasa Bs/USD', max_digits=14, decimal_places=4, null=True, blank=True,
+                                  help_text='Tasa BCV al emitir. Se congela para este documento.')
+    iva_pct = models.DecimalField('IVA (%)', max_digits=5, decimal_places=2, default=Decimal('16.00'))
+    descuento_pct = models.DecimalField('Descuento (%)', max_digits=5, decimal_places=2, default=Decimal('0.00'))
+
+    # Totales guardados (se recalculan con recalcular_totales)
+    subtotal_usd = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    descuento_usd = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    base_usd = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    iva_usd = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    total_usd = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    total_bs = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    requiere_revision = models.BooleanField('Precio fuera de rango', default=False)
+
+    apartado_hasta = models.DateTimeField('Apartado hasta', null=True, blank=True)
+    confirmado_en = models.DateTimeField(null=True, blank=True)
+    validado_en = models.DateTimeField(null=True, blank=True)
+    validado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+                                     related_name='+')
+    motivo_rechazo = models.CharField('Motivo del rechazo', max_length=250, blank=True)
+
+    pagado = models.BooleanField('Pagado', default=False)
+    fecha_pago = models.DateField('Fecha de pago', null=True, blank=True)
+    metodo_pago = models.CharField('Método de pago', max_length=15, choices=MetodoPago.choices, blank=True)
+    entregado = models.BooleanField('Entregado', default=False)
+    fecha_entrega = models.DateField('Fecha de entrega', null=True, blank=True)
+
+    notas = models.TextField('Notas internas', blank=True)
+    condiciones = models.TextField('Condiciones (PDF)', blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Presupuesto / venta'
+        verbose_name_plural = 'Presupuestos y ventas'
+        ordering = ['-creado_en', '-pk']
+        base_manager_name = 'todos'
+        constraints = [models.UniqueConstraint(fields=['empresa', 'numero'], name='presupuesto_numero_unico')]
+        indexes = [
+            models.Index(fields=['empresa', 'estado', 'validado_en'], name='venta_estado_fecha'),
+            models.Index(fields=['empresa', 'vendedor', 'estado'], name='venta_vendedor_estado'),
+        ]
+
+    def __str__(self):
+        return f'{self.numero} · {self.cliente}'
+
+    # ── Estado ────────────────────────────────────────────────────────────────
+    E = Estado
+
+    @property
+    def editable(self):
+        return self.estado in (self.E.BORRADOR, self.E.EMITIDO)
+
+    @property
+    def es_venta(self):
+        return self.estado == self.E.VALIDADA
+
+    @property
+    def css_estado(self):
+        return {'BORRADOR': 'secondary', 'EMITIDO': 'primary', 'APARTADO': 'warning', 'POR_VALIDAR': 'info',
+                'VALIDADA': 'success', 'RECHAZADA': 'danger', 'VENCIDO': 'dark', 'CANCELADO': 'dark'}[self.estado]
+
+    @property
+    def apartado_vencido(self):
+        return self.estado == self.E.APARTADO and self.apartado_hasta and self.apartado_hasta < timezone.now()
+
+
+class ItemPresupuesto(EmpresaModel):
+    presupuesto = models.ForeignKey(Presupuesto, on_delete=models.CASCADE, related_name='items')
+    producto = models.ForeignKey('inventario.Producto', on_delete=models.PROTECT, related_name='+')
+    cantidad = models.PositiveIntegerField('Cantidad')
+    precio_base_usd = models.DecimalField('Precio de lista', max_digits=12, decimal_places=2)
+    precio_usd = models.DecimalField('Precio', max_digits=12, decimal_places=2)
+    costo_usd = models.DecimalField('Costo de referencia', max_digits=12, decimal_places=2, default=0)
+    fuera_de_rango = models.BooleanField(default=False)
+    orden = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        verbose_name = 'Ítem'
+        verbose_name_plural = 'Ítems'
+        ordering = ['orden', 'pk']
+        base_manager_name = 'todos'
+
+    def __str__(self):
+        return f'{self.producto} × {self.cantidad}'
+
+    @property
+    def subtotal_usd(self):
+        return redondear(self.cantidad * self.precio_usd)
+
+
+class Reserva(EmpresaModel):
+    """Cuánto de cada lote tiene apartado un ítem (FEFO)."""
+    item = models.ForeignKey(ItemPresupuesto, on_delete=models.CASCADE, related_name='reservas')
+    lote = models.ForeignKey('inventario.Lote', on_delete=models.PROTECT, related_name='+')
+    cantidad = models.PositiveIntegerField()
+
+    class Meta:
+        base_manager_name = 'todos'
+
+    def __str__(self):
+        return f'{self.item.producto.codigo} · {self.lote} · {self.cantidad}'

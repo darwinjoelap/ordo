@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+<a href="{% url 'ventas:lista' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Presupuestos</a>
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mt-2 mb-3">
+  <div>
+    <h1 class="h3 mb-1">{{ p.numero }} <span class="badge text-bg-{{ p.css_estado }} align-middle fs-6">{{ p.get_estado_display }}</span></h1>
+    <div class="text-muted small">
+      <a href="{% url 'clientes:detalle' p.cliente_id %}">{{ p.cliente.nombre }}</a>{% if p.cliente.rif %} · {{ p.cliente.rif }}{% endif %}
+      · {{ p.fecha|date:"d/m/Y" }}{% if p.editable %} · válido hasta {{ p.valido_hasta|date:"d/m/Y" }}{% endif %}
+      · Vendedor: {{ p.vendedor.get_full_name|default:p.vendedor.email }}
+      {% if p.tasa_bs %} · Tasa {{ p.tasa_bs|floatformat:"2g" }} Bs/USD{% endif %}
+    </div>
+  </div>
+  <div class="dropdown">
+    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</button>
+    <ul class="dropdown-menu dropdown-menu-end">
+      <li><a class="dropdown-item" target="_blank" href="{% url 'ventas:pdf' p.pk %}?moneda=ambas">USD y Bs</a></li>
+      <li><a class="dropdown-item" target="_blank" href="{% url 'ventas:pdf' p.pk %}?moneda=usd">Solo USD</a></li>
+      {% if p.tasa_bs %}<li><a class="dropdown-item" target="_blank" href="{% url 'ventas:pdf' p.pk %}?moneda=bs">Solo Bs</a></li>{% endif %}
+    </ul>
+  </div>
+</div>
+
+{% if p.motivo_rechazo %}<div class="alert alert-danger py-2"><i class="bi bi-x-octagon me-1"></i><b>Rechazada:</b> {{ p.motivo_rechazo }}</div>{% endif %}
+{% if p.requiere_revision %}<div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i>Hay precios fuera del rango permitido. Quien valide la venta lo verá.</div>{% endif %}
+{% if p.estado == 'APARTADO' %}<div class="alert {% if p.apartado_vencido %}alert-danger{% else %}alert-warning{% endif %} py-2"><i class="bi bi-lock me-1"></i>Stock apartado hasta el {{ p.apartado_hasta|date:"d/m/Y H:i" }}.</div>{% endif %}
+{% if p.editable and not p.tasa_bs %}<div class="alert alert-light border py-2 small"><i class="bi bi-info-circle me-1"></i>La tasa BCV se congela al <b>emitir</b>.</div>{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-8">
+    {% if p.editable %}
+    <div class="card mb-3">
+      <div class="card-header bg-white fw-semibold">Agregar productos</div>
+      <div class="card-body">
+        <input type="search" name="q" class="form-control" placeholder="Nombre o código (mínimo 2 letras)" autocomplete="off"
+               hx-get="{% url 'ventas:buscar_productos' p.pk %}" hx-trigger="input changed delay:300ms, search" hx-target="#resultados-productos">
+        <div id="resultados-productos" class="mt-2"></div>
+      </div>
+    </div>
+    {% endif %}
+
+    <form method="post" action="{% url 'ventas:actualizar' p.pk %}">
+      {% csrf_token %}
+      <div class="card mb-3">
+        <div class="card-header bg-white fw-semibold">Productos ({{ items|length }})</div>
+        {% if items %}
+        <div class="table-responsive"><table class="table align-middle mb-0">
+          <thead class="table-light"><tr><th>Producto</th><th class="text-end" style="width:6rem">Cant.</th><th class="text-end" style="width:8rem">Precio</th><th class="text-end d-none d-sm-table-cell">Subtotal</th>{% if p.editable %}<th class="text-center" style="width:3rem"></th>{% endif %}</tr></thead>
+          <tbody>
+          {% for i in items %}
+            <tr class="{% if i.fuera_de_rango %}table-warning{% endif %}">
+              <td>
+                <div class="fw-semibold">{{ i.producto.nombre }}</div>
+                <div class="small text-muted">{{ i.producto.codigo }}{% if i.precio_usd != i.precio_base_usd %} · lista {{ i.precio_base_usd|usd }}{% endif %}{% if i.fuera_de_rango %} · <span class="text-warning-emphasis">fuera de rango</span>{% endif %}</div>
+                {% for r in i.lista_reservas %}<div class="small text-muted"><i class="bi bi-lock"></i> Lote {{ r.lote.numero_lote|default:r.lote.pk }}{% if r.lote.fecha_vencimiento %} (vence {{ r.lote.fecha_vencimiento|date:"d/m/Y" }}){% endif %}: {{ r.cantidad }}</div>{% endfor %}
+              </td>
+              {% if p.editable %}
+                <td><input type="number" min="1" name="cantidad_{{ i.pk }}" value="{{ i.cantidad }}" class="form-control form-control-sm text-end"></td>
+                <td>{% if precio_editable %}<input type="text" inputmode="decimal" name="precio_{{ i.pk }}" value="{{ i.precio_usd }}" class="form-control form-control-sm text-end">{% else %}<div class="text-end">{{ i.precio_usd|usd }}</div>{% endif %}</td>
+              {% else %}
+                <td class="text-end">{{ i.cantidad|miles }} {{ i.producto.unidad.abreviatura }}</td>
+                <td class="text-end text-nowrap">{{ i.precio_usd|usd }}</td>
+              {% endif %}
+              <td class="text-end text-nowrap d-none d-sm-table-cell">{{ i.subtotal_usd|usd }}</td>
+              {% if p.editable %}<td class="text-center"><input type="checkbox" class="form-check-input" name="quitar_{{ i.pk }}" value="1" title="Quitar" aria-label="Quitar {{ i.producto.nombre }}"></td>{% endif %}
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table></div>
+        {% else %}
+        <div class="card-body text-muted">Aún no hay productos. Búscalos arriba.</div>
+        {% endif %}
+      </div>
+
+      {% if p.editable %}
+      <div class="card card-body mb-3">
+        <div class="row g-3">
+          {% if precio_editable %}<div class="col-sm-4"><label class="form-label small" for="descuento">Descuento (%)</label><input id="descuento" type="text" inputmode="decimal" name="descuento_pct" value="{{ p.descuento_pct|floatformat:'-2' }}" class="form-control form-control-sm"></div>{% endif %}
+          <div class="col-12"><label class="form-label small" for="condiciones">Condiciones (salen en el PDF)</label><textarea id="condiciones" name="condiciones" rows="2" class="form-control form-control-sm">{{ p.condiciones }}</textarea></div>
+          <div class="col-12"><label class="form-label small" for="notas">Notas internas</label><textarea id="notas" name="notas" rows="2" class="form-control form-control-sm">{{ p.notas }}</textarea></div>
+        </div>
+        <div class="d-flex justify-content-end mt-3"><button class="btn btn-outline-primary btn-sm"><i class="bi bi-save me-1"></i>Guardar cambios</button></div>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card mb-3">
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-6 fw-normal">Subtotal</dt><dd class="col-6 text-end mb-1">{{ p.subtotal_usd|usd }}</dd>
+          {% if p.descuento_usd %}<dt class="col-6 fw-normal">Descuento ({{ p.descuento_pct|floatformat:"-2" }} %)</dt><dd class="col-6 text-end mb-1">-{{ p.descuento_usd|usd }}</dd>{% endif %}
+          {% if p.iva_usd %}<dt class="col-6 fw-normal">IVA ({{ p.iva_pct|floatformat:"-2" }} %)</dt><dd class="col-6 text-end mb-1">{{ p.iva_usd|usd }}</dd>{% endif %}
+          <dt class="col-6 fs-5">Total</dt><dd class="col-6 text-end fs-5 fw-bold mb-0">{{ p.total_usd|usd }}</dd>
+          {% if p.total_bs %}<dt class="col-6 fw-normal text-muted">En bolívares</dt><dd class="col-6 text-end text-muted mb-0">Bs {{ p.total_bs|floatformat:"2g" }}</dd>{% endif %}
+        </dl>
+      </div>
+    </div>
+
+    <!-- Acciones según el estado -->
+    <div class="card card-body mb-3 d-grid gap-2">
+      {% if p.editable %}
+        {% if p.estado == 'BORRADOR' %}
+          <form method="post" action="{% url 'ventas:accion' p.pk 'emitir' %}" class="d-grid">{% csrf_token %}<button class="btn btn-primary"><i class="bi bi-send me-1"></i>Emitir presupuesto</button></form>
+        {% endif %}
+        <form method="post" action="{% url 'ventas:accion' p.pk 'apartar' %}" class="d-grid">{% csrf_token %}<button class="btn btn-outline-warning"><i class="bi bi-lock me-1"></i>Apartar stock</button></form>
+        <form method="post" action="{% url 'ventas:accion' p.pk 'confirmar' %}" class="d-grid" onsubmit="return confirm('¿Confirmar la venta? Se aparta el stock y pasa a validación.')">{% csrf_token %}<button class="btn btn-success"><i class="bi bi-bag-check me-1"></i>Confirmar venta</button></form>
+      {% elif p.estado == 'APARTADO' %}
+        <form method="post" action="{% url 'ventas:accion' p.pk 'confirmar' %}" class="d-grid">{% csrf_token %}<button class="btn btn-success"><i class="bi bi-bag-check me-1"></i>Confirmar venta</button></form>
+        <form method="post" action="{% url 'ventas:accion' p.pk 'desapartar' %}" class="d-grid">{% csrf_token %}<button class="btn btn-outline-secondary"><i class="bi bi-unlock me-1"></i>Liberar stock (volver a editar)</button></form>
+      {% elif p.estado == 'POR_VALIDAR' %}
+        {% if puede_validar %}
+          <form method="post" action="{% url 'ventas:accion' p.pk 'validar' %}" class="d-grid">{% csrf_token %}<button class="btn btn-success"><i class="bi bi-patch-check me-1"></i>Validar venta</button></form>
+          <form method="post" action="{% url 'ventas:accion' p.pk 'rechazar' %}" class="border rounded p-2">{% csrf_token %}
+            <input name="motivo" class="form-control form-control-sm mb-2" placeholder="Motivo del rechazo" required maxlength="250">
+            <div class="form-check small mb-2"><input class="form-check-input" type="checkbox" name="liberar" value="1" id="liberar"><label class="form-check-label" for="liberar">Liberar el stock (si no, vuelve a apartado para corregir)</label></div>
+            <button class="btn btn-outline-danger btn-sm w-100"><i class="bi bi-x-circle me-1"></i>Rechazar</button></form>
+        {% else %}
+          <div class="text-muted small"><i class="bi bi-hourglass-split me-1"></i>Esperando validación del administrador.</div>
+        {% endif %}
+      {% elif p.estado == 'VALIDADA' %}
+        <div class="text-success small"><i class="bi bi-patch-check-fill me-1"></i>Validada el {{ p.validado_en|date:"d/m/Y H:i" }}{% if p.validado_por %} por {{ p.validado_por.get_full_name|default:p.validado_por.email }}{% endif %}.</div>
+      {% endif %}
+      {% if p.estado in 'BORRADOR EMITIDO APARTADO RECHAZADA' %}
+        <form method="post" action="{% url 'ventas:accion' p.pk 'cancelar' %}" class="d-grid" onsubmit="return confirm('¿Cancelar este presupuesto? Se libera el stock apartado.')">{% csrf_token %}<button class="btn btn-link btn-sm text-danger">Cancelar presupuesto</button></form>
+      {% endif %}
+    </div>
+
+    {% if p.estado == 'POR_VALIDAR' or p.estado == 'VALIDADA' or p.estado == 'APARTADO' %}
+    <div class="card card-body mb-3">
+      <div class="fw-semibold mb-2">Pago y entrega</div>
+      {% if p.estado != 'APARTADO' %}
+      <form method="post" action="{% url 'ventas:pago_entrega' p.pk %}" class="mb-3">{% csrf_token %}
+        {% if p.pagado %}
+          <div class="small mb-2 text-success"><i class="bi bi-cash me-1"></i>Pagado {{ p.fecha_pago|date:"d/m/Y" }} · {{ p.get_metodo_pago_display }}</div>
+          <input type="hidden" name="pagado" value="0"><button class="btn btn-sm btn-outline-secondary">Marcar como no pagado</button>
+        {% else %}
+          <input type="hidden" name="pagado" value="1">
+          <div class="d-flex gap-2 flex-wrap">
+            <select name="metodo_pago" class="form-select form-select-sm" style="max-width:12rem" required>
+              <option value="">Método…</option>{% for v, n in metodos %}<option value="{{ v }}">{{ n }}</option>{% endfor %}</select>
+            <input type="date" name="fecha_pago" class="form-control form-control-sm" style="max-width:10rem">
+            <button class="btn btn-sm btn-outline-success"><i class="bi bi-cash me-1"></i>Registrar pago</button>
+          </div>
+        {% endif %}
+      </form>
+      {% endif %}
+      <form method="post" action="{% url 'ventas:pago_entrega' p.pk %}">{% csrf_token %}
+        {% if p.entregado %}
+          <div class="small mb-2 text-success"><i class="bi bi-truck me-1"></i>Entregado {{ p.fecha_entrega|date:"d/m/Y" }}</div>
+          <input type="hidden" name="entregado" value="0"><button class="btn btn-sm btn-outline-secondary">Marcar como no entregado</button>
+        {% else %}
+          <input type="hidden" name="entregado" value="1"><button class="btn btn-sm btn-outline-success"><i class="bi bi-truck me-1"></i>Marcar entregado</button>
+        {% endif %}
+      </form>
+    </div>
+    {% endif %}
+
+    {% if p.notas and not p.editable %}<div class="card card-body small"><div class="fw-semibold mb-1">Notas internas</div>{{ p.notas|linebreaksbr }}</div>{% endif %}
+  </div>
+</div>
+{% endblock %}

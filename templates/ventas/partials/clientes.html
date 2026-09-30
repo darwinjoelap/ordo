@@ -1,0 +1,10 @@
+{% if clientes %}
+<div class="list-group">
+  {% for c in clientes %}
+  <a href="{% url 'ventas:nuevo' %}?cliente={{ c.pk }}" class="list-group-item list-group-item-action d-flex justify-content-between">
+    <span class="fw-semibold">{{ c.nombre }}</span><span class="small text-muted">{{ c.rif }}</span></a>
+  {% endfor %}
+</div>
+{% elif q|length >= 2 %}
+<div class="text-muted small">Sin resultados para "{{ q }}".</div>
+{% endif %}

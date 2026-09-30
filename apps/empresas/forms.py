@@ -11,7 +11,7 @@ GRUPOS = {
                                   'datos_bancarios', 'firma']),
     'comercial': ('Comercial', ['iva_porcentaje', 'dias_validez_presupuesto', 'dias_apartado', 'modo_precio',
                                 'margen_minimo_pct', 'margen_maximo_pct', 'requiere_validacion',
-                                'comision_requiere_pago']),
+                                'vendedores_ven_todos_los_clientes', 'comision_requiere_pago']),
 }
 
 
