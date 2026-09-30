@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block contenido %}
+<a href="{% url 'inventario:lista' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Inventario</a>
+<h1 class="h3 mt-2 mb-3">Ajuste de inventario</h1>
+<div class="row"><div class="col-lg-8">
+{% if not producto %}
+  {% include 'inventario/partials/buscador.html' with destino='ajuste' %}
+{% else %}
+  {% include 'inventario/partials/ficha_producto.html' %}
+  {% if not form.fields.lote.queryset.exists %}
+    <div class="alert alert-info">Este producto no tiene lotes con existencia. Registra primero un <a href="{% url 'inventario:ingreso' %}?producto={{ producto.pk }}">ingreso</a>.</div>
+  {% else %}
+  <form method="post" class="card card-body">
+    {% csrf_token %}
+    {{ form.producto }}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="row g-3">
+      <div class="col-12">{% include 'partials/campo.html' with campo=form.lote %}</div>
+      <div class="col-md-6">{% include 'partials/campo.html' with campo=form.tipo %}</div>
+      <div class="col-md-6">{% include 'partials/campo.html' with campo=form.cantidad %}</div>
+      <div class="col-12">{% include 'partials/campo.html' with campo=form.motivo %}</div>
+    </div>
+    <div class="d-flex justify-content-end mt-3"><button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Registrar ajuste</button></div>
+  </form>
+  {% endif %}
+{% endif %}
+</div></div>
+{% endblock %}

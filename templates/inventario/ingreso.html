@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block contenido %}
+<a href="{% url 'inventario:lista' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Inventario</a>
+<h1 class="h3 mt-2 mb-3">Ingreso de mercancía</h1>
+<div class="row"><div class="col-lg-8">
+{% if not producto %}
+  {% include 'inventario/partials/buscador.html' with destino='ingreso' %}
+{% else %}
+  {% include 'inventario/partials/ficha_producto.html' %}
+
+  {% if lote_existente %}
+    <div class="alert alert-warning">
+      <strong>El lote "{{ lote_existente.numero_lote }}" ya existe</strong> con {{ lote_existente.cantidad_actual }} unidades{% if lote_existente.fecha_vencimiento %} (vence {{ lote_existente.fecha_vencimiento|date:"d/m/Y" }}){% endif %}.
+      ¿Sumar {{ form.cantidad.value }} unidades a ese lote?
+    </div>
+  {% endif %}
+  {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+  <form method="post" class="card card-body">
+    {% csrf_token %}
+    {{ form.producto }}
+    <div class="row g-3">
+      <div class="col-6 col-md-4">{% include 'partials/campo.html' with campo=form.cantidad %}</div>
+      <div class="col-6 col-md-4">{% include 'partials/campo.html' with campo=form.costo_unitario %}</div>
+      <div class="col-12 col-md-4">{% include 'partials/campo.html' with campo=form.proveedor %}</div>
+      {% if producto.maneja_lotes or form.numero_lote.value %}
+        <div class="col-6">{% include 'partials/campo.html' with campo=form.numero_lote %}</div>
+      {% else %}{{ form.numero_lote.as_hidden }}{% endif %}
+      {% if producto.maneja_vencimiento or form.fecha_vencimiento.value %}
+        <div class="col-6">{% include 'partials/campo.html' with campo=form.fecha_vencimiento %}</div>
+      {% else %}{{ form.fecha_vencimiento.as_hidden }}{% endif %}
+      <div class="col-12">{% include 'partials/campo.html' with campo=form.notas %}</div>
+    </div>
+    <div class="d-flex gap-2 justify-content-end mt-3 flex-wrap">
+      {% if lote_existente %}
+        <input type="hidden" name="confirmar_suma" value="1">
+        <a href="{{ request.path }}?producto={{ producto.pk }}" class="btn btn-outline-secondary">Cancelar</a>
+        <button class="btn btn-warning">Sí, sumar al lote</button>
+      {% else %}
+        <button name="otro" value="1" class="btn btn-outline-success">Guardar y registrar otro</button>
+        <button class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Registrar ingreso</button>
+      {% endif %}
+    </div>
+  </form>
+{% endif %}
+</div></div>
+{% endblock %}

@@ -72,9 +72,13 @@
     <a class="nav-link disabled" aria-disabled="true"><i class="bi bi-people"></i> Clientes</a>
     <a class="nav-link disabled" aria-disabled="true"><i class="bi bi-cash-coin"></i> Comisiones</a>
     <div class="nav-seccion">Operación</div>
-    <a class="nav-link disabled" aria-disabled="true"><i class="bi bi-box-seam"></i> Inventario</a>
+    {% if 'inventario.ver' in permisos %}
+      <a href="{% url 'inventario:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'inventario' %}active{% endif %}"><i class="bi bi-box-seam"></i> Inventario</a>
+    {% endif %}
     <a class="nav-link disabled" aria-disabled="true"><i class="bi bi-truck"></i> Compras</a>
-    <a class="nav-link disabled" aria-disabled="true"><i class="bi bi-building"></i> Proveedores</a>
+    {% if 'proveedores.gestionar' in permisos %}
+      <a href="{% url 'proveedores:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'proveedores' %}active{% endif %}"><i class="bi bi-building"></i> Proveedores</a>
+    {% endif %}
     {% if 'empresa.configurar' in permisos %}
       {% url 'empresas:mi_empresa' as url_mi_empresa %}
       <div class="nav-seccion">Empresa</div>
@@ -98,7 +102,7 @@
   <nav class="ordo-tabbar d-lg-none" aria-label="Navegación inferior">
     <a href="{{ url_inicio }}" class="{% if request.path == url_inicio %}active{% endif %}"><i class="bi bi-house"></i>Inicio</a>
     <a class="disabled" aria-disabled="true"><i class="bi bi-plus-circle"></i>Presupuesto</a>
-    <a class="disabled" aria-disabled="true"><i class="bi bi-people"></i>Clientes</a>
+    {% if 'inventario.ver' in permisos %}<a href="{% url 'inventario:lista' %}" class="{% if request.resolver_match.app_name == 'inventario' %}active{% endif %}"><i class="bi bi-box-seam"></i>Inventario</a>{% endif %}
     <a class="disabled" aria-disabled="true"><i class="bi bi-cash-coin"></i>Comisiones</a>
   </nav>
 {% endblock %}

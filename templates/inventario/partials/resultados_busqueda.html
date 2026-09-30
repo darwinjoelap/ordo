@@ -1,0 +1,14 @@
+{% load ordo %}
+{% if productos %}
+  <div class="list-group ordo-resultados shadow-sm">
+    {% for p in productos %}
+      <a href="{% if destino == 'ajuste' %}{% url 'inventario:ajuste' %}{% else %}{% url 'inventario:ingreso' %}{% endif %}?producto={{ p.pk }}"
+         class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+        <span><span class="fw-semibold">{{ p.nombre }}</span><br><small class="text-muted"><code>{{ p.codigo }}</code></small></span>
+        <span class="text-end small">{{ p.stock_disponible|miles }} {{ p.unidad.abreviatura }}<br><span class="text-muted">disponible</span></span>
+      </a>
+    {% endfor %}
+  </div>
+{% elif q|length >= 2 %}
+  <div class="text-muted small p-2">Sin resultados para "{{ q }}".</div>
+{% endif %}

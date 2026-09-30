@@ -5,7 +5,7 @@
 | 0 | Preparación (Railway Pro, repo, venv) | Listo (falta Railway Pro) |
 | 1 | Esqueleto Django y primer despliegue | Código listo, falta desplegar en staging |
 | 2 | Empresas, usuarios, roles, panel Mi empresa | Código listo, 29 tests en verde |
-| 3 | Catálogo, inventario, proveedores, compras | Pendiente |
+| 3 | Catálogo, inventario, proveedores, compras | 3A lista (inventario y proveedores); falta 3B compras |
 | 4 | Clientes, presupuestos, ventas, precios, validación | Pendiente |
 | 5 | Comisiones | Pendiente |
 | 6 | PWA iPhone, Android y web | Pendiente |
@@ -30,3 +30,20 @@
 - [x] `encabezado_empresa()` y `pie_empresa()` para todos los PDF + PDF de prueba
 - [x] Comando `crear_empresa "Nombre" dueno@correo --password ...`
 - [ ] Gestión de usuarios del equipo desde la app (invitar, cambiar rol) — pendiente, hoy desde el admin
+
+## Fase 3A — detalle
+- [x] Categoría, Subcategoría, Marca, Unidad (unidades iniciales por empresa), Proveedor
+- [x] Producto con `con_stock()` (1 consulta) y código único por empresa
+- [x] Lote con CHECK en BD: sin stock negativo ni apartado mayor que la existencia
+- [x] Kardex con saldo del lote en cada movimiento
+- [x] `inventario/servicios.py`: ingresar, ajustar, apartar_fefo, liberar, descontar_apartado (select_for_update + F())
+- [x] Pantallas: lista paginada con filtros, detalle con lotes y kardex, ingreso y ajuste con buscador, catálogo, proveedores
+- [x] Vendedor ve stock y precio, NO costos; Almacén gestiona inventario y proveedores
+- [x] Búsqueda con índice pg_trgm (PostgreSQL)
+- [x] 54 tests en verde en SQLite y PostgreSQL 16 (incluye prueba de concurrencia real)
+
+## Fase 3B — pendiente
+- [ ] Órdenes de compra (borrador → cerrada → recepción parcial/total que genera ingresos)
+- [ ] Panel de pedido (sugerido por consumo) y PDF de orden de compra con encabezado_empresa
+- [ ] PDF de lista de precios
+- [ ] Importación de productos desde Excel/CSV (necesaria para migrar BioLife y para nuevos clientes)

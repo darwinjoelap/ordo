@@ -1,0 +1,8 @@
+<div class="card card-body mb-3">
+  <label class="form-label fw-semibold" for="buscar-producto">1. Busca el producto</label>
+  <input type="search" id="buscar-producto" name="q" class="form-control form-control-lg" autocomplete="off" autofocus
+         placeholder="Código o nombre (mínimo 2 letras)"
+         hx-get="{% url 'inventario:buscar' %}?destino={{ destino }}" hx-trigger="input changed delay:300ms, search"
+         hx-target="#resultados">
+  <div id="resultados" class="mt-2"></div>
+</div>

@@ -19,6 +19,8 @@ PERMISOS = {
     # Inventario y compras (Fase 3)
     'inventario.ver': TODOS,
     'inventario.gestionar': GESTION | {Rol.ALMACEN},
+    'inventario.ver_costos': GESTION | {Rol.ALMACEN},
+    'proveedores.gestionar': GESTION | {Rol.ALMACEN},
     'compras.gestionar': GESTION | {Rol.ALMACEN},
     # Comercial (Fase 4)
     'clientes.gestionar': GESTION | {Rol.VENDEDOR},

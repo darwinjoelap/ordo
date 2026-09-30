@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+<a href="{% url 'proveedores:lista' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Proveedores</a>
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mt-2 mb-3">
+  <div><h1 class="h3 mb-1">{{ proveedor.nombre }}</h1><div class="text-muted small">{{ proveedor.rif|default:"Sin RIF" }}{% if not proveedor.activo %} · <span class="badge text-bg-secondary">Inactivo</span>{% endif %}</div></div>
+  <a href="{% url 'proveedores:editar' proveedor.pk %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil me-1"></i>Editar</a>
+</div>
+<div class="row g-3">
+  <div class="col-md-5">
+    <div class="card card-body">
+      <dl class="row mb-0 small">
+        <dt class="col-4">Contacto</dt><dd class="col-8">{{ proveedor.contacto|default:"—" }}</dd>
+        <dt class="col-4">Teléfono</dt><dd class="col-8">{{ proveedor.telefono|default:"—" }}</dd>
+        <dt class="col-4">Correo</dt><dd class="col-8">{{ proveedor.email|default:"—" }}</dd>
+        <dt class="col-4">Dirección</dt><dd class="col-8">{{ proveedor.direccion|default:"—"|linebreaksbr }}</dd>
+        <dt class="col-4">Notas</dt><dd class="col-8 mb-0">{{ proveedor.notas|default:"—"|linebreaksbr }}</dd>
+      </dl>
+    </div>
+  </div>
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header bg-white fw-semibold">Últimos ingresos</div>
+      {% if lotes %}
+      <table class="table table-sm mb-0"><thead class="table-light"><tr><th>Fecha</th><th>Producto</th><th class="text-end">Cant.</th><th class="text-end">Costo</th></tr></thead><tbody>
+        {% for l in lotes %}<tr><td class="small">{{ l.fecha_ingreso|date:"d/m/Y" }}</td><td><a href="{% url 'inventario:detalle' l.producto_id %}">{{ l.producto.nombre }}</a></td><td class="text-end">{{ l.cantidad_inicial|miles }}</td><td class="text-end">{{ l.costo_unitario_usd|usd }}</td></tr>{% endfor %}
+      </tbody></table>
+      {% else %}<div class="card-body text-muted">Sin ingresos registrados.</div>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -201,3 +201,16 @@ body {
 .ordo-previa .previa-linea { height: 3px; border-radius: 2px; margin-top: .75rem; }
 .ordo-previa .previa-dato { font-size: .8rem; color: var(--ordo-gris-600); line-height: 1.35; }
 .ordo-logo-actual { max-height: 64px; max-width: 180px; object-fit: contain; background: #fff; border: 1px solid var(--ordo-gris-200); border-radius: .4rem; padding: .25rem; }
+
+/* ── Inventario ───────────────────────────────────────────────────────── */
+.ordo-tabla tbody tr[role=button] { cursor: pointer; }
+.stock-success { color: var(--ordo-verde-600); }
+.stock-warning { color: #B7791F; }
+.stock-danger { color: #DC2626; }
+.stock-purple { color: #6F42C1; }
+.stock-secondary { color: var(--ordo-gris-600); }
+.ordo-badge-vencido { background: #6F42C1; color: #fff; }
+.text-bg-purple { background: #6F42C1 !important; color: #fff !important; }
+.ordo-resultados .list-group-item { cursor: pointer; }
+
+code { color: var(--ordo-gris-600); }

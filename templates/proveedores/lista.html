@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <h1 class="h3 mb-0">Proveedores</h1>
+  <a href="{% url 'proveedores:crear' %}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Proveedor</a>
+</div>
+<form method="get" class="mb-3"><input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Buscar por nombre, RIF o contacto…"></form>
+{% if pagina.object_list %}
+<div class="card"><div class="table-responsive">
+  <table class="table table-hover align-middle mb-0 ordo-tabla">
+    <thead class="table-light"><tr><th>Proveedor</th><th class="d-none d-md-table-cell">Contacto</th><th class="d-none d-sm-table-cell">Teléfono</th><th class="text-end">Productos</th></tr></thead>
+    <tbody>
+      {% for p in pagina.object_list %}
+      <tr onclick="location.href='{% url 'proveedores:detalle' p.pk %}'" role="button">
+        <td><span class="fw-semibold">{{ p.nombre }}</span>{% if not p.activo %} <span class="badge text-bg-secondary">Inactivo</span>{% endif %}<br><small class="text-muted">{{ p.rif }}</small></td>
+        <td class="d-none d-md-table-cell">{{ p.contacto|default:"—" }}</td>
+        <td class="d-none d-sm-table-cell">{{ p.telefono|default:"—" }}</td>
+        <td class="text-end">{{ p.n_productos }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% include 'partials/paginacion.html' %}
+{% else %}
+<div class="card card-body text-center text-muted py-5"><i class="bi bi-building fs-1"></i><p class="mt-2">{% if q %}Sin resultados.{% else %}Todavía no hay proveedores.{% endif %}</p></div>
+{% endif %}
+{% endblock %}

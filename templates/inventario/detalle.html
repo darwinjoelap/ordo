@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load ordo %}
+
+{% block contenido %}
+<a href="{% url 'inventario:lista' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Inventario</a>
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mt-2 mb-3">
+  <div>
+    <h1 class="h3 mb-1">{{ producto.nombre }}</h1>
+    <div class="text-muted small"><code>{{ producto.codigo }}</code> · {{ producto.categoria.nombre }}{% if producto.subcategoria %} › {{ producto.subcategoria.nombre }}{% endif %}{% if producto.marca %} · {{ producto.marca.nombre }}{% endif %}
+      {% if not producto.activo %}<span class="badge text-bg-secondary ms-1">Inactivo</span>{% endif %}</div>
+  </div>
+  {% if puede_gestionar %}
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{% url 'inventario:ingreso' %}?producto={{ producto.pk }}" class="btn btn-success btn-sm"><i class="bi bi-box-arrow-in-down me-1"></i>Ingreso</a>
+    <a href="{% url 'inventario:ajuste' %}?producto={{ producto.pk }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-sliders me-1"></i>Ajuste</a>
+    <a href="{% url 'inventario:producto_editar' producto.pk %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil me-1"></i>Editar</a>
+  </div>
+  {% endif %}
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3"><div class="card card-body py-3"><div class="small text-muted">Existencia</div><div class="fs-4 fw-bold">{{ producto.stock_total|miles }} <small class="fs-6 text-muted">{{ producto.unidad.abreviatura }}</small></div></div></div>
+  <div class="col-6 col-md-3"><div class="card card-body py-3"><div class="small text-muted">Apartado</div><div class="fs-4 fw-bold text-warning">{{ producto.stock_apartado|miles }}</div></div></div>
+  <div class="col-6 col-md-3"><div class="card card-body py-3"><div class="small text-muted">Disponible</div><div class="fs-4 fw-bold stock-{{ producto.semaforo }}">{{ producto.stock_disponible|miles }}</div>
+    {% if producto.dias_estimados is not None and producto.stock_disponible > 0 %}<div class="small text-muted">~{{ producto.dias_estimados|miles }} días</div>{% endif %}</div></div>
+  <div class="col-6 col-md-3"><div class="card card-body py-3"><div class="small text-muted">Precio de venta</div><div class="fs-4 fw-bold">{{ producto.precio_venta_usd|usd }}</div>
+    {% if ver_costos %}<div class="small text-muted">Costo {{ producto.precio_costo_usd|usd }}</div>{% endif %}</div></div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header bg-white fw-semibold">Lotes con existencia</div>
+  {% if lotes %}
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead class="table-light"><tr><th>Lote</th><th>Vence</th><th class="text-end">Existencia</th><th class="text-end">Apartado</th><th class="text-end">Disponible</th>{% if ver_costos %}<th class="text-end d-none d-md-table-cell">Costo</th>{% endif %}<th class="d-none d-md-table-cell">Proveedor</th>{% if puede_gestionar %}<th></th>{% endif %}</tr></thead>
+      <tbody>
+      {% for l in lotes %}
+        <tr class="{% if l.esta_vencido %}table-danger{% elif l.dias_para_vencer is not None and l.dias_para_vencer <= 30 %}table-warning{% endif %}">
+          <td>{{ l.numero_lote|default:"—" }}</td>
+          <td>{% if l.fecha_vencimiento %}{{ l.fecha_vencimiento|date:"d/m/Y" }}{% if l.esta_vencido %} <span class="badge text-bg-danger">Vencido</span>{% endif %}{% else %}—{% endif %}</td>
+          <td class="text-end">{{ l.cantidad_actual|miles }}</td>
+          <td class="text-end">{{ l.cantidad_apartada|miles }}</td>
+          <td class="text-end fw-semibold">{{ l.cantidad_disponible|miles }}</td>
+          {% if ver_costos %}<td class="text-end d-none d-md-table-cell">{{ l.costo_unitario_usd|usd }}</td>{% endif %}
+          <td class="d-none d-md-table-cell small">{{ l.proveedor|default:"—" }}</td>
+          {% if puede_gestionar %}<td class="text-end"><a href="{% url 'inventario:ajuste' %}?producto={{ producto.pk }}&lote={{ l.pk }}" class="btn btn-link btn-sm p-0" title="Ajustar"><i class="bi bi-sliders"></i></a></td>{% endif %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<div class="card-body text-muted">Sin existencia.</div>{% endif %}
+</div>
+
+<div class="card">
+  <div class="card-header bg-white fw-semibold">Kardex (últimos 50 movimientos)</div>
+  {% if movimientos %}
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead class="table-light"><tr><th>Fecha</th><th>Tipo</th><th>Lote</th><th class="text-end">Cantidad</th><th class="text-end">Saldo lote</th><th class="d-none d-md-table-cell">Usuario</th><th class="d-none d-lg-table-cell">Motivo</th></tr></thead>
+      <tbody>
+      {% for m in movimientos %}
+        <tr>
+          <td class="small">{{ m.fecha|date:"d/m/Y H:i" }}</td>
+          <td><span class="badge text-bg-light border">{{ m.get_tipo_display }}</span></td>
+          <td class="small">{{ m.lote.numero_lote|default:"—" }}</td>
+          <td class="text-end fw-semibold {% if m.cantidad < 0 %}text-danger{% else %}text-success{% endif %}">{% if m.cantidad > 0 %}+{% endif %}{{ m.cantidad }}</td>
+          <td class="text-end">{{ m.saldo_actual|miles }}</td>
+          <td class="d-none d-md-table-cell small">{{ m.usuario }}</td>
+          <td class="d-none d-lg-table-cell small text-muted">{{ m.motivo }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<div class="card-body text-muted">Sin movimientos.</div>{% endif %}
+</div>
+{% endblock %}

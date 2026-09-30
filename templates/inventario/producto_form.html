@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block contenido %}
+<a href="{% if producto %}{% url 'inventario:detalle' producto.pk %}{% else %}{% url 'inventario:lista' %}{% endif %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Volver</a>
+<h1 class="h3 mt-2 mb-3">{{ titulo }}</h1>
+{% if not hay_categorias %}
+  <div class="alert alert-info">Primero crea al menos una <a href="{% url 'inventario:catalogo' 'categorias' %}">categoría</a>.</div>
+{% endif %}
+<form method="post" class="card card-body" style="max-width: 900px">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="row g-3">
+    <div class="col-md-4">{% include 'partials/campo.html' with campo=form.codigo %}</div>
+    <div class="col-md-8">{% include 'partials/campo.html' with campo=form.nombre %}</div>
+    <div class="col-md-4">{% include 'partials/campo.html' with campo=form.categoria %}</div>
+    <div class="col-md-4">{% include 'partials/campo.html' with campo=form.subcategoria %}</div>
+    <div class="col-md-4">{% include 'partials/campo.html' with campo=form.marca %}</div>
+    <div class="col-md-4">{% include 'partials/campo.html' with campo=form.unidad %}</div>
+    <div class="col-md-8">{% include 'partials/campo.html' with campo=form.proveedor_habitual %}</div>
+    <div class="col-6 col-md-3">{% include 'partials/campo.html' with campo=form.precio_costo_usd %}</div>
+    <div class="col-6 col-md-3">{% include 'partials/campo.html' with campo=form.precio_venta_usd %}</div>
+    <div class="col-6 col-md-3">{% include 'partials/campo.html' with campo=form.stock_minimo %}</div>
+    <div class="col-6 col-md-3">{% include 'partials/campo.html' with campo=form.factor_venta_dias %}</div>
+    <div class="col-12">{% include 'partials/campo.html' with campo=form.descripcion %}</div>
+    <div class="col-md-4">{% include 'partials/campo.html' with campo=form.maneja_lotes %}</div>
+    <div class="col-md-4">{% include 'partials/campo.html' with campo=form.maneja_vencimiento %}</div>
+    <div class="col-md-4">{% include 'partials/campo.html' with campo=form.activo %}</div>
+  </div>
+  <div class="d-flex justify-content-end mt-3"><button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Guardar</button></div>
+</form>
+{% endblock %}

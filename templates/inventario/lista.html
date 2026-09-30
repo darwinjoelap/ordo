@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% load ordo %}
+
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <h1 class="h3 mb-0">Inventario</h1>
+  {% include 'inventario/_submenu.html' %}
+</div>
+
+<form method="get" class="card card-body mb-3">
+  <div class="row g-2 align-items-end">
+    <div class="col-12 col-md-4 d-flex gap-2">
+      <input type="search" name="q" value="{{ f.q }}" class="form-control" placeholder="Buscar por código o nombre…">
+      <button type="button" class="btn btn-outline-secondary d-md-none position-relative" data-bs-toggle="collapse" data-bs-target="#mas-filtros" aria-label="Más filtros">
+        <i class="bi bi-sliders"></i>{% if f.categoria or f.subcategoria or f.marca or f.alerta %}<span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger rounded-circle"></span>{% endif %}
+      </button>
+    </div>
+    <div class="col-12 col-md-8 collapse d-md-block" id="mas-filtros"><div class="row g-2">
+    <div class="col-6 col-md-3">
+      <select name="categoria" class="form-select" id="filtro-categoria">
+        <option value="">Categoría</option>
+        {% for c in categorias %}<option value="{{ c.pk }}" {% if f.categoria == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-3">
+      <select name="subcategoria" class="form-select" id="filtro-subcategoria">
+        <option value="">Subcategoría</option>
+        {% for s in subcategorias %}<option value="{{ s.pk }}" data-categoria="{{ s.categoria_id }}" {% if f.subcategoria == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.nombre }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-3">
+      <select name="marca" class="form-select">
+        <option value="">Marca</option>
+        {% for m in marcas %}<option value="{{ m.pk }}" {% if f.marca == m.pk|stringformat:"s" %}selected{% endif %}>{{ m.nombre }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-3">
+      <select name="alerta" class="form-select">
+        <option value="">Todos</option>
+        <option value="stock_minimo" {% if f.alerta == 'stock_minimo' %}selected{% endif %}>Bajo mínimo</option>
+        <option value="agotados" {% if f.alerta == 'agotados' %}selected{% endif %}>Agotados</option>
+        <option value="vencidos" {% if f.alerta == 'vencidos' %}selected{% endif %}>Con vencidos</option>
+      </select>
+    </div>
+    </div></div>
+    <div class="col-12 d-flex align-items-center gap-3">
+      <div class="form-check mb-0">
+        <input class="form-check-input" type="checkbox" name="activos" value="1" id="chk-activos" {% if f.activos %}checked{% endif %}>
+        <label class="form-check-label small" for="chk-activos">Solo activos</label>
+      </div>
+      <button class="btn btn-outline-primary btn-sm ms-auto"><i class="bi bi-funnel me-1"></i>Filtrar</button>
+      <a href="{% url 'inventario:lista' %}" class="btn btn-link btn-sm">Limpiar</a>
+    </div>
+  </div>
+</form>
+
+{% if pagina.object_list %}
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 ordo-tabla">
+      <thead class="table-light">
+        <tr>
+          <th>Producto</th>
+          <th class="d-none d-md-table-cell">Categoría</th>
+          <th class="text-end">Disponible</th>
+          <th class="text-end d-none d-sm-table-cell">Apartado</th>
+          <th class="text-center d-none d-md-table-cell">Duración</th>
+          {% if ver_costos %}<th class="text-end d-none d-lg-table-cell">Costo</th>{% endif %}
+          <th class="text-end">Precio</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in pagina.object_list %}
+        <tr onclick="location.href='{% url 'inventario:detalle' p.pk %}'" role="button">
+          <td>
+            <div class="fw-semibold">{{ p.nombre }}</div>
+            <div class="small text-muted"><code>{{ p.codigo }}</code>{% if p.marca %} · {{ p.marca.nombre }}{% endif %}
+              {% if not p.activo %}<span class="badge text-bg-secondary ms-1">Inactivo</span>{% endif %}
+              {% if p.stock_disponible > 0 and p.alerta_stock_minimo %}<span class="badge text-bg-warning ms-1">Bajo mínimo</span>{% endif %}
+            </div>
+          </td>
+          <td class="d-none d-md-table-cell small text-muted">{{ p.categoria.nombre }}{% if p.subcategoria %}<br>{{ p.subcategoria.nombre }}{% endif %}</td>
+          <td class="text-end text-nowrap"><span class="fw-bold stock-{{ p.semaforo }}">{{ p.stock_disponible|miles }}</span> <small class="text-muted">{{ p.unidad.abreviatura }}</small></td>
+          <td class="text-end d-none d-sm-table-cell">{% if p.stock_apartado %}<span class="text-warning fw-semibold">{{ p.stock_apartado|miles }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+          <td class="text-center d-none d-md-table-cell">
+            {% if p.stock_disponible <= 0 %}<span class="badge text-bg-danger">Agotado</span>
+            {% elif p.semaforo == 'purple' %}<span class="badge ordo-badge-vencido">Con vencidos</span>
+            {% elif p.dias_estimados is not None %}<span class="badge text-bg-{{ p.semaforo }}">~{{ p.dias_estimados|miles }} d</span>
+            {% endif %}
+          </td>
+          {% if ver_costos %}<td class="text-end d-none d-lg-table-cell small text-nowrap">{{ p.precio_costo_usd|usd }}</td>{% endif %}
+          <td class="text-end fw-semibold text-nowrap">{{ p.precio_venta_usd|usd }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% include 'partials/paginacion.html' %}
+<p class="small text-muted mt-2">{{ pagina.paginator.count|miles }} producto{{ pagina.paginator.count|pluralize }} · {{ total_unidades|miles }} unidades en existencia</p>
+{% else %}
+<div class="card card-body text-center text-muted py-5">
+  <i class="bi bi-box-seam fs-1"></i>
+  <p class="mt-2 mb-3">{% if f.q or f.categoria or f.alerta %}No hay productos con esos filtros.{% else %}Todavía no hay productos.{% endif %}</p>
+  {% if 'inventario.gestionar' in permisos %}<div><a href="{% url 'inventario:producto_crear' %}" class="btn btn-primary">Crear el primero</a></div>{% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Subcategorías del filtro según la categoría elegida
+  const fc = document.getElementById('filtro-categoria'), fs = document.getElementById('filtro-subcategoria');
+  const todas = Array.from(fs.options).slice(1);
+  function filtrar() {
+    const sel = fs.value;
+    fs.length = 1;
+    todas.filter(o => !fc.value || o.dataset.categoria === fc.value).forEach(o => fs.appendChild(o));
+    fs.value = sel;
+    if (fs.value !== sel) fs.value = '';
+  }
+  fc.addEventListener('change', filtrar); filtrar();
+</script>
+{% endblock %}

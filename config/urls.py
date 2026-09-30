@@ -4,12 +4,17 @@ Ordo — URLs raíz.
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.templatetags.static import static as static_url
 from django.urls import include, path
+from django.shortcuts import redirect
 
 urlpatterns = [
     path('', include('apps.core.urls', namespace='core')),
     path('cuenta/', include('apps.usuarios.urls', namespace='usuarios')),
     path('empresa/', include('apps.empresas.urls', namespace='empresas')),
+    path('inventario/', include('apps.inventario.urls', namespace='inventario')),
+    path('proveedores/', include('apps.proveedores.urls', namespace='proveedores')),
+    path('favicon.ico', lambda r: redirect(static_url('img/marca/pwa/favicon.ico'), permanent=True)),
     path('admin/', admin.site.urls),
 ]
 

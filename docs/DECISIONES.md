@@ -11,3 +11,7 @@
 | 2026-09-30 | `EmpresaModel.objects` devuelve vacío si no hay empresa activa; `todos` para uso interno | Evita fugas de datos por olvido de filtro |
 | 2026-09-30 | Logo solo PNG/JPG ≤ 2 MB, con copia de 600 px para PDF | ReportLab no dibuja SVG; PDFs livianos |
 | 2026-09-30 | Alta de empresas por admin o comando `crear_empresa` | El registro público queda para después de la v1.0 |
+| 2026-09-30 | Formularios de Ordo heredan `FormBootstrap`, que rehace querysets FK por request | Django arma esos querysets al importar, sin empresa activa, y quedaban vacíos |
+| 2026-09-30 | Unidades de medida por empresa en tabla propia | Ordo no es solo para laboratorios |
+| 2026-09-30 | Proveedor habitual opcional; direcciones/encomiendas de BioLifeVentas no se migran aún | Simplificar; se evalúa en Fase 3B |
+| 2026-09-30 | Stock nunca se toca fuera de `inventario/servicios.py`; admin de lotes en solo lectura | Kardex íntegro y sin carreras |

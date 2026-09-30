@@ -31,6 +31,9 @@ python manage.py runserver
 - `apps/core/tenancy.py` — EmpresaModel, empresa activa (`usando_empresa()` en comandos/tests)
 - `apps/core/permisos.py` — tabla rol → acciones; `@requiere('codigo')`
 - `apps/core/pdf.py` — `encabezado_empresa()` y `pie_empresa()` para TODOS los PDF
+- `apps/core/forms.py` — `FormBootstrap` (OBLIGATORIO en formularios: rehace querysets por empresa) y `validar_unico_en_empresa`
+- `apps/inventario` — catálogo, productos (`con_stock()`), lotes, kardex; `servicios.py` es el ÚNICO que mueve stock
+- `apps/proveedores` — proveedores
 - `templates/` — base.html (barra superior, menú lateral, barra inferior móvil)
 - `static/img/marca/` — logo Ordo e iconos PWA
 - `tests/` — `python manage.py test tests`
@@ -39,7 +42,8 @@ python manage.py runserver
 ## Reglas
 - Todo modelo de negocio hereda de `EmpresaModel`: nunca consultas sin empresa; `todos` solo en comandos/admin.
 - Permisos nuevos se agregan en `PERMISOS` (apps/core/permisos.py), nunca `if rol == ...` en vistas.
-- Movimientos de stock solo vía servicios con `select_for_update()` (Fase 3).
+- Movimientos de stock solo vía `apps/inventario/servicios.py` (select_for_update + F()).
+- Tests también en PostgreSQL: `$env:DATABASE_URL="postgres://..."; python manage.py test tests`
 - Nada de escrituras en vistas GET.
 - `cloudinary_storage` va DESPUÉS de `django.contrib.staticfiles` en INSTALLED_APPS.
 - Los .js/.css de vendor no llevan `sourceMappingURL` (rompe collectstatic con manifest).
