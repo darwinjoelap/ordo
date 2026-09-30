@@ -24,3 +24,6 @@
 | 2026-09-30 | Modo RANGO no bloquea: marca `requiere_revision` y lo ve quien valida | El vendedor no se traba con el cliente enfrente; el control queda en la validación |
 | 2026-09-30 | El vendedor puede crear clientes y ve solo los suyos (configurable) | Cartera propia por vendedor, como en BioLifeVentas |
 | 2026-09-30 | Señal `venta_validada` como gancho para comisiones | La Fase 5 se engancha sin tocar el flujo de ventas |
+| 2026-09-30 | Comisión sobre base sin IVA y después del descuento | El IVA no es ingreso de la empresa |
+| 2026-09-30 | % por vendedor con excepción por categoría; se congela en cada línea | Cambiar % no altera comisiones pasadas |
+| 2026-09-30 | Liquidación por período; anular solo si no está pagada y se conserva el número | Trazabilidad de pagos a vendedores |

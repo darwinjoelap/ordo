@@ -114,7 +114,12 @@ def detalle(request, pk):
     for i in items:
         i.lista_reservas = reservas.get(i.pk, [])
     perfil = request.empresa.perfil
+    comision = None
+    if p.es_venta and (tiene_permiso(request, 'comisiones.liquidar') or p.vendedor_id == request.user.pk):
+        from apps.comisiones.models import Comision
+        comision = Comision.objects.filter(presupuesto=p).select_related('liquidacion').first()
     return render(request, 'ventas/detalle.html', {
+        'comision': comision,
         'titulo': p.numero, 'p': p, 'items': items, 'perfil': perfil,
         'puede_fijar': tiene_permiso(request, 'precios.fijar'),
         'puede_validar': tiene_permiso(request, 'ventas.validar'),

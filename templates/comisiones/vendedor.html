@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+{% if 'comisiones.liquidar' in permisos %}<a href="{% url 'comisiones:inicio' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Comisiones</a>{% endif %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2 mb-3">
+  <div><h1 class="h3 mb-1">{% if es_propio %}Mis comisiones{% else %}{{ vendedor.get_full_name|default:vendedor.email }}{% endif %}</h1>
+    <div class="small text-muted">{% if porcentaje is not None %}Porcentaje: {{ porcentaje|floatformat:"-2" }} %{% else %}Sin porcentaje asignado{% endif %}</div></div>
+  {% if 'comisiones.liquidar' in permisos and disponible %}<a href="{% url 'comisiones:liquidar' vendedor.pk %}" class="btn btn-primary btn-sm">Liquidar {{ disponible|usd }}</a>{% endif %}
+</div>
+<div class="row g-3 mb-3">
+  <div class="col-6"><div class="card card-body"><div class="small text-muted">Comisión de {{ mes|date:"F Y" }}</div><div class="fs-4 fw-bold text-success">{{ total_mes|usd }}</div><div class="small text-muted">sobre {{ base_mes|usd }} vendidos</div></div></div>
+  <div class="col-6"><div class="card card-body"><div class="small text-muted">Por liquidar (total)</div><div class="fs-4 fw-bold text-primary">{{ disponible|usd }}</div></div></div>
+</div>
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <a href="?mes={{ mes_anterior|date:'Y-m' }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-left"></i></a>
+  <span class="fw-semibold text-capitalize">{{ mes|date:"F Y" }}</span>
+  {% if mes_siguiente %}<a href="?mes={{ mes_siguiente|date:'Y-m' }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-right"></i></a>{% else %}<span style="width:2.3rem"></span>{% endif %}
+</div>
+<div class="card mb-3">
+  {% if comisiones %}
+  <div class="table-responsive"><table class="table align-middle mb-0">
+    <thead class="table-light"><tr><th>Venta</th><th class="d-none d-md-table-cell">Cliente</th><th class="text-end d-none d-sm-table-cell">Base</th><th class="text-end">Comisión</th><th>Estado</th></tr></thead>
+    <tbody>{% for c in comisiones %}<tr>
+      <td><a href="{% url 'ventas:detalle' c.presupuesto_id %}" class="fw-semibold">{{ c.presupuesto.numero }}</a><div class="small text-muted">{{ c.fecha|date:"d/m/Y" }}</div></td>
+      <td class="d-none d-md-table-cell">{{ c.presupuesto.cliente.nombre }}</td>
+      <td class="text-end d-none d-sm-table-cell">{{ c.base_usd|usd }}</td>
+      <td class="text-end fw-semibold">{{ c.monto_usd|usd }}</td>
+      <td><span class="badge text-bg-{{ c.css }}">{{ c.estado }}</span></td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<div class="card-body text-muted">Sin ventas validadas en este mes.</div>{% endif %}
+</div>
+{% if liquidaciones %}
+<div class="card"><div class="card-header bg-white fw-semibold">Liquidaciones</div>
+  <div class="list-group list-group-flush">{% for l in liquidaciones %}
+    <a href="{% url 'comisiones:liquidacion' l.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+      <span>{{ l.numero }} · <span class="small">{{ l.creada_en|date:"d/m/Y" }}</span> <span class="badge text-bg-{{ l.css_estado }}">{{ l.estado }}</span></span><span>{{ l.total_usd|usd }}</span></a>{% endfor %}</div>
+</div>
+{% endif %}
+{% endblock %}

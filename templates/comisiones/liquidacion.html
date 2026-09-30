@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+<a href="{% if 'comisiones.liquidar' in permisos %}{% url 'comisiones:inicio' %}{% else %}{% url 'comisiones:detalle_vendedor' %}{% endif %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Comisiones</a>
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mt-2 mb-3">
+  <div><h1 class="h3 mb-1">{{ liq.numero }} <span class="badge text-bg-{{ liq.css_estado }} fs-6 align-middle">{{ liq.estado }}</span></h1>
+    <div class="small text-muted">{{ liq.vendedor.get_full_name|default:liq.vendedor.email }} · ventas hasta {{ liq.hasta|date:"d/m/Y" }} · creada {{ liq.creada_en|date:"d/m/Y" }} por {{ liq.creada_por.get_full_name|default:liq.creada_por.email }}</div>
+    {% if liq.pagada %}<div class="small text-success">Pagada el {{ liq.fecha_pago|date:"d/m/Y" }}{% if liq.metodo_pago %} · {{ liq.metodo_pago }}{% endif %}{% if liq.referencia %} · Ref. {{ liq.referencia }}{% endif %}</div>{% endif %}</div>
+  <a href="{% url 'comisiones:liquidacion_pdf' liq.pk %}" target="_blank" class="btn btn-outline-secondary btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+</div>
+<div class="row g-3">
+  <div class="col-lg-8"><div class="card">
+    {% if comisiones %}
+    <div class="table-responsive"><table class="table align-middle mb-0">
+      <thead class="table-light"><tr><th>Fecha</th><th>Venta</th><th class="d-none d-md-table-cell">Cliente</th><th class="text-end d-none d-sm-table-cell">Base</th><th class="text-end">Comisión</th></tr></thead>
+      <tbody>{% for c in comisiones %}<tr><td class="small">{{ c.fecha|date:"d/m/Y" }}</td><td><a href="{% url 'ventas:detalle' c.presupuesto_id %}">{{ c.presupuesto.numero }}</a></td><td class="d-none d-md-table-cell">{{ c.presupuesto.cliente.nombre }}</td><td class="text-end d-none d-sm-table-cell">{{ c.base_usd|usd }}</td><td class="text-end">{{ c.monto_usd|usd }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}<div class="card-body text-muted">{% if liq.anulada %}Liquidación anulada: sus comisiones volvieron a estar disponibles.{% else %}Sin comisiones.{% endif %}</div>{% endif %}
+  </div></div>
+  <div class="col-lg-4">
+    <div class="card card-body mb-3"><div class="small text-muted">Total</div><div class="fs-3 fw-bold">{{ liq.total_usd|usd }}</div></div>
+    {% if 'comisiones.liquidar' in permisos and not liq.pagada and not liq.anulada %}
+    <form method="post" class="card card-body mb-3">{% csrf_token %}<input type="hidden" name="accion" value="pagar">
+      <div class="fw-semibold mb-2">Registrar pago</div>
+      <input type="date" name="fecha_pago" class="form-control form-control-sm mb-2" aria-label="Fecha de pago">
+      <input name="metodo_pago" class="form-control form-control-sm mb-2" placeholder="Método (transferencia, efectivo…)" maxlength="40">
+      <input name="referencia" class="form-control form-control-sm mb-2" placeholder="Referencia" maxlength="80">
+      <button class="btn btn-success btn-sm"><i class="bi bi-cash me-1"></i>Marcar pagada</button></form>
+    <form method="post" onsubmit="return confirm('¿Anular la liquidación? Sus comisiones vuelven a estar disponibles.')">{% csrf_token %}<input type="hidden" name="accion" value="anular">
+      <button class="btn btn-link btn-sm text-danger p-0">Anular liquidación</button></form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

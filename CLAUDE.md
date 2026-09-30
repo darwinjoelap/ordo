@@ -39,6 +39,7 @@ python manage.py runserver
 - `apps/clientes` — Cliente con vendedor; `clientes_visibles(request)` aplica la regla de cartera
 - `apps/ventas` — Presupuesto (también es la venta), ítems, Reserva por lote; `servicios.py` tiene TODO el flujo
   de estados y emite `venta_validada`; `pdf.py` presupuesto en USD/Bs
+- `apps/comisiones` — % por vendedor/categoría, Comision (1 por venta validada, vía señal), Liquidacion; `servicios.py`
 - `apps/core/management/commands/tareas_programadas.py` — cron diario (vence apartados + tasa BCV)
 - `apps/compras` — órdenes de compra, recepción (`servicios.py`), panel de pedido (`sugerencias.py`), PDF
 - `apps/core/secuencias.py` — `siguiente_numero('OC')` correlativos por empresa

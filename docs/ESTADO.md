@@ -6,8 +6,8 @@
 | 1 | Esqueleto Django y primer despliegue | Código listo, falta desplegar en staging |
 | 2 | Empresas, usuarios, roles, panel Mi empresa | Código listo, 29 tests en verde |
 | 3 | Catálogo, inventario, proveedores, compras | Código listo (3A + 3B), 79 tests en verde |
-| 4 | Clientes, presupuestos, ventas, precios, validación | Código listo, 111 tests en verde |
-| 5 | Comisiones | Pendiente |
+| 4 | Clientes, presupuestos, ventas, precios, validación | Código listo y en develop |
+| 5 | Comisiones | Código listo, 126 tests en verde |
 | 6 | PWA iPhone, Android y web | Pendiente |
 | 7 | Migración BioLife y producción | Pendiente |
 
@@ -69,3 +69,13 @@
 - [x] PDF de presupuesto / nota de venta en USD, Bs o ambos
 - [x] Tablero de inicio: ventas validadas del mes, por validar, apartados, bajo mínimo, actividad, apartados por vencer
 - [ ] Servicio Cron en Railway: `python manage.py tareas_programadas` (ej. `0 11 * * *` UTC = 7:00 Venezuela)
+
+## Fase 5 — detalle
+- [x] % por vendedor + excepción por categoría (la categoría manda); pantalla Porcentajes
+- [x] Base: venta sin IVA, después del descuento; % congelado por línea al validar
+- [x] Comisión automática al validar la venta (señal `venta_validada`)
+- [x] Opción de empresa "la comisión exige venta cobrada" (Mi empresa → Comercial)
+- [x] Liquidación por vendedor hasta una fecha, número LQ-AAAA-00001, PDF con firmas, pago con método/referencia, anulación (si no está pagada)
+- [x] Vendedor: "Mis comisiones" por mes y sus liquidaciones; tarjeta "Mi comisión del mes" en Inicio
+- [x] Comando `generar_comisiones_faltantes` (para ventas migradas de BioLifeVentas)
+- [ ] Devoluciones / anulación de ventas validadas (no existe aún: hoy una venta validada no se revierte)

@@ -37,6 +37,10 @@ def inicio(request):
             'abiertos': docs.filter(estado__in=[E.BORRADOR, E.EMITIDO]).count(),
             'ultimos': docs.select_related('cliente').order_by('-actualizado_en')[:6],
         })
+    if tiene_permiso(request, 'comisiones.ver_propias'):
+        from apps.comisiones.models import Comision
+        ctx['mi_comision_mes'] = Comision.objects.filter(
+            vendedor=request.user, fecha__gte=inicio_mes.date()).aggregate(t=Sum('monto_usd'))['t'] or 0
     if tiene_permiso(request, 'inventario.ver'):
         ctx['bajo_minimo'] = (Producto.objects.filter(activo=True, stock_minimo__gt=0).con_stock()
                               .filter(anot_stock_disponible__lte=F('stock_minimo')).count())

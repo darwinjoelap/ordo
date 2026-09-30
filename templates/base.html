@@ -86,7 +86,9 @@
     {% if 'clientes.gestionar' in permisos %}
       <a href="{% url 'clientes:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'clientes' %}active{% endif %}"><i class="bi bi-people"></i> Clientes</a>
     {% endif %}
-    <a class="nav-link disabled" aria-disabled="true"><i class="bi bi-cash-coin"></i> Comisiones</a>
+    {% if 'comisiones.ver_propias' in permisos %}
+      <a href="{% url 'comisiones:inicio' %}" class="nav-link {% if request.resolver_match.app_name == 'comisiones' %}active{% endif %}"><i class="bi bi-cash-coin"></i> Comisiones</a>
+    {% endif %}
     <div class="nav-seccion">Operación</div>
     {% if 'inventario.ver' in permisos %}
       <a href="{% url 'inventario:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'inventario' %}active{% endif %}"><i class="bi bi-box-seam"></i> Inventario</a>
@@ -122,7 +124,7 @@
     {% if 'presupuestos.crear' in permisos %}<a href="{% url 'ventas:nuevo' %}" class="{% if request.resolver_match.url_name == 'nuevo' %}active{% endif %}"><i class="bi bi-plus-circle"></i>Presupuesto</a>
     <a href="{% url 'ventas:lista' %}" class="{% if request.resolver_match.app_name == 'ventas' and request.resolver_match.url_name != 'nuevo' %}active{% endif %}"><i class="bi bi-file-earmark-text"></i>Ventas</a>{% endif %}
     {% if 'inventario.ver' in permisos %}<a href="{% url 'inventario:lista' %}" class="{% if request.resolver_match.app_name == 'inventario' %}active{% endif %}"><i class="bi bi-box-seam"></i>Inventario</a>{% endif %}
-    <a class="disabled" aria-disabled="true"><i class="bi bi-cash-coin"></i>Comisiones</a>
+    {% if 'comisiones.ver_propias' in permisos %}<a href="{% url 'comisiones:inicio' %}" class="{% if request.resolver_match.app_name == 'comisiones' %}active{% endif %}"><i class="bi bi-cash-coin"></i>Comisiones</a>{% endif %}
   </nav>
 {% endblock %}
 

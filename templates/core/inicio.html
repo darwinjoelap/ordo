@@ -17,7 +17,10 @@
     <div class="small text-muted">Por validar</div><div class="fs-4 fw-bold {% if por_validar.n %}text-info{% endif %}">{{ por_validar.n }}</div><div class="small text-muted">{{ por_validar.usd|default:0|usd }}</div></a></div>
   <div class="col-6 col-lg-3"><a href="{% url 'ventas:lista' %}?estado=APARTADO" class="card card-body h-100 text-decoration-none">
     <div class="small text-muted">Apartados</div><div class="fs-4 fw-bold {% if apartados %}text-warning{% endif %}">{{ apartados }}</div><div class="small text-muted">{{ abiertos }} presupuesto{{ abiertos|pluralize }} abierto{{ abiertos|pluralize }}</div></a></div>
-  {% if bajo_minimo is not None %}
+  {% if 'presupuestos.ver_todos' not in permisos and mi_comision_mes is not None %}
+  <div class="col-6 col-lg-3"><a href="{% url 'comisiones:detalle_vendedor' %}" class="card card-body h-100 text-decoration-none">
+    <div class="small text-muted">Mi comisión del mes</div><div class="fs-4 fw-bold text-success">{{ mi_comision_mes|usd }}</div><div class="small text-muted">ventas validadas</div></a></div>
+  {% elif bajo_minimo is not None %}
   <div class="col-6 col-lg-3"><a href="{% if 'compras.gestionar' in permisos %}{% url 'compras:panel_pedido' %}{% else %}{% url 'inventario:lista' %}{% endif %}" class="card card-body h-100 text-decoration-none">
     <div class="small text-muted">Bajo stock mínimo</div><div class="fs-4 fw-bold {% if bajo_minimo %}text-danger{% endif %}">{{ bajo_minimo }}</div><div class="small text-muted">producto{{ bajo_minimo|pluralize }}</div></a></div>
   {% endif %}
