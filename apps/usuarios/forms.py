@@ -26,3 +26,29 @@ class LoginForm(AuthenticationForm):
 
     def clean_username(self):
         return self.cleaned_data['username'].lower()
+
+
+from django.contrib.auth.forms import PasswordChangeForm  # noqa: E402
+
+from apps.core.forms import FormBootstrap  # noqa: E402
+
+from .models import Usuario  # noqa: E402
+
+
+class PerfilForm(FormBootstrap, forms.ModelForm):
+    class Meta:
+        model = Usuario
+        fields = ['first_name', 'last_name', 'telefono']
+        labels = {'first_name': 'Nombre', 'last_name': 'Apellido'}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['first_name'].required = True
+        self.fields['last_name'].required = True
+
+
+class CambioClaveForm(FormBootstrap, PasswordChangeForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['old_password'].label = 'Contraseña actual'
+        self.fields['new_password2'].help_text = ''

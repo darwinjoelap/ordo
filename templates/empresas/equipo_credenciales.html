@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block contenido %}
+<a href="{% url 'empresas:equipo' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Equipo</a>
+<div class="card card-body mt-2" style="max-width:560px">
+  <h1 class="h5">{% if nuevo %}Acceso creado para {{ usuario }}{% else %}Contraseña temporal de {{ usuario }}{% endif %}</h1>
+  <p class="small text-muted">Envíale estos datos por un medio privado. <b>La contraseña no se volverá a mostrar</b>; al entrar, Ordo le pedirá cambiarla.</p>
+  <dl class="row mb-3">
+    <dt class="col-4">Dirección</dt><dd class="col-8"><code>{{ request.scheme }}://{{ request.get_host }}/</code></dd>
+    <dt class="col-4">Correo</dt><dd class="col-8"><code>{{ usuario.email }}</code></dd>
+    <dt class="col-4">Contraseña</dt><dd class="col-8"><code id="clave" class="fs-5">{{ clave }}</code></dd>
+  </dl>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-outline-primary btn-sm" onclick="navigator.clipboard.writeText('Ordo: {{ request.scheme }}://{{ request.get_host|escapejs }}/\nCorreo: {{ usuario.email|escapejs }}\nContraseña temporal: {{ clave|escapejs }}').then(()=>{this.textContent='Copiado'})"><i class="bi bi-clipboard me-1"></i>Copiar todo</button>
+    <a href="{% url 'empresas:equipo' %}" class="btn btn-primary btn-sm">Listo</a>
+  </div>
+</div>
+{% endblock %}

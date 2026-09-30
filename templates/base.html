@@ -60,6 +60,8 @@
         {% if 'empresa.configurar' in permisos %}
           <li><a class="dropdown-item" href="{% url 'empresas:mi_empresa' %}"><i class="bi bi-gear me-2"></i>Mi empresa</a></li>
         {% endif %}
+        <li><a class="dropdown-item" href="{% url 'usuarios:perfil' %}"><i class="bi bi-person me-2"></i>Mi perfil</a></li>
+        {% if 'usuarios.gestionar' in permisos %}<li><a class="dropdown-item" href="{% url 'empresas:equipo' %}"><i class="bi bi-people me-2"></i>Equipo</a></li>{% endif %}
         <li><a class="dropdown-item ordo-solo-navegador" href="{% url 'core:instalar' %}"><i class="bi bi-phone me-2"></i>Instalar la app</a></li>
         <li><hr class="dropdown-divider"></li>
         <li>
@@ -105,6 +107,10 @@
       {% url 'empresas:mi_empresa' as url_mi_empresa %}
       <div class="nav-seccion">Empresa</div>
       <a href="{{ url_mi_empresa }}" class="nav-link {% if request.path == url_mi_empresa %}active{% endif %}"><i class="bi bi-gear"></i> Mi empresa</a>
+    {% endif %}
+    {% if 'usuarios.gestionar' in permisos %}
+      {% if 'empresa.configurar' not in permisos %}<div class="nav-seccion">Empresa</div>{% endif %}
+      <a href="{% url 'empresas:equipo' %}" class="nav-link {% if request.resolver_match.url_name == 'equipo' %}active{% endif %}"><i class="bi bi-person-badge"></i> Equipo</a>
     {% endif %}
     <div class="mt-4 px-3 small text-muted">Ordo · {{ ORDO_VERSION }}</div>
   </nav>

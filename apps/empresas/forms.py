@@ -1,5 +1,7 @@
 from django import forms
 
+from apps.core.forms import FormBootstrap
+
 from .models import PerfilEmpresa
 from .servicios import validar_imagen
 
@@ -78,3 +80,14 @@ class PerfilEmpresaForm(forms.ModelForm):
         if minimo is not None and maximo is not None and maximo < minimo:
             self.add_error('margen_maximo_pct', 'El margen máximo no puede ser menor que el mínimo.')
         return datos
+
+
+class InvitarForm(FormBootstrap, forms.Form):
+    email = forms.EmailField(label='Correo')
+    nombre = forms.CharField(label='Nombre', max_length=150)
+    apellido = forms.CharField(label='Apellido', max_length=150)
+    rol = forms.ChoiceField(label='Rol')
+
+    def __init__(self, *args, roles=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['rol'].choices = roles

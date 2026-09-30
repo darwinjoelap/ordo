@@ -29,7 +29,8 @@
 - [x] Logo PNG/JPG ≤ 2 MB, copia de 600 px para PDF, opción de quitar
 - [x] `encabezado_empresa()` y `pie_empresa()` para todos los PDF + PDF de prueba
 - [x] Comando `crear_empresa "Nombre" dueno@correo --password ...`
-- [ ] Gestión de usuarios del equipo desde la app (invitar, cambiar rol) — pendiente, hoy desde el admin
+- [x] Gestión del equipo desde la app (Empresa → Equipo): agregar, rol, desactivar, contraseña temporal
+- [x] Mi perfil: nombre, apellido, teléfono y cambio de contraseña (obligatorio si es temporal)
 
 ## Fase 3A — detalle
 - [x] Categoría, Subcategoría, Marca, Unidad (unidades iniciales por empresa), Proveedor

@@ -28,6 +28,7 @@ python manage.py runserver
 - `apps/core` — inicio, healthcheck `/salud/`, utilidades comunes
 - `apps/usuarios` — Usuario con login por CORREO (sin username). El rol vive en la membresía
 - `apps/empresas` — Empresa, Membresia (rol), PerfilEmpresa (marca y datos para documentos), panel Mi empresa
+- `apps/empresas/equipo.py` — reglas del equipo (agregar, rol, desactivar, clave temporal); `apps/usuarios` → Mi perfil y middleware de cambio de clave obligatorio
 - `apps/core/tenancy.py` — EmpresaModel, empresa activa (`usando_empresa()` en comandos/tests)
 - `apps/core/permisos.py` — tabla rol → acciones; `@requiere('codigo')`
 - `apps/core/pdf.py` — `encabezado_empresa()` y `pie_empresa()` para TODOS los PDF

@@ -39,6 +39,9 @@ class Usuario(AbstractUser):
     username = None
     email = models.EmailField('Correo', unique=True)
     telefono = models.CharField('Teléfono', max_length=30, blank=True)
+    debe_cambiar_clave = models.BooleanField(
+        'Debe cambiar la contraseña', default=False,
+        help_text='Se activa al asignar una contraseña temporal; se pide cambiarla al entrar.')
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
