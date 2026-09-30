@@ -15,5 +15,7 @@ COPY . .
 # Clave solo para poder ejecutar collectstatic en el build
 RUN SECRET_KEY=solo-para-build python manage.py collectstatic --noinput
 
+# Al arrancar: aplica migraciones pendientes y luego levanta gunicorn.
+# (Respaldo del preDeployCommand de railway.json: si Railway no lo ejecuta, igual se migra.)
 # Railway inyecta PORT; 8080 por defecto
-CMD gunicorn config.wsgi --bind 0.0.0.0:${PORT:-8080} --workers ${WEB_CONCURRENCY:-3} --threads 2 --timeout 60 --access-logfile - --error-logfile -
+CMD python manage.py migrate --noinput && gunicorn config.wsgi --bind 0.0.0.0:${PORT:-8080} --workers ${WEB_CONCURRENCY:-3} --threads 2 --timeout 60 --access-logfile - --error-logfile -
