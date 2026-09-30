@@ -20,12 +20,18 @@ urlpatterns = [
     path('comisiones/', include('apps.comisiones.urls', namespace='comisiones')),
     path('favicon.ico', lambda r: redirect(static_url('img/marca/pwa/favicon.ico'), permanent=True)),
     path('admin/', admin.site.urls),
+    path('plataforma/', include('apps.empresas.urls_plataforma', namespace='plataforma')),
 ]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     if getattr(settings, 'DEBUG_TOOLBAR', False):
         urlpatterns += [path('__debug__/', include('debug_toolbar.urls'))]
+
+# Enlace propio de cada empresa (/<slug>/). Va AL FINAL para no tapar ninguna ruta de Ordo.
+from apps.empresas.views_entrada import entrada  # noqa: E402
+
+urlpatterns += [path('<slug:slug>/', entrada, name='entrada_empresa')]
 
 admin.site.site_header = 'Ordo — Administración'
 admin.site.site_title = 'Ordo'

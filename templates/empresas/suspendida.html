@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block titulo %}Acceso suspendido{% endblock %}
+{% block cuerpo %}
+<div class="ordo-login"><div class="card shadow-sm"><div class="card-body p-4 text-center">
+  <img src="{% static 'img/marca/ordo-simbolo-web.png' %}" alt="Ordo" style="height:56px">
+  <h1 class="h5 mt-3">{{ empresa_marca.perfil.nombre_comercial|default:empresa_marca.nombre }}</h1>
+  <p class="text-muted mb-0">El acceso a esta empresa está suspendido temporalmente. Contacta al administrador de tu empresa o a soporte de Ordo.</p>
+</div></div></div>
+{% endblock %}

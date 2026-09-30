@@ -49,6 +49,15 @@ def _validar_rol(actor, rol):
         raise ErrorEquipo('Solo un Dueño puede asignar el rol Dueño.')
 
 
+def _validar_limite(empresa, excluir_pk=None):
+    if empresa.limite_usuarios is None:
+        return
+    activos = Membresia.objects.filter(empresa=empresa, activa=True).exclude(pk=excluir_pk).count()
+    if activos >= empresa.limite_usuarios:
+        raise ErrorEquipo(f'Tu plan permite {empresa.limite_usuarios} usuarios activos. '
+                          'Desactiva a alguien o pide ampliar el plan.')
+
+
 def _quedaria_sin_dueno(m, nuevo_rol, nueva_activa):
     if m.rol != Rol.DUENO or (nuevo_rol == Rol.DUENO and nueva_activa):
         return False
@@ -60,6 +69,7 @@ def _quedaria_sin_dueno(m, nuevo_rol, nueva_activa):
 def agregar(empresa, actor, email, nombre, apellido, rol):
     """Devuelve (membresia, clave_temporal | None). La clave solo se genera si la cuenta es nueva."""
     _validar_rol(actor, rol)
+    _validar_limite(empresa)
     email = (email or '').strip().lower()
     U = get_user_model()
     usuario = U.objects.filter(email__iexact=email).first()
@@ -87,6 +97,8 @@ def actualizar(actor, m, rol, activa):
     _validar_rol(actor, rol)
     if _quedaria_sin_dueno(m, rol, activa):
         raise ErrorEquipo('La empresa debe conservar al menos un Dueño activo.')
+    if activa and not m.activa:
+        _validar_limite(m.empresa, excluir_pk=m.pk)
     m.rol, m.activa = rol, activa
     m.save(update_fields=['rol', 'activa'])
     return m

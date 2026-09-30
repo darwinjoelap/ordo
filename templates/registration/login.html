@@ -7,8 +7,15 @@
   <div class="card shadow-sm">
     <div class="card-body p-4 p-sm-5">
       <div class="text-center mb-4">
-        <img src="{% static 'img/marca/ordo-logo-vertical-web.png' %}" alt="Ordo" class="ordo-logo-login">
-        <p class="text-muted mt-3 mb-0">Sistema de gestión comercial</p>
+        {% if empresa_marca %}
+          {% if empresa_marca.perfil.logo %}<img src="{{ empresa_marca.perfil.logo.url }}" alt="{{ empresa_marca.perfil.nombre_comercial }}" style="max-height:88px;max-width:220px">
+          {% else %}<img src="{% static 'img/marca/ordo-simbolo-web.png' %}" alt="" style="height:64px">{% endif %}
+          <h1 class="h5 mt-3 mb-0">{{ empresa_marca.perfil.nombre_comercial|default:empresa_marca.nombre }}</h1>
+          <p class="text-muted small mb-0">Entra con tu correo y contraseña</p>
+        {% else %}
+          <img src="{% static 'img/marca/ordo-logo-vertical-web.png' %}" alt="Ordo" class="ordo-logo-login">
+          <p class="text-muted mt-3 mb-0">Sistema de gestión comercial</p>
+        {% endif %}
       </div>
 
       {% if form.non_field_errors %}
@@ -28,6 +35,7 @@
         </div>
         <button type="submit" class="btn btn-primary btn-lg w-100">Entrar</button>
       </form>
+      {% if empresa_marca %}<p class="text-center small text-muted mt-4 mb-0">Con la tecnología de <img src="{% static 'img/marca/ordo-logo-horizontal-web.png' %}" alt="Ordo" style="height:16px;vertical-align:-3px"></p>{% endif %}
     </div>
   </div>
 </div>

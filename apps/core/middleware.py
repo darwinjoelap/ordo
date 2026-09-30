@@ -2,7 +2,7 @@
 Fija request.empresa y request.membresia para cada request autenticado.
 """
 from django.shortcuts import redirect
-from django.urls import reverse
+from django.urls import Resolver404, resolve, reverse
 
 from apps.empresas.models import Membresia
 
@@ -11,8 +11,8 @@ from .tenancy import fijar_empresa, restaurar_empresa
 SESION_EMPRESA = 'empresa_id'
 
 # Rutas que funcionan sin empresa elegida
-PREFIJOS_LIBRES = ('/static/', '/media/', '/admin/', '/salud/', '/cuenta/', '/__debug__/',
-                   '/favicon.ico', '/manifest.webmanifest', '/sw.js')
+PREFIJOS_LIBRES = ('/static/', '/media/', '/admin/', '/salud/', '/cuenta/', '/__debug__/', '/plataforma/',
+                   '/favicon.ico', '/manifest.webmanifest', '/sw.js', '/offline/', '/instalar/')
 
 
 class EmpresaActivaMiddleware:
@@ -58,4 +58,9 @@ class EmpresaActivaMiddleware:
 
     @staticmethod
     def _es_ruta_empresas(request):
-        return request.path in (reverse('empresas:seleccionar'), reverse('empresas:sin_empresa'))
+        if request.path in (reverse('empresas:seleccionar'), reverse('empresas:sin_empresa')):
+            return True
+        try:                                   # enlace propio de una empresa: /<slug>/
+            return resolve(request.path_info).url_name == 'entrada_empresa'
+        except Resolver404:
+            return False

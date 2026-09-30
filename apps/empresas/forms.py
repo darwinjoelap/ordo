@@ -38,6 +38,9 @@ class PerfilEmpresaForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for nombre in ('quitar_logo', 'quitar_firma'):
             self.fields[nombre].widget.attrs['class'] = 'form-check-input'
+        for nombre in ('razon_social', 'rif'):          # los administra la plataforma (panel de empresas)
+            self.fields[nombre].disabled = True
+            self.fields[nombre].help_text = 'Lo actualiza el equipo de Ordo. Escríbenos si hay que corregirlo.'
         for nombre, campo in self.fields.items():
             w = campo.widget
             if isinstance(w, forms.CheckboxInput):
@@ -91,3 +94,44 @@ class InvitarForm(FormBootstrap, forms.Form):
     def __init__(self, *args, roles=(), **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['rol'].choices = roles
+
+
+# ── Panel de plataforma ───────────────────────────────────────────────────────
+
+from .models import Empresa  # noqa: E402
+
+
+class _EmpresaPlataformaBase(FormBootstrap, forms.Form):
+    nombre_comercial = forms.CharField(label='Nombre comercial', max_length=150)
+    razon_social = forms.CharField(label='Razón social', max_length=200, required=False)
+    rif = forms.CharField(label='RIF', max_length=20, required=False)
+    slug = forms.CharField(label='Enlace', max_length=40,
+                           help_text='Queda como https://<dominio>/<enlace>/ — minúsculas, números y guiones.')
+    plan = forms.ChoiceField(label='Plan', choices=Empresa.Plan.choices)
+    activa_hasta = forms.DateField(label='Pagado / activa hasta', required=False,
+                                   widget=forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+                                   help_text='Vacío = sin vencimiento.')
+    limite_usuarios = forms.IntegerField(label='Límite de usuarios activos', required=False, min_value=1,
+                                         help_text='Vacío = sin límite.')
+    notas = forms.CharField(label='Notas internas', required=False, widget=forms.Textarea(attrs={'rows': 2}))
+
+    def __init__(self, *args, empresa=None, **kwargs):
+        self.empresa = empresa
+        super().__init__(*args, **kwargs)
+
+    def clean_slug(self):
+        from .plataforma import validar_enlace
+        return validar_enlace(self.cleaned_data['slug'], excluir_pk=self.empresa.pk if self.empresa else None)
+
+    def clean_rif(self):
+        return self.cleaned_data['rif'].strip().upper()
+
+
+class NuevaEmpresaForm(_EmpresaPlataformaBase):
+    email_dueno = forms.EmailField(label='Correo del Dueño')
+    nombre_dueno = forms.CharField(label='Nombre del Dueño', max_length=150, required=False)
+    apellido_dueno = forms.CharField(label='Apellido del Dueño', max_length=150, required=False)
+
+
+class EditarEmpresaForm(_EmpresaPlataformaBase):
+    estado = forms.ChoiceField(label='Estado', choices=Empresa.Estado.choices)

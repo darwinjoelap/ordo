@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block contenido %}
+<a href="{% url 'plataforma:lista' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Empresas</a>
+<div class="card card-body mt-2" style="max-width:600px">
+  <h1 class="h5">Empresa creada: {{ empresa.nombre }}</h1>
+  <p class="small text-muted">Envía estos datos al cliente por un medio privado.{% if clave %} <b>La contraseña no se volverá a mostrar</b>; al entrar se le pedirá cambiarla.{% endif %}</p>
+  <dl class="row mb-3">
+    <dt class="col-4">Enlace</dt><dd class="col-8"><code>{{ enlace }}</code></dd>
+    <dt class="col-4">Correo</dt><dd class="col-8"><code>{{ dueno.email }}</code></dd>
+    <dt class="col-4">Contraseña</dt><dd class="col-8">{% if clave %}<code class="fs-5">{{ clave }}</code>{% else %}<span class="text-muted">la que ya usa en Ordo</span>{% endif %}</dd>
+  </dl>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-outline-primary btn-sm" onclick="navigator.clipboard.writeText('{{ empresa.nombre|escapejs }} en Ordo\nEnlace: {{ enlace|escapejs }}\nCorreo: {{ dueno.email|escapejs }}{% if clave %}\nContraseña temporal: {{ clave|escapejs }}{% endif %}').then(()=>{this.textContent='Copiado'})"><i class="bi bi-clipboard me-1"></i>Copiar todo</button>
+    <a href="{% url 'plataforma:editar' empresa.pk %}" class="btn btn-primary btn-sm">Ver empresa</a>
+  </div>
+</div>
+{% endblock %}

@@ -13,7 +13,13 @@ def ordo(request):
     if getattr(request, 'user', None) is not None and request.user.is_authenticated:
         from apps.tasas.servicios import tasa_vigente
         tasa = tasa_vigente()
+    aviso = None
+    if empresa and membresia and membresia.rol in ('DUENO', 'ADMIN'):
+        dias = empresa.dias_para_vencer
+        if dias is not None and 0 <= dias <= 7:
+            aviso = dias
     return {
+        'aviso_vencimiento': aviso,
         'tasa': tasa,
         'tasa_desactualizada': bool(tasa and tasa.fecha < timezone.localdate()),
         'ORDO_VERSION': settings.ORDO_VERSION,

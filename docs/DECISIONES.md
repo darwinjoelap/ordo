@@ -30,3 +30,5 @@
 | 2026-09-30 | PWA "online-first": sin caché de páginas ni modo offline de datos | Stock y precios deben ser actuales; evita mostrar datos de otra empresa/usuario |
 | 2026-09-30 | Alta de personas con contraseña temporal visible una sola vez y cambio obligatorio al entrar | No depende de correo saliente; la clave no queda guardada en ningún lado |
 | 2026-09-30 | Restablecer contraseña de otro solo si pertenece únicamente a esa empresa | Un admin de una empresa no puede tomar cuentas que también usan otras empresas |
+| 2026-09-30 | Enlace por empresa como ruta `/<enlace>/` (subdominios más adelante, con dominio propio) | Funciona hoy en Railway sin DNS comodín |
+| 2026-09-30 | Razón social y RIF controlados por la plataforma | Datos fiscales verificados por Ordo; el cliente no los altera |

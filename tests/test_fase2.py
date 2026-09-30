@@ -148,7 +148,7 @@ class PanelMiEmpresaTests(BaseEmpresas):
         r = self.client.post(reverse('empresas:mi_empresa'), self.datos(logo=imagen()))
         self.assertRedirects(r, f"{reverse('empresas:mi_empresa')}?tab=identidad")
         perfil = PerfilEmpresa.objects.get(empresa=self.a)
-        self.assertEqual(perfil.rif, 'J-12345678-9')
+        self.assertEqual(perfil.rif, '')              # RIF y razón social los administra la plataforma
         self.assertTrue(perfil.logo.name.startswith('ordo/farmacia-alfa/logo/'))
         with Image.open(perfil.logo_pdf.path) as img:
             self.assertEqual(img.width, 600)          # copia optimizada para PDF

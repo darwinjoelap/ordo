@@ -89,3 +89,12 @@
 - [x] Indicador "Sin conexión"; guía `/instalar/` (menú de cuenta, se oculta en la app instalada)
 - [x] Probado en Chromium: service worker activo y página sin conexión al caer el servidor
 - [ ] Probar instalación real en iPhone y Android (requiere HTTPS: staging en Railway)
+
+## Panel de plataforma (superusuario)
+- [x] `/plataforma/`: lista de empresas con enlace, plan, vencimiento, usuarios activos/límite y estado
+- [x] Alta de empresa: nombre comercial, razón social, RIF, enlace, plan, vencimiento, límite de usuarios
+      y Dueño (con contraseña temporal si es nuevo)
+- [x] Edición y suspensión (bloquea el acceso de todo el equipo sin borrar datos)
+- [x] Enlace propio `/<enlace>/`: login con la marca de la empresa y la deja elegida
+- [x] Razón social y RIF solo se editan desde la plataforma (en Mi empresa quedan de solo lectura)
+- [x] Aviso al Dueño/Administrador 7 días antes del vencimiento; límite de usuarios aplicado en Equipo

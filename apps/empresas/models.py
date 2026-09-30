@@ -27,6 +27,9 @@ class Empresa(models.Model):
     plan = models.CharField('Plan', max_length=10, choices=Plan.choices, default=Plan.PRUEBA)
     activa_hasta = models.DateField('Activa hasta', null=True, blank=True,
                                     help_text='Vacío = sin vencimiento.')
+    limite_usuarios = models.PositiveSmallIntegerField('Límite de usuarios activos', null=True, blank=True,
+                                                       help_text='Vacío = sin límite.')
+    notas = models.TextField('Notas internas (solo plataforma)', blank=True)
     creado_en = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -45,6 +48,15 @@ class Empresa(models.Model):
                 slug, n = f'{base}-{n}', n + 1
             self.slug = slug
         super().save(*args, **kwargs)
+
+    @property
+    def dias_para_vencer(self):
+        if not self.activa_hasta:
+            return None
+        return (self.activa_hasta - timezone.localdate()).days
+
+    def usuarios_activos(self):
+        return self.membresias.filter(activa=True).count()
 
     @property
     def esta_activa(self):

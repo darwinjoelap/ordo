@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block contenido %}
+<a href="{% url 'plataforma:lista' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Empresas</a>
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mt-2 mb-3">
+  <h1 class="h3 mb-0">{{ titulo }}</h1>
+  {% if enlace %}<div class="small">Enlace: <a href="{{ enlace }}" target="_blank">{{ enlace }}</a>
+    <button type="button" class="btn btn-sm btn-link p-0 ms-1" onclick="navigator.clipboard.writeText('{{ enlace|escapejs }}').then(()=>{this.textContent='copiado'})" title="Copiar"><i class="bi bi-clipboard"></i></button></div>{% endif %}
+</div>
+<div class="row g-3">
+  <div class="col-lg-8">
+    <form method="post" class="card card-body">{% csrf_token %}
+      {% for e in form.non_field_errors %}<div class="alert alert-danger py-1 small">{{ e }}</div>{% endfor %}
+      <h2 class="h6">Datos fiscales</h2>
+      <div class="row g-2 mb-3">
+        <div class="col-md-6">{% include 'partials/campo.html' with campo=form.nombre_comercial %}</div>
+        <div class="col-md-6">{% include 'partials/campo.html' with campo=form.razon_social %}</div>
+        <div class="col-md-6">{% include 'partials/campo.html' with campo=form.rif %}</div>
+        <div class="col-md-6">{% include 'partials/campo.html' with campo=form.slug %}</div>
+      </div>
+      <h2 class="h6">Plan y acceso</h2>
+      <div class="row g-2 mb-3">
+        <div class="col-md-4">{% include 'partials/campo.html' with campo=form.plan %}</div>
+        <div class="col-md-4">{% include 'partials/campo.html' with campo=form.activa_hasta %}</div>
+        <div class="col-md-4">{% include 'partials/campo.html' with campo=form.limite_usuarios %}</div>
+        {% if form.estado %}<div class="col-md-4">{% include 'partials/campo.html' with campo=form.estado %}</div>{% endif %}
+        <div class="col-12">{% include 'partials/campo.html' with campo=form.notas %}</div>
+      </div>
+      {% if form.email_dueno %}
+      <h2 class="h6">Dueño de la empresa</h2>
+      <div class="row g-2 mb-2">
+        <div class="col-md-4">{% include 'partials/campo.html' with campo=form.email_dueno %}</div>
+        <div class="col-md-4">{% include 'partials/campo.html' with campo=form.nombre_dueno %}</div>
+        <div class="col-md-4">{% include 'partials/campo.html' with campo=form.apellido_dueno %}</div>
+      </div>
+      <p class="small text-muted">Si el correo es nuevo se crea con contraseña temporal (se muestra una vez). Si ya existe en Ordo, se le agrega esta empresa con su misma contraseña.</p>
+      {% endif %}
+      <div><button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{% if empresa %}Guardar{% else %}Crear empresa{% endif %}</button></div>
+    </form>
+  </div>
+  {% if empresa %}
+  <div class="col-lg-4">
+    <div class="card"><div class="card-header bg-white fw-semibold">Equipo ({{ miembros|length }})</div>
+      <ul class="list-group list-group-flush">{% for m in miembros %}
+        <li class="list-group-item small d-flex justify-content-between {% if not m.activa %}text-muted{% endif %}"><span>{{ m.usuario.get_full_name|default:m.usuario.email }}<br><span class="text-muted">{{ m.usuario.email }}</span></span><span>{{ m.get_rol_display }}{% if not m.activa %} · inactivo{% endif %}</span></li>
+      {% empty %}<li class="list-group-item small text-muted">Sin miembros.</li>{% endfor %}</ul>
+    </div>
+    <p class="small text-muted mt-2">Estado <b>Suspendida</b> o fecha vencida bloquean el acceso de todo el equipo sin borrar datos.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

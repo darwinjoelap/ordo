@@ -60,6 +60,7 @@
         {% if 'empresa.configurar' in permisos %}
           <li><a class="dropdown-item" href="{% url 'empresas:mi_empresa' %}"><i class="bi bi-gear me-2"></i>Mi empresa</a></li>
         {% endif %}
+        {% if user.is_superuser %}<li><a class="dropdown-item" href="{% url 'plataforma:lista' %}"><i class="bi bi-buildings me-2"></i>Plataforma: empresas</a></li>{% endif %}
         <li><a class="dropdown-item" href="{% url 'usuarios:perfil' %}"><i class="bi bi-person me-2"></i>Mi perfil</a></li>
         {% if 'usuarios.gestionar' in permisos %}<li><a class="dropdown-item" href="{% url 'empresas:equipo' %}"><i class="bi bi-people me-2"></i>Equipo</a></li>{% endif %}
         <li><a class="dropdown-item ordo-solo-navegador" href="{% url 'core:instalar' %}"><i class="bi bi-phone me-2"></i>Instalar la app</a></li>
@@ -80,6 +81,10 @@
     <a href="{{ url_inicio }}" class="nav-link {% if request.path == url_inicio %}active{% endif %}">
       <i class="bi bi-house"></i> Inicio
     </a>
+    {% if user.is_superuser %}
+      <a href="{% url 'plataforma:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'plataforma' %}active{% endif %}"><i class="bi bi-buildings"></i> Plataforma</a>
+    {% endif %}
+    {% if empresa %}
     <div class="nav-seccion">Comercial</div>
     {% if 'presupuestos.crear' in permisos %}
       <a href="{% url 'ventas:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'ventas' and request.resolver_match.url_name != 'por_validar' %}active{% endif %}"><i class="bi bi-file-earmark-text"></i> Presupuestos</a>
@@ -112,11 +117,15 @@
       {% if 'empresa.configurar' not in permisos %}<div class="nav-seccion">Empresa</div>{% endif %}
       <a href="{% url 'empresas:equipo' %}" class="nav-link {% if request.resolver_match.url_name == 'equipo' %}active{% endif %}"><i class="bi bi-person-badge"></i> Equipo</a>
     {% endif %}
+    {% endif %}
     <div class="mt-4 px-3 small text-muted">Ordo · {{ ORDO_VERSION }}</div>
   </nav>
 
   <!-- Contenido -->
   <main class="ordo-main">
+    {% if aviso_vencimiento is not None %}
+      <div class="alert alert-warning py-2"><i class="bi bi-calendar-x me-1"></i>{% if aviso_vencimiento <= 0 %}El servicio de Ordo vence <b>hoy</b>.{% else %}El servicio de Ordo vence en <b>{{ aviso_vencimiento }} día{{ aviso_vencimiento|pluralize }}</b> ({{ empresa.activa_hasta|date:"d/m/Y" }}).{% endif %} Renueva para que tu equipo no pierda el acceso.</div>
+    {% endif %}
     {% for message in messages %}
       <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
         {{ message }}

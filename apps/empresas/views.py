@@ -14,6 +14,7 @@ from apps.core.pdf import ESTILOS, documento, encabezado_empresa, pie_empresa
 from apps.core.permisos import requiere
 
 from .forms import PerfilEmpresaForm
+from .models import Membresia
 from .servicios import generar_logo_pdf
 
 
@@ -43,7 +44,9 @@ def seleccionar(request):
 def sin_empresa(request):
     if request.membresias:
         return redirect('core:inicio')
-    return render(request, 'empresas/sin_empresa.html', {'titulo': 'Sin empresa asignada'})
+    suspendidas = [m.empresa for m in Membresia.objects.filter(usuario=request.user, activa=True)
+                   .select_related('empresa', 'empresa__perfil') if not m.empresa.esta_activa]
+    return render(request, 'empresas/sin_empresa.html', {'titulo': 'Sin empresa asignada', 'suspendidas': suspendidas})
 
 
 @login_required
