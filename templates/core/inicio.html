@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block contenido %}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+  <div>
+    <h1 class="h3 mb-1">Hola, {{ user.first_name|default:user.email }}</h1>
+    <p class="text-muted mb-0">Bienvenido a Ordo.</p>
+  </div>
+</div>
+
+<div class="card overflow-hidden">
+  <div class="bg-ordo-degradado text-white p-4">
+    <h2 class="h5 mb-1">Ordo está en construcción</h2>
+    <p class="mb-0 opacity-75">Fase 1 lista: base del proyecto, acceso y despliegue.</p>
+  </div>
+  <div class="card-body">
+    <p class="mb-2">Próximos módulos:</p>
+    <ul class="mb-0 text-muted">
+      <li>Mi empresa: logo y datos para presupuestos y reportes</li>
+      <li>Inventario, compras y proveedores</li>
+      <li>Presupuestos, ventas, validación y comisiones</li>
+    </ul>
+  </div>
+</div>
+{% endblock %}

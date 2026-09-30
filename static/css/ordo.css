@@ -1,0 +1,186 @@
+/* ==========================================================================
+   Ordo — estilos base
+   Paleta tomada del logo. Bootstrap 5 se sobreescribe con variables.
+   ========================================================================== */
+
+:root {
+  --ordo-azul-900: #053D74;
+  --ordo-azul-700: #0A5A9E;
+  --ordo-azul-500: #09A7EA;
+  --ordo-verde-600: #11988D;
+  --ordo-verde-400: #2EB096;
+  --ordo-gris-900: #1F2937;
+  --ordo-gris-600: #4B5563;
+  --ordo-gris-200: #E5E7EB;
+  --ordo-fondo: #F5F7FA;
+
+  --bs-primary: var(--ordo-azul-900);
+  --bs-primary-rgb: 5, 61, 116;
+  --bs-success: var(--ordo-verde-600);
+  --bs-success-rgb: 17, 152, 141;
+  --bs-info: var(--ordo-azul-500);
+  --bs-info-rgb: 9, 167, 234;
+  --bs-link-color: var(--ordo-azul-700);
+  --bs-link-color-rgb: 10, 90, 158;
+  --bs-link-hover-color: var(--ordo-azul-900);
+  --bs-body-color: var(--ordo-gris-900);
+  --bs-body-bg: var(--ordo-fondo);
+  --bs-border-radius: .6rem;
+
+  --ordo-sidebar-ancho: 240px;
+  --ordo-topbar-alto: 60px;
+  --ordo-tabbar-alto: 64px;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Botones con la marca ─────────────────────────────────────────────── */
+.btn-primary {
+  --bs-btn-bg: var(--ordo-azul-900);
+  --bs-btn-border-color: var(--ordo-azul-900);
+  --bs-btn-hover-bg: var(--ordo-azul-700);
+  --bs-btn-hover-border-color: var(--ordo-azul-700);
+  --bs-btn-active-bg: var(--ordo-azul-700);
+  --bs-btn-active-border-color: var(--ordo-azul-700);
+  --bs-btn-disabled-bg: var(--ordo-azul-900);
+  --bs-btn-disabled-border-color: var(--ordo-azul-900);
+}
+.btn-success {
+  --bs-btn-bg: var(--ordo-verde-600);
+  --bs-btn-border-color: var(--ordo-verde-600);
+  --bs-btn-hover-bg: var(--ordo-verde-400);
+  --bs-btn-hover-border-color: var(--ordo-verde-400);
+}
+.btn-outline-primary {
+  --bs-btn-color: var(--ordo-azul-900);
+  --bs-btn-border-color: var(--ordo-azul-900);
+  --bs-btn-hover-bg: var(--ordo-azul-900);
+  --bs-btn-hover-border-color: var(--ordo-azul-900);
+}
+.text-ordo { color: var(--ordo-azul-900) !important; }
+.bg-ordo-degradado {
+  background: linear-gradient(135deg, var(--ordo-azul-900) 0%, var(--ordo-azul-500) 60%, var(--ordo-verde-600) 100%);
+}
+
+/* ── Barra superior ───────────────────────────────────────────────────── */
+.ordo-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1030;
+  height: calc(var(--ordo-topbar-alto) + env(safe-area-inset-top));
+  padding-top: env(safe-area-inset-top);
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+  background: #fff;
+  border-bottom: 1px solid var(--ordo-gris-200);
+}
+.ordo-topbar .ordo-logo { height: 34px; width: auto; }
+
+.ordo-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: .85rem;
+  color: #fff;
+  background: linear-gradient(135deg, var(--ordo-azul-900), var(--ordo-verde-600));
+}
+
+/* ── Menú lateral (escritorio) ────────────────────────────────────────── */
+.ordo-sidebar {
+  position: fixed;
+  top: calc(var(--ordo-topbar-alto) + env(safe-area-inset-top));
+  bottom: 0;
+  left: 0;
+  width: var(--ordo-sidebar-ancho);
+  padding: 1rem .75rem;
+  background: #fff;
+  border-right: 1px solid var(--ordo-gris-200);
+  overflow-y: auto;
+}
+.ordo-sidebar .nav-link {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .6rem .8rem;
+  margin-bottom: .15rem;
+  border-radius: .5rem;
+  color: var(--ordo-gris-600);
+  font-weight: 500;
+}
+.ordo-sidebar .nav-link i { font-size: 1.15rem; }
+.ordo-sidebar .nav-link:hover { background: var(--ordo-fondo); color: var(--ordo-azul-900); }
+.ordo-sidebar .nav-link.active { background: rgba(5, 61, 116, .08); color: var(--ordo-azul-900); }
+.ordo-sidebar .nav-link.disabled { opacity: .45; pointer-events: none; }
+.ordo-sidebar .nav-seccion {
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: #9CA3AF;
+  padding: 1rem .8rem .35rem;
+}
+
+/* ── Contenido ────────────────────────────────────────────────────────── */
+.ordo-main {
+  padding: 1.25rem max(1rem, env(safe-area-inset-right)) calc(var(--ordo-tabbar-alto) + env(safe-area-inset-bottom) + 1.25rem) max(1rem, env(safe-area-inset-left));
+}
+@media (min-width: 992px) {
+  .ordo-main {
+    margin-left: var(--ordo-sidebar-ancho);
+    padding: 1.75rem 2rem 2rem;
+  }
+}
+
+.card { border: 1px solid var(--ordo-gris-200); box-shadow: 0 1px 2px rgba(16, 24, 40, .04); }
+
+/* ── Barra inferior (móvil / PWA) ─────────────────────────────────────── */
+.ordo-tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1030;
+  display: flex;
+  height: calc(var(--ordo-tabbar-alto) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: #fff;
+  border-top: 1px solid var(--ordo-gris-200);
+}
+.ordo-tabbar a {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .15rem;
+  min-height: 44px;
+  font-size: .7rem;
+  color: var(--ordo-gris-600);
+  text-decoration: none;
+}
+.ordo-tabbar a i { font-size: 1.35rem; }
+.ordo-tabbar a.active { color: var(--ordo-azul-900); font-weight: 600; }
+.ordo-tabbar a.disabled { opacity: .4; pointer-events: none; }
+
+/* ── Login ────────────────────────────────────────────────────────────── */
+.ordo-login {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(1.5rem, env(safe-area-inset-top)) 1rem max(1.5rem, env(safe-area-inset-bottom));
+  background:
+    radial-gradient(circle at 15% 20%, rgba(9, 167, 234, .12), transparent 45%),
+    radial-gradient(circle at 85% 80%, rgba(17, 152, 141, .14), transparent 45%),
+    var(--ordo-fondo);
+}
+.ordo-login .card { width: 100%; max-width: 420px; border-radius: 1rem; }
+.ordo-login .ordo-logo-login { width: 170px; height: auto; }
