@@ -3,6 +3,7 @@ Pruebas de la Fase 4: clientes, presupuestos, apartado, confirmaci√≥n, validaci√
 """
 from datetime import timedelta
 from decimal import Decimal
+from io import StringIO
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -365,4 +366,4 @@ class TasaTests(TestCase):
     def test_comando_programado_no_se_cae_sin_red(self):
         from unittest import mock
         with mock.patch('apps.tasas.servicios.requests.get', side_effect=OSError('sin red')):
-            call_command('tareas_programadas', stdout=open('/dev/null', 'w'), stderr=open('/dev/null', 'w'))
+            call_command('tareas_programadas', stdout=StringIO(), stderr=StringIO())
