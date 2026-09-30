@@ -1,0 +1,8 @@
+# Finales de línea LF en el repo (Linux en Railway); Git los adapta en Windows
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary

@@ -79,6 +79,10 @@ body {
   border-bottom: 1px solid var(--ordo-gris-200);
 }
 .ordo-topbar .ordo-logo { height: 34px; width: auto; }
+.ordo-separador { width: 1px; height: 28px; background: var(--ordo-gris-200); }
+.ordo-empresa-actual { min-width: 0; max-width: 45vw; color: var(--ordo-gris-900); }
+.ordo-logo-empresa { height: 30px; width: auto; max-width: 90px; object-fit: contain; }
+.min-w-0 { min-width: 0; }
 
 .ordo-avatar {
   width: 36px;
@@ -184,3 +188,16 @@ body {
 }
 .ordo-login .card { width: 100%; max-width: 420px; border-radius: 1rem; }
 .ordo-login .ordo-logo-login { width: 170px; height: auto; }
+
+/* ── Mi empresa ───────────────────────────────────────────────────────── */
+.ordo-tabs { overflow-x: auto; flex-wrap: nowrap; white-space: nowrap; }
+.ordo-previa {
+  border: 1px dashed var(--ordo-gris-200);
+  border-radius: .6rem;
+  background: #fff;
+  padding: 1rem;
+}
+.ordo-previa .previa-logo { max-height: 56px; max-width: 150px; object-fit: contain; }
+.ordo-previa .previa-linea { height: 3px; border-radius: 2px; margin-top: .75rem; }
+.ordo-previa .previa-dato { font-size: .8rem; color: var(--ordo-gris-600); line-height: 1.35; }
+.ordo-logo-actual { max-height: 64px; max-width: 180px; object-fit: contain; background: #fff; border: 1px solid var(--ordo-gris-200); border-radius: .4rem; padding: .25rem; }

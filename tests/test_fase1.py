@@ -30,7 +30,7 @@ class AccesoTests(TestCase):
         r = self.client.post(reverse('usuarios:login'), {
             'username': 'VENDEDOR@empresa.com', 'password': 'clave-segura-123',
         })
-        self.assertRedirects(r, reverse('core:inicio'))
+        self.assertRedirects(r, reverse('core:inicio'), fetch_redirect_response=False)
 
     def test_login_incorrecto(self):
         r = self.client.post(reverse('usuarios:login'), {
@@ -39,6 +39,8 @@ class AccesoTests(TestCase):
         self.assertContains(r, 'Correo o contraseña incorrectos')
 
     def test_inicio_con_sesion(self):
+        from apps.empresas.models import Empresa, Membresia
+        Membresia.objects.create(usuario=self.usuario, empresa=Empresa.objects.create(nombre='Demo'))
         self.client.force_login(self.usuario)
         r = self.client.get(reverse('core:inicio'))
         self.assertContains(r, 'Hola, Luis')

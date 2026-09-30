@@ -26,14 +26,19 @@ python manage.py runserver
 ## Estructura
 - `config/settings/{base,dev,prod}.py` — dev por defecto en manage.py; prod en wsgi/Railway
 - `apps/core` — inicio, healthcheck `/salud/`, utilidades comunes
-- `apps/usuarios` — Usuario con login por CORREO (sin username). El rol vive en la membresía (Fase 2)
+- `apps/usuarios` — Usuario con login por CORREO (sin username). El rol vive en la membresía
+- `apps/empresas` — Empresa, Membresia (rol), PerfilEmpresa (marca y datos para documentos), panel Mi empresa
+- `apps/core/tenancy.py` — EmpresaModel, empresa activa (`usando_empresa()` en comandos/tests)
+- `apps/core/permisos.py` — tabla rol → acciones; `@requiere('codigo')`
+- `apps/core/pdf.py` — `encabezado_empresa()` y `pie_empresa()` para TODOS los PDF
 - `templates/` — base.html (barra superior, menú lateral, barra inferior móvil)
 - `static/img/marca/` — logo Ordo e iconos PWA
 - `tests/` — `python manage.py test tests`
 - `docs/ESTADO.md`, `docs/DECISIONES.md` — estado por fase y decisiones
 
 ## Reglas
-- Todo modelo de negocio heredará de `EmpresaModel` (Fase 2): nunca consultas sin empresa.
+- Todo modelo de negocio hereda de `EmpresaModel`: nunca consultas sin empresa; `todos` solo en comandos/admin.
+- Permisos nuevos se agregan en `PERMISOS` (apps/core/permisos.py), nunca `if rol == ...` en vistas.
 - Movimientos de stock solo vía servicios con `select_for_update()` (Fase 3).
 - Nada de escrituras en vistas GET.
 - `cloudinary_storage` va DESPUÉS de `django.contrib.staticfiles` en INSTALLED_APPS.

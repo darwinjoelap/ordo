@@ -25,15 +25,31 @@
 
   <!-- Barra superior -->
   <header class="ordo-topbar d-flex align-items-center justify-content-between">
-    <a href="{{ url_inicio }}" class="d-flex align-items-center" aria-label="Ordo — inicio">
-      <img src="{% static 'img/marca/ordo-logo-horizontal-web.png' %}" alt="Ordo" class="ordo-logo">
-    </a>
+    <div class="d-flex align-items-center gap-3 min-w-0">
+      <a href="{{ url_inicio }}" class="d-flex align-items-center" aria-label="Ordo — inicio">
+        <img src="{% static 'img/marca/ordo-logo-horizontal-web.png' %}" alt="Ordo" class="ordo-logo d-none d-sm-block">
+        <img src="{% static 'img/marca/ordo-simbolo-web.png' %}" alt="Ordo" class="ordo-logo d-sm-none">
+      </a>
+      {% if empresa %}
+        <span class="ordo-separador d-none d-md-block"></span>
+        <div class="d-flex align-items-center gap-2 ordo-empresa-actual">
+          {% if perfil.logo %}<img src="{{ perfil.logo.url }}" alt="" class="ordo-logo-empresa">{% endif %}
+          <span class="fw-semibold text-truncate {% if perfil.logo %}d-none d-md-inline{% endif %}">{{ perfil.nombre_comercial|default:empresa.nombre }}</span>
+        </div>
+      {% endif %}
+    </div>
     <div class="dropdown">
       <button class="btn p-0 border-0" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menú de cuenta">
         <span class="ordo-avatar">{{ user.iniciales }}</span>
       </button>
       <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-        <li><h6 class="dropdown-header">{{ user }}</h6></li>
+        <li><h6 class="dropdown-header">{{ user }}{% if membresia %}<br><small class="text-muted">{{ membresia.get_rol_display }} · {{ empresa }}</small>{% endif %}</h6></li>
+        {% if membresias|length > 1 %}
+          <li><a class="dropdown-item" href="{% url 'empresas:seleccionar' %}"><i class="bi bi-arrow-left-right me-2"></i>Cambiar de empresa</a></li>
+        {% endif %}
+        {% if 'empresa.configurar' in permisos %}
+          <li><a class="dropdown-item" href="{% url 'empresas:mi_empresa' %}"><i class="bi bi-gear me-2"></i>Mi empresa</a></li>
+        {% endif %}
         <li><hr class="dropdown-divider"></li>
         <li>
           <form method="post" action="{% url 'usuarios:logout' %}">
@@ -59,8 +75,11 @@
     <a class="nav-link disabled" aria-disabled="true"><i class="bi bi-box-seam"></i> Inventario</a>
     <a class="nav-link disabled" aria-disabled="true"><i class="bi bi-truck"></i> Compras</a>
     <a class="nav-link disabled" aria-disabled="true"><i class="bi bi-building"></i> Proveedores</a>
-    <div class="nav-seccion">Empresa</div>
-    <a class="nav-link disabled" aria-disabled="true"><i class="bi bi-gear"></i> Mi empresa</a>
+    {% if 'empresa.configurar' in permisos %}
+      {% url 'empresas:mi_empresa' as url_mi_empresa %}
+      <div class="nav-seccion">Empresa</div>
+      <a href="{{ url_mi_empresa }}" class="nav-link {% if request.path == url_mi_empresa %}active{% endif %}"><i class="bi bi-gear"></i> Mi empresa</a>
+    {% endif %}
     <div class="mt-4 px-3 small text-muted">Ordo · {{ ORDO_VERSION }}</div>
   </nav>
 

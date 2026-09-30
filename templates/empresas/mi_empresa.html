@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+  <div>
+    <h1 class="h3 mb-1">Mi empresa</h1>
+    <p class="text-muted mb-0">Estos datos salen en tus presupuestos, PDFs y reportes.</p>
+  </div>
+  <a href="{% url 'empresas:pdf_prueba' %}" target="_blank" class="btn btn-outline-primary">
+    <i class="bi bi-file-earmark-pdf me-1"></i> Ver PDF de prueba
+  </a>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <!-- Vista previa en vivo: HTMX envía el formulario (sin archivos) al escribir -->
+    <div hx-post="{% url 'empresas:vista_previa' %}" hx-include="#form-empresa"
+         hx-trigger="input changed delay:400ms from:.previa-campo" hx-target="#previa" hx-swap="innerHTML"></div>
+    <form method="post" enctype="multipart/form-data" id="form-empresa">
+      {% csrf_token %}
+      <input type="hidden" name="tab" id="tab-activa" value="{{ tab }}">
+
+      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+      <ul class="nav nav-tabs ordo-tabs mb-3" role="tablist">
+        {% for clave, titulo, campos in form.grupos %}
+          <li class="nav-item" role="presentation">
+            <button class="nav-link {% if clave == tab %}active{% endif %}" data-bs-toggle="tab"
+                    data-bs-target="#tab-{{ clave }}" data-tab="{{ clave }}" type="button" role="tab">
+              {{ titulo }}
+              {% for c in campos %}{% if c.errors %}<span class="badge bg-danger ms-1">!</span>{% endif %}{% endfor %}
+            </button>
+          </li>
+        {% endfor %}
+      </ul>
+
+      <div class="card">
+        <div class="card-body tab-content">
+          {% for clave, titulo, campos in form.grupos %}
+            <div class="tab-pane fade {% if clave == tab %}show active{% endif %}" id="tab-{{ clave }}" role="tabpanel">
+              <div class="row g-3">
+                {% for campo in campos %}
+                  {% with w=campo.field.widget.input_type %}
+                  <div class="{% if campo.name in 'direccion_fiscal condiciones_presupuesto datos_bancarios pie_documentos modo_precio' %}col-12{% else %}col-md-6{% endif %}">
+                    {% if w == 'checkbox' %}
+                      <div class="form-check form-switch mt-md-4">
+                        {{ campo }}
+                        <label class="form-check-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                      </div>
+                    {% else %}
+                      <label class="form-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                      {% if campo.name == 'logo' and form.instance.logo %}
+                        <div class="d-flex align-items-center gap-3 mb-2">
+                          <img src="{{ form.instance.logo.url }}" alt="Logo actual" class="ordo-logo-actual">
+                          <div class="form-check small">{{ form.quitar_logo }}<label class="form-check-label" for="{{ form.quitar_logo.id_for_label }}">Quitar</label></div>
+                        </div>
+                      {% endif %}
+                      {% if campo.name == 'firma' and form.instance.firma %}
+                        <div class="d-flex align-items-center gap-3 mb-2">
+                          <img src="{{ form.instance.firma.url }}" alt="Firma actual" class="ordo-logo-actual">
+                          <div class="form-check small">{{ form.quitar_firma }}<label class="form-check-label" for="{{ form.quitar_firma.id_for_label }}">Quitar</label></div>
+                        </div>
+                      {% endif %}
+                      {% if campo.name in 'nombre_comercial razon_social rif color_principal direccion_fiscal telefono telefono_2 email sitio_web' %}
+                        <div class="previa-campo">{{ campo }}</div>
+                      {% else %}
+                        {{ campo }}
+                      {% endif %}
+                    {% endif %}
+                    {% if campo.help_text and w != 'checkbox' %}<div class="form-text">{{ campo.help_text }}</div>{% endif %}
+                    {% for e in campo.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                  </div>
+                  {% endwith %}
+                {% endfor %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+        <div class="card-footer bg-white d-flex justify-content-end">
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i> Guardar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="position-sticky" style="top: 80px">
+      <h2 class="h6 text-muted text-uppercase small">Vista previa del encabezado</h2>
+      <div id="previa">{% include 'empresas/partials/vista_previa.html' with d=form.instance %}</div>
+      <p class="small text-muted mt-2 mb-0">Se actualiza mientras escribes. El logo nuevo aparece al guardar.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Recordar la pestaña activa al guardar
+  document.querySelectorAll('[data-tab]').forEach(function (b) {
+    b.addEventListener('shown.bs.tab', function () { document.getElementById('tab-activa').value = b.dataset.tab; });
+  });
+  // Vista previa local del logo elegido
+  const inputLogo = document.getElementById('id_logo');
+  if (inputLogo) {
+    inputLogo.addEventListener('change', function () {
+      const f = inputLogo.files[0];
+      if (!f) return;
+      const url = URL.createObjectURL(f);
+      document.querySelectorAll('.previa-logo').forEach(function (img) { img.src = url; img.classList.remove('d-none'); });
+    });
+  }
+</script>
+{% endblock %}

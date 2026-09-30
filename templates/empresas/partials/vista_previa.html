@@ -1,0 +1,15 @@
+<div class="ordo-previa">
+  <div class="d-flex flex-column gap-2">
+    <img src="{% if perfil.logo %}{{ perfil.logo.url }}{% endif %}" alt="" class="previa-logo align-self-start {% if not perfil.logo %}d-none{% endif %}">
+    <div class="min-w-0">
+      <div class="fw-bold" style="color: {{ d.color_principal|default:'#053D74' }}">{{ d.nombre_comercial|default:"Nombre de tu empresa" }}</div>
+      {% if d.razon_social and d.razon_social != d.nombre_comercial %}<div class="previa-dato">{{ d.razon_social }}</div>{% endif %}
+      {% if d.rif %}<div class="previa-dato">RIF: {{ d.rif }}</div>{% endif %}
+      {% if d.direccion_fiscal %}<div class="previa-dato">{{ d.direccion_fiscal|linebreaksbr }}</div>{% endif %}
+      <div class="previa-dato">
+        {{ d.telefono }}{% if d.telefono and d.telefono_2 %} · {% endif %}{{ d.telefono_2 }}{% if d.email %}{% if d.telefono or d.telefono_2 %} · {% endif %}{{ d.email }}{% endif %}{% if d.sitio_web %} · {{ d.sitio_web }}{% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="previa-linea" style="background: {{ d.color_principal|default:'#053D74' }}"></div>
+</div>

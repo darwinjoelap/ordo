@@ -8,3 +8,6 @@
 | 2026-09-30 | Login por correo; rol en la membresía usuario↔empresa | Un usuario puede tener roles distintos en varias empresas |
 | 2026-09-30 | Bootstrap/HTMX servidos localmente | La PWA debe cargar sin depender de CDN |
 | 2026-09-30 | Railway Pro con entornos staging y production | Logs de 30 días, soporte, respaldos |
+| 2026-09-30 | `EmpresaModel.objects` devuelve vacío si no hay empresa activa; `todos` para uso interno | Evita fugas de datos por olvido de filtro |
+| 2026-09-30 | Logo solo PNG/JPG ≤ 2 MB, con copia de 600 px para PDF | ReportLab no dibuja SVG; PDFs livianos |
+| 2026-09-30 | Alta de empresas por admin o comando `crear_empresa` | El registro público queda para después de la v1.0 |

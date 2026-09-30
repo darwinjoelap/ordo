@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block cuerpo %}
+<div class="ordo-login">
+  <div class="card shadow-sm" style="max-width:480px">
+    <div class="card-body p-4">
+      <div class="text-center mb-3">
+        <img src="{% static 'img/marca/ordo-simbolo-web.png' %}" alt="Ordo" style="height:56px">
+        <h1 class="h5 mt-3 mb-1">¿Con qué empresa vas a trabajar?</h1>
+        <p class="text-muted small mb-0">Puedes cambiarla luego desde tu menú de cuenta.</p>
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ siguiente }}">
+        <div class="list-group">
+          {% for m in membresias %}
+            <button type="submit" name="empresa" value="{{ m.empresa_id }}"
+                    class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-3">
+              {% if m.empresa.perfil.logo %}
+                <img src="{{ m.empresa.perfil.logo.url }}" alt="" style="height:36px;width:56px;object-fit:contain">
+              {% else %}
+                <span class="ordo-avatar">{{ m.empresa.nombre|slice:":1"|upper }}</span>
+              {% endif %}
+              <span class="flex-grow-1 text-start">
+                <span class="fw-semibold d-block">{{ m.empresa.perfil.nombre_comercial|default:m.empresa.nombre }}</span>
+                <small class="text-muted">{{ m.get_rol_display }}</small>
+              </span>
+              <i class="bi bi-chevron-right text-muted"></i>
+            </button>
+          {% endfor %}
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -35,6 +35,7 @@ DJANGO_APPS = [
 ORDO_APPS = [
     'apps.core',
     'apps.usuarios',
+    'apps.empresas',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + ORDO_APPS
@@ -46,6 +47,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'apps.core.middleware.EmpresaActivaMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
