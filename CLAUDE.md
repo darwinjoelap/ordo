@@ -44,6 +44,7 @@ python manage.py runserver
 - `apps/compras` — órdenes de compra, recepción (`servicios.py`), panel de pedido (`sugerencias.py`), PDF
 - `apps/core/secuencias.py` — `siguiente_numero('OC')` correlativos por empresa
 - `scripts/biolifeventas_a_ordo.py` — exporta BioLifeVentas a la plantilla (se ejecuta DESDE biolifeventas)
+- `apps/core/pwa.py` — manifest, service worker (`/sw.js`), `/offline/`, `/instalar/`; `static/js/pwa.js` registra y muestra el aviso de instalación
 - `templates/` — base.html (barra superior, menú lateral, barra inferior móvil)
 - `static/img/marca/` — logo Ordo e iconos PWA
 - `tests/` — `python manage.py test tests`

@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block contenido %}
+<h1 class="h3 mb-1">Instalar Ordo</h1>
+<p class="text-muted">Ordo se instala desde el navegador, sin tiendas de apps. Queda un ícono en tu pantalla y se abre a pantalla completa.</p>
+<div class="row g-3" style="max-width:1000px">
+  <div class="col-md-4"><div class="card card-body h-100">
+    <h2 class="h6"><i class="bi bi-apple me-1"></i>iPhone / iPad</h2>
+    <ol class="small mb-0 ps-3">
+      <li>Abre Ordo en <b>Safari</b>.</li>
+      <li>Toca <i class="bi bi-box-arrow-up"></i> <b>Compartir</b>.</li>
+      <li>Elige <b>Agregar a inicio</b> y luego <b>Agregar</b>.</li>
+    </ol>
+  </div></div>
+  <div class="col-md-4"><div class="card card-body h-100">
+    <h2 class="h6"><i class="bi bi-android2 me-1"></i>Android</h2>
+    <ol class="small mb-0 ps-3">
+      <li>Abre Ordo en <b>Chrome</b>.</li>
+      <li>Toca <b>Instalar</b> en el aviso, o el menú <i class="bi bi-three-dots-vertical"></i> → <b>Instalar app</b>.</li>
+    </ol>
+  </div></div>
+  <div class="col-md-4"><div class="card card-body h-100">
+    <h2 class="h6"><i class="bi bi-laptop me-1"></i>Computadora</h2>
+    <ol class="small mb-0 ps-3">
+      <li>Abre Ordo en <b>Chrome</b> o <b>Edge</b>.</li>
+      <li>Haz clic en el ícono <i class="bi bi-download"></i> de la barra de direcciones → <b>Instalar</b>.</li>
+    </ol>
+  </div></div>
+</div>
+<p class="small text-muted mt-3 mb-0">Ordo necesita internet para trabajar: los precios, el stock y las ventas siempre se leen al momento.</p>
+{% endblock %}

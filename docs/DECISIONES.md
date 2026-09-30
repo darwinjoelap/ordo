@@ -27,3 +27,4 @@
 | 2026-09-30 | Comisión sobre base sin IVA y después del descuento | El IVA no es ingreso de la empresa |
 | 2026-09-30 | % por vendedor con excepción por categoría; se congela en cada línea | Cambiar % no altera comisiones pasadas |
 | 2026-09-30 | Liquidación por período; anular solo si no está pagada y se conserva el número | Trazabilidad de pagos a vendedores |
+| 2026-09-30 | PWA "online-first": sin caché de páginas ni modo offline de datos | Stock y precios deben ser actuales; evita mostrar datos de otra empresa/usuario |

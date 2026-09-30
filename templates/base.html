@@ -13,6 +13,7 @@
   <link rel="icon" href="{% static 'img/marca/pwa/favicon.ico' %}" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="{% static 'img/marca/pwa/favicon-32.png' %}">
   <link rel="apple-touch-icon" href="{% static 'img/marca/pwa/apple-touch-icon.png' %}">
+  <link rel="manifest" href="/manifest.webmanifest">
 
   <link rel="stylesheet" href="{% static 'vendor/bootstrap/bootstrap.min.css' %}">
   <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/bootstrap-icons.min.css' %}">
@@ -59,6 +60,7 @@
         {% if 'empresa.configurar' in permisos %}
           <li><a class="dropdown-item" href="{% url 'empresas:mi_empresa' %}"><i class="bi bi-gear me-2"></i>Mi empresa</a></li>
         {% endif %}
+        <li><a class="dropdown-item ordo-solo-navegador" href="{% url 'core:instalar' %}"><i class="bi bi-phone me-2"></i>Instalar la app</a></li>
         <li><hr class="dropdown-divider"></li>
         <li>
           <form method="post" action="{% url 'usuarios:logout' %}">
@@ -128,7 +130,21 @@
   </nav>
 {% endblock %}
 
+  <!-- Aviso de instalación (PWA) -->
+  <div id="ordo-instalar" class="ordo-instalar shadow" role="dialog" aria-label="Instalar Ordo" hidden>
+    <img src="{% static 'img/marca/pwa/icon-192.png' %}" alt="" width="40" height="40" class="rounded-3">
+    <div class="flex-grow-1 small">
+      <div class="fw-semibold">Instala Ordo</div>
+      <div data-modo="nativo">Ábrelo como una app, a pantalla completa.</div>
+      <div data-modo="ios" hidden>Toca <i class="bi bi-box-arrow-up"></i> <b>Compartir</b> y luego <b>Agregar a inicio</b>.</div>
+    </div>
+    <button type="button" class="btn btn-primary btn-sm" data-modo="nativo" data-ordo-instalar>Instalar</button>
+    <button type="button" class="btn-close" data-ordo-descartar aria-label="Cerrar"></button>
+  </div>
+  <div id="ordo-sin-conexion" class="ordo-sin-conexion" role="status" hidden><i class="bi bi-wifi-off me-1"></i>Sin conexión</div>
+
   <script src="{% static 'vendor/bootstrap/bootstrap.bundle.min.js' %}"></script>
+  <script src="{% static 'js/pwa.js' %}" defer></script>
   <script src="{% static 'vendor/htmx/htmx.min.js' %}"></script>
   <script>
     // CSRF automático en peticiones HTMX

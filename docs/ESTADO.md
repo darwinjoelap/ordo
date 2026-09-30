@@ -7,8 +7,8 @@
 | 2 | Empresas, usuarios, roles, panel Mi empresa | Código listo, 29 tests en verde |
 | 3 | Catálogo, inventario, proveedores, compras | Código listo (3A + 3B), 79 tests en verde |
 | 4 | Clientes, presupuestos, ventas, precios, validación | Código listo y en develop |
-| 5 | Comisiones | Código listo, 126 tests en verde |
-| 6 | PWA iPhone, Android y web | Pendiente |
+| 5 | Comisiones | Código listo y en develop |
+| 6 | PWA iPhone, Android y web | Código listo, 132 tests en verde |
 | 7 | Migración BioLife y producción | Pendiente |
 
 ## Fase 1 — detalle
@@ -79,3 +79,12 @@
 - [x] Vendedor: "Mis comisiones" por mes y sus liquidaciones; tarjeta "Mi comisión del mes" en Inicio
 - [x] Comando `generar_comisiones_faltantes` (para ventas migradas de BioLifeVentas)
 - [ ] Devoluciones / anulación de ventas validadas (no existe aún: hoy una venta validada no se revierte)
+
+## Fase 6 — detalle
+- [x] `/manifest.webmanifest` (standalone, iconos 192/512/maskable, accesos directos Presupuesto e Inventario)
+- [x] `/sw.js` en la raíz: precarga estáticos; estáticos desde caché; páginas SIEMPRE desde la red
+      (no se guarda HTML: datos por empresa/usuario); sin conexión → `/offline/`. Caché versionada por commit
+- [x] Aviso "Instala Ordo": botón nativo en Android/Chrome/Edge; instrucciones en iPhone (Safari); se descarta 30 días
+- [x] Indicador "Sin conexión"; guía `/instalar/` (menú de cuenta, se oculta en la app instalada)
+- [x] Probado en Chromium: service worker activo y página sin conexión al caer el servidor
+- [ ] Probar instalación real en iPhone y Android (requiere HTTPS: staging en Railway)

@@ -214,3 +214,36 @@ body {
 .ordo-resultados .list-group-item { cursor: pointer; }
 
 code { color: var(--ordo-gris-600); }
+
+/* ── PWA ─────────────────────────────────────────────────────────────── */
+.ordo-instalar {
+  position: fixed;
+  z-index: 1040;
+  left: max(.75rem, env(safe-area-inset-left));
+  right: max(.75rem, env(safe-area-inset-right));
+  bottom: calc(var(--ordo-tabbar-alto) + env(safe-area-inset-bottom) + .75rem);
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .75rem .9rem;
+  background: #fff;
+  border-radius: 1rem;
+  border: 1px solid rgba(0, 0, 0, .06);
+}
+.ordo-instalar[hidden], .ordo-sin-conexion[hidden] { display: none !important; }
+@media (min-width: 992px) {
+  .ordo-instalar { left: auto; right: 1.5rem; bottom: 1.5rem; max-width: 420px; }
+}
+.ordo-sin-conexion {
+  position: fixed;
+  z-index: 1050;
+  top: calc(env(safe-area-inset-top) + .5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: .35rem .9rem;
+  border-radius: 999px;
+  background: #1f2937;
+  color: #fff;
+  font-size: .85rem;
+}
+.ordo-instalada .ordo-solo-navegador { display: none; }
