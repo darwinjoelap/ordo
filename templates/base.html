@@ -75,7 +75,9 @@
     {% if 'inventario.ver' in permisos %}
       <a href="{% url 'inventario:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'inventario' %}active{% endif %}"><i class="bi bi-box-seam"></i> Inventario</a>
     {% endif %}
-    <a class="nav-link disabled" aria-disabled="true"><i class="bi bi-truck"></i> Compras</a>
+    {% if 'compras.gestionar' in permisos %}
+      <a href="{% url 'compras:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'compras' %}active{% endif %}"><i class="bi bi-truck"></i> Compras</a>
+    {% endif %}
     {% if 'proveedores.gestionar' in permisos %}
       <a href="{% url 'proveedores:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'proveedores' %}active{% endif %}"><i class="bi bi-building"></i> Proveedores</a>
     {% endif %}

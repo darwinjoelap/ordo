@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <h1 class="h3 mb-0">Órdenes de compra</h1>
+  <div class="d-flex gap-2">
+    <a href="{% url 'compras:panel_pedido' %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-lightbulb me-1"></i>Panel de pedido</a>
+    <a href="{% url 'compras:crear' %}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Orden</a>
+  </div>
+</div>
+<div class="d-flex gap-2 flex-wrap mb-3">
+  <a href="?" class="btn btn-sm {% if not estado %}btn-dark{% else %}btn-outline-secondary{% endif %}">Todas</a>
+  {% for v, n in estados %}<a href="?estado={{ v }}" class="btn btn-sm {% if estado == v %}btn-dark{% else %}btn-outline-secondary{% endif %}">{{ n }}</a>{% endfor %}
+</div>
+{% if pagina.object_list %}
+<div class="card"><div class="table-responsive">
+  <table class="table table-hover align-middle mb-0 ordo-tabla">
+    <thead class="table-light"><tr><th>Número</th><th>Proveedor</th><th class="d-none d-md-table-cell">Fecha</th><th>Estado</th><th class="text-end d-none d-sm-table-cell">Ítems</th><th class="text-end">Total</th></tr></thead>
+    <tbody>
+    {% for o in pagina.object_list %}
+      <tr onclick="location.href='{% url 'compras:detalle' o.pk %}'" role="button">
+        <td class="fw-semibold text-nowrap">{{ o.numero }}</td>
+        <td>{{ o.proveedor.nombre }}</td>
+        <td class="d-none d-md-table-cell">{{ o.fecha|date:"d/m/Y" }}</td>
+        <td><span class="badge text-bg-{{ o.css_estado }}">{{ o.get_estado_display }}</span></td>
+        <td class="text-end d-none d-sm-table-cell">{{ o.n_items }}</td>
+        <td class="text-end text-nowrap">{{ o.total|default:0|usd }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% include 'partials/paginacion.html' %}
+{% else %}
+<div class="card card-body text-center text-muted py-5"><i class="bi bi-truck fs-1"></i><p class="mt-2">No hay órdenes{% if estado %} en ese estado{% endif %}.</p>
+  <div><a href="{% url 'compras:panel_pedido' %}" class="btn btn-outline-primary">Ver qué hace falta comprar</a></div></div>
+{% endif %}
+{% endblock %}

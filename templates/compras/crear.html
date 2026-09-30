@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block contenido %}
+<a href="{% url 'compras:lista' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Compras</a>
+<h1 class="h3 mt-2 mb-3">Nueva orden de compra</h1>
+{% if not hay_proveedores %}
+  <div class="alert alert-info">Primero registra un <a href="{% url 'proveedores:crear' %}">proveedor</a>.</div>
+{% else %}
+<form method="post" class="card card-body" style="max-width:560px">
+  {% csrf_token %}
+  <div class="mb-3">{% include 'partials/campo.html' with campo=form.proveedor %}</div>
+  <div class="mb-3">{% include 'partials/campo.html' with campo=form.notas %}</div>
+  <p class="small text-muted">En el siguiente paso agregas los productos.</p>
+  <div class="text-end"><button class="btn btn-primary">Continuar</button></div>
+</form>
+{% endif %}
+{% endblock %}

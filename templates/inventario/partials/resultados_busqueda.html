@@ -1,5 +1,17 @@
 {% load ordo %}
-{% if productos %}
+{% if productos and destino == 'orden' %}
+  <div class="list-group shadow-sm">
+    {% for p in productos %}
+      <form method="post" action="{% url 'compras:agregar_item' orden_id %}" class="list-group-item d-flex flex-wrap align-items-center gap-2">
+        {% csrf_token %}<input type="hidden" name="producto" value="{{ p.pk }}">
+        <span class="flex-grow-1 min-w-0"><span class="fw-semibold">{{ p.nombre }}</span><br><small class="text-muted"><code>{{ p.codigo }}</code> · disp. {{ p.stock_disponible|miles }} {{ p.unidad.abreviatura }}</small></span>
+        <input type="number" name="cantidad" min="1" value="1" class="form-control form-control-sm" style="width:80px" aria-label="Cantidad">
+        <input type="number" name="costo" min="0" step="0.01" value="{{ p.precio_costo_usd }}" class="form-control form-control-sm" style="width:100px" aria-label="Costo USD">
+        <button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg"></i></button>
+      </form>
+    {% endfor %}
+  </div>
+{% elif productos %}
   <div class="list-group ordo-resultados shadow-sm">
     {% for p in productos %}
       <a href="{% if destino == 'ajuste' %}{% url 'inventario:ajuste' %}{% else %}{% url 'inventario:ingreso' %}{% endif %}?producto={{ p.pk }}"

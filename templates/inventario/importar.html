@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block contenido %}
+<a href="{% url 'inventario:lista' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Inventario</a>
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2 mb-3">
+  <h1 class="h3 mb-0">Importar productos desde Excel</h1>
+  <a href="{% url 'inventario:exportar' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-download me-1"></i>Exportar mis productos</a>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card card-body mb-3">
+      <h2 class="h6"><span class="badge rounded-pill text-bg-primary me-1">1</span> Descarga la plantilla</h2>
+      <p class="small text-muted mb-2">Trae las columnas en el orden correcto, 3 filas de ejemplo (bórralas), la hoja <b>Instrucciones</b> y la hoja <b>Unidades</b> con las abreviaturas válidas de tu empresa.</p>
+      <a href="{% url 'inventario:plantilla' %}" class="btn btn-success"><i class="bi bi-file-earmark-excel me-1"></i>Descargar plantilla .xlsx</a>
+    </div>
+    <form method="post" enctype="multipart/form-data" class="card card-body mb-3">
+      {% csrf_token %}
+      <h2 class="h6"><span class="badge rounded-pill text-bg-primary me-1">2</span> Sube el archivo lleno</h2>
+      <p class="small text-muted mb-2">Primero se revisa todo. <b>No se guarda nada</b> hasta que confirmes.</p>
+      <input type="file" name="archivo" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="form-control mb-2" required>
+      <button class="btn btn-primary"><i class="bi bi-search me-1"></i>Revisar archivo</button>
+    </form>
+    <div class="card card-body">
+      <h2 class="h6">Reglas</h2>
+      <ul class="small mb-0 ps-3">{% for r in reglas %}<li class="mb-1">{{ r }}</li>{% endfor %}</ul>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card mb-3">
+      <div class="card-header bg-white fw-semibold">Columnas de la hoja «Productos»</div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0 small">
+          <thead class="table-light"><tr><th>Columna</th><th></th><th>Formato</th><th class="d-none d-md-table-cell">Notas</th></tr></thead>
+          <tbody>
+          {% for c in columnas %}
+            <tr>
+              <td><code>{{ c.titulo }}</code></td>
+              <td>{% if c.obligatoria %}<span class="badge text-bg-primary">Obligatoria</span>{% else %}<span class="badge text-bg-light border">Opcional</span>{% endif %}</td>
+              <td>{{ c.formato }}</td>
+              <td class="d-none d-md-table-cell text-muted">{{ c.nota }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if historial %}
+    <div class="card">
+      <div class="card-header bg-white fw-semibold">Últimas importaciones</div>
+      <table class="table table-sm align-middle mb-0 small">
+        <tbody>
+        {% for h in historial %}
+          <tr>
+            <td>{{ h.creado_en|date:"d/m/Y H:i" }}</td>
+            <td class="text-truncate" style="max-width:200px">{{ h.nombre_archivo }}</td>
+            <td><span class="badge {% if h.estado == 'APLICADA' %}text-bg-success{% elif h.estado == 'VALIDADA' %}text-bg-info{% else %}text-bg-danger{% endif %}">{{ h.get_estado_display }}</span></td>
+            <td class="text-end"><a href="{% url 'inventario:importar_revision' h.pk %}">Ver</a></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

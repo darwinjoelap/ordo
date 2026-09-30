@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+<a href="{% url 'compras:lista' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Compras</a>
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mt-2 mb-3">
+  <div>
+    <h1 class="h3 mb-1">{{ orden.numero }} <span class="badge text-bg-{{ orden.css_estado }} fs-6 align-middle">{{ orden.get_estado_display }}</span></h1>
+    <div class="text-muted small"><a href="{% url 'proveedores:detalle' orden.proveedor_id %}">{{ orden.proveedor }}</a> · {{ orden.fecha|date:"d/m/Y" }} · creada por {{ orden.creado_por }}</div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <div class="btn-group">
+      <a href="{% url 'compras:pdf' orden.pk %}" target="_blank" class="btn btn-outline-secondary btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+      <a href="{% url 'compras:pdf' orden.pk %}?costos=0" target="_blank" class="btn btn-outline-secondary btn-sm">sin costos</a>
+    </div>
+    {% if orden.recibible %}<a href="{% url 'compras:recibir' orden.pk %}" class="btn btn-success btn-sm"><i class="bi bi-box-arrow-in-down me-1"></i>Recibir mercancía</a>{% endif %}
+    <form method="post" action="{% url 'compras:cambiar_estado' orden.pk %}" class="d-flex gap-2">
+      {% csrf_token %}
+      {% if orden.estado == 'BORRADOR' %}
+        <button name="estado" value="ENVIADA" class="btn btn-primary btn-sm"><i class="bi bi-send me-1"></i>Marcar como enviada</button>
+        <button name="estado" value="ANULADA" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Anular la orden?')">Anular</button>
+      {% elif orden.estado == 'ENVIADA' %}
+        <button name="estado" value="BORRADOR" class="btn btn-outline-secondary btn-sm">Volver a borrador</button>
+        <button name="estado" value="ANULADA" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Anular la orden?')">Anular</button>
+      {% elif orden.estado == 'PARCIAL' %}
+        <button name="estado" value="RECIBIDA" class="btn btn-outline-secondary btn-sm" onclick="return confirm('¿Cerrar la orden aunque falte mercancía?')">Cerrar con faltante</button>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+{% if orden.editable %}
+<div class="card card-body mb-3">
+  <label class="form-label fw-semibold" for="buscar-producto">Agregar productos</label>
+  <input type="search" id="buscar-producto" name="q" class="form-control" autocomplete="off" placeholder="Código o nombre (mínimo 2 letras)"
+         hx-get="{% url 'inventario:buscar' %}?destino=orden&orden={{ orden.pk }}" hx-trigger="input changed delay:300ms, search" hx-target="#resultados">
+  <div id="resultados" class="mt-2"></div>
+</div>
+{% endif %}
+
+<form method="post" action="{% url 'compras:actualizar_items' orden.pk %}">
+  {% csrf_token %}
+  <div class="card mb-3">
+    {% if items %}
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead class="table-light"><tr><th>Producto</th><th class="text-end">Pedido</th>{% if not orden.editable %}<th class="text-end">Recibido</th>{% endif %}<th class="text-end">Costo unit.</th><th class="text-end">Subtotal</th>{% if orden.editable %}<th class="text-center">Quitar</th>{% endif %}</tr></thead>
+        <tbody>
+        {% for i in items %}
+          <tr>
+            <td><div class="fw-semibold">{{ i.producto.nombre }}</div><small class="text-muted"><code>{{ i.producto.codigo }}</code> · {{ i.producto.unidad.abreviatura }}</small></td>
+            {% if orden.editable %}
+              <td class="text-end"><input type="number" min="1" name="cantidad_{{ i.pk }}" value="{{ i.cantidad_pedida }}" class="form-control form-control-sm text-end ms-auto" style="width:90px"></td>
+              <td class="text-end"><input type="number" min="0" step="0.01" name="costo_{{ i.pk }}" value="{{ i.costo_unitario_usd }}" class="form-control form-control-sm text-end ms-auto" style="width:110px"></td>
+            {% else %}
+              <td class="text-end">{{ i.cantidad_pedida|miles }}</td>
+              <td class="text-end {% if i.pendiente %}text-warning{% else %}text-success{% endif %} fw-semibold">{{ i.cantidad_recibida|miles }}</td>
+              <td class="text-end">{{ i.costo_unitario_usd|usd }}</td>
+            {% endif %}
+            <td class="text-end text-nowrap">{{ i.subtotal_usd|usd }}</td>
+            {% if orden.editable %}<td class="text-center"><input type="checkbox" class="form-check-input" name="quitar_{{ i.pk }}" value="1" aria-label="Quitar"></td>{% endif %}
+          </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot><tr><th colspan="{% if orden.editable %}3{% else %}4{% endif %}" class="text-end">Total</th><th class="text-end text-nowrap">{{ total|usd }}</th>{% if orden.editable %}<th></th>{% endif %}</tr></tfoot>
+      </table>
+    </div>
+    {% else %}<div class="card-body text-muted">Aún no hay productos. Búscalos arriba y agrégalos.</div>{% endif %}
+  </div>
+  {% if orden.editable %}
+    <div class="card card-body mb-3">{% include 'partials/campo.html' with campo=form_notas.notas %}{{ form_notas.proveedor.as_hidden }}</div>
+    <div class="text-end"><button class="btn btn-outline-primary"><i class="bi bi-save me-1"></i>Guardar cambios</button></div>
+  {% elif orden.notas %}
+    <div class="card card-body small"><b>Notas:</b> {{ orden.notas|linebreaksbr }}</div>
+  {% endif %}
+</form>
+{% endblock %}

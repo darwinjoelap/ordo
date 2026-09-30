@@ -15,3 +15,6 @@
 | 2026-09-30 | Unidades de medida por empresa en tabla propia | Ordo no es solo para laboratorios |
 | 2026-09-30 | Proveedor habitual opcional; direcciones/encomiendas de BioLifeVentas no se migran aún | Simplificar; se evalúa en Fase 3B |
 | 2026-09-30 | Stock nunca se toca fuera de `inventario/servicios.py`; admin de lotes en solo lectura | Kardex íntegro y sin carreras |
+| 2026-09-30 | Importación solo .xlsx, validación total antes de guardar ("todo o nada") | Evita cargas a medias; el usuario corrige y reintenta |
+| 2026-09-30 | La importación no modifica stock de productos existentes | Re-importar el mismo archivo no duplica existencias |
+| 2026-09-30 | Los related managers de modelos de empresa también filtran por empresa activa | Consistencia; fuera de un request usar `usando_empresa()` o `Modelo.todos` |

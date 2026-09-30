@@ -15,6 +15,7 @@ from reportlab.platypus import HRFlowable, Image, Paragraph, SimpleDocTemplate, 
 ESTILOS = getSampleStyleSheet()
 ESTILO_NOMBRE = ParagraphStyle('nombre', parent=ESTILOS['Heading2'], spaceAfter=2, leading=17)
 ESTILO_DATO = ParagraphStyle('dato', parent=ESTILOS['Normal'], fontSize=8.5, leading=11, textColor=colors.HexColor('#4B5563'))
+ESTILO_CELDA = ParagraphStyle('celda', parent=ESTILOS['Normal'], fontSize=8.5, leading=10.5)
 ESTILO_DATO_DER = ParagraphStyle('dato_der', parent=ESTILO_DATO, alignment=TA_RIGHT)
 
 

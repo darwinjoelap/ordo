@@ -38,6 +38,7 @@ ORDO_APPS = [
     'apps.empresas',
     'apps.proveedores',
     'apps.inventario',
+    'apps.compras',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + ORDO_APPS

@@ -125,7 +125,7 @@ def buscar_productos(request):
         productos = (Producto.objects.filter(activo=True).buscar(q).select_related('unidad')
                      .con_stock().order_by('nombre')[:12])
     return render(request, 'inventario/partials/resultados_busqueda.html', {
-        'productos': productos, 'q': q, 'destino': destino})
+        'productos': productos, 'q': q, 'destino': destino, 'orden_id': request.GET.get('orden', '')})
 
 
 # ── Ingreso y ajuste ──────────────────────────────────────────────────────────
@@ -230,3 +230,27 @@ def catalogo(request, tipo='categorias'):
         'form': form, 'editando': editando,
         'encabezados': [modelo._meta.get_field(c).verbose_name for c in columnas], 'filas': filas,
     })
+
+
+# ── Lista de precios (PDF) ────────────────────────────────────────────────────
+
+@login_required
+@requiere('inventario.ver')
+def lista_precios(request):
+    from django.http import HttpResponse
+
+    from .pdf import lista_precios_pdf
+    if request.GET.get('generar'):
+        productos = (Producto.objects.filter(activo=True).con_stock()
+                     .select_related('categoria', 'marca', 'unidad').order_by(Lower('categoria__nombre'), Lower('nombre')))
+        if request.GET.get('categoria'):
+            productos = productos.filter(categoria_id=request.GET['categoria'])
+        if request.GET.get('con_existencia'):
+            productos = productos.filter(anot_stock_disponible__gt=0)
+        contenido = lista_precios_pdf(productos, request.empresa,
+                                      mostrar_existencia=bool(request.GET.get('mostrar_existencia')))
+        r = HttpResponse(contenido, content_type='application/pdf')
+        r['Content-Disposition'] = 'inline; filename="lista-de-precios.pdf"'
+        return r
+    return render(request, 'inventario/lista_precios.html', {'titulo': 'Lista de precios',
+                                                             'categorias': Categoria.objects.all()})

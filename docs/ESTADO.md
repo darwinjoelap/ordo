@@ -5,7 +5,7 @@
 | 0 | Preparación (Railway Pro, repo, venv) | Listo (falta Railway Pro) |
 | 1 | Esqueleto Django y primer despliegue | Código listo, falta desplegar en staging |
 | 2 | Empresas, usuarios, roles, panel Mi empresa | Código listo, 29 tests en verde |
-| 3 | Catálogo, inventario, proveedores, compras | 3A lista (inventario y proveedores); falta 3B compras |
+| 3 | Catálogo, inventario, proveedores, compras | Código listo (3A + 3B), 79 tests en verde |
 | 4 | Clientes, presupuestos, ventas, precios, validación | Pendiente |
 | 5 | Comisiones | Pendiente |
 | 6 | PWA iPhone, Android y web | Pendiente |
@@ -42,8 +42,14 @@
 - [x] Búsqueda con índice pg_trgm (PostgreSQL)
 - [x] 54 tests en verde en SQLite y PostgreSQL 16 (incluye prueba de concurrencia real)
 
-## Fase 3B — pendiente
-- [ ] Órdenes de compra (borrador → cerrada → recepción parcial/total que genera ingresos)
-- [ ] Panel de pedido (sugerido por consumo) y PDF de orden de compra con encabezado_empresa
-- [ ] PDF de lista de precios
-- [ ] Importación de productos desde Excel/CSV (necesaria para migrar BioLife y para nuevos clientes)
+## Fase 3B — detalle
+- [x] Importación de productos desde Excel: plantilla descargable (Productos + Instrucciones + Unidades),
+      validación completa sin guardar, revisión con errores por fila, confirmación en una transacción, historial
+- [x] Varios lotes por producto repitiendo el código; productos existentes se actualizan sin tocar stock
+- [x] Exportar productos en el mismo formato (editar en Excel y reimportar)
+- [x] `scripts/biolifeventas_a_ordo.py`: exporta productos y lotes de BioLifeVentas al formato de la plantilla (solo lectura)
+- [x] Órdenes de compra: borrador → enviada → parcial/recibida · anulada; recepción parcial crea lotes y kardex
+- [x] Numeración por empresa sin carreras (`core.Secuencia`): OC-2026-00001
+- [x] Panel de pedido: consumo real (ventas 90 días) o estimado, descuenta lo que ya está en camino, crea la orden
+- [x] PDF de orden de compra (con/sin costos) y PDF de lista de precios, ambos con encabezado_empresa
+- [ ] Lista de precios en Bs (necesita tasa BCV — Fase 4)

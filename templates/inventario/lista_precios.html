@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block contenido %}
+<a href="{% url 'inventario:lista' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Inventario</a>
+<h1 class="h3 mt-2 mb-3">Lista de precios</h1>
+<form method="get" target="_blank" class="card card-body" style="max-width:560px">
+  <input type="hidden" name="generar" value="1">
+  <label class="form-label" for="cat">Categoría</label>
+  <select name="categoria" id="cat" class="form-select mb-3"><option value="">Todas</option>{% for c in categorias %}<option value="{{ c.pk }}">{{ c.nombre }}</option>{% endfor %}</select>
+  <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" name="con_existencia" value="1" id="ce" checked><label class="form-check-label" for="ce">Solo productos con existencia</label></div>
+  <div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" name="mostrar_existencia" value="1" id="me"><label class="form-check-label" for="me">Mostrar cantidad disponible</label></div>
+  <p class="small text-muted">Precios en USD. El precio en bolívares se agregará cuando esté la tasa BCV (fase 4).</p>
+  <button class="btn btn-primary"><i class="bi bi-file-earmark-pdf me-1"></i>Generar PDF</button>
+</form>
+{% endblock %}

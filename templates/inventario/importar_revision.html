@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+<a href="{% url 'inventario:importar' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Importar</a>
+<h1 class="h3 mt-2 mb-1">Revisión: {{ imp.nombre_archivo }}</h1>
+<p class="text-muted small">Subido {{ imp.creado_en|date:"d/m/Y H:i" }} por {{ imp.usuario }}</p>
+
+{% if imp.estado == 'APLICADA' %}
+  <div class="alert alert-success"><i class="bi bi-check-circle me-1"></i>Importado el {{ imp.aplicado_en|date:"d/m/Y H:i" }}:
+    {{ r.aplicado.creados }} nuevos, {{ r.aplicado.actualizados }} actualizados, {{ r.aplicado.lotes }} lotes iniciales.</div>
+{% elif imp.estado == 'VALIDADA' %}
+  <div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <span><i class="bi bi-check2-all me-1"></i>El archivo no tiene errores. Revisa el resumen y confirma.</span>
+    <form method="post" action="{% url 'inventario:importar_confirmar' imp.pk %}" onsubmit="this.querySelector('button').disabled=true">
+      {% csrf_token %}<button class="btn btn-primary"><i class="bi bi-upload me-1"></i>Importar ahora</button>
+    </form>
+  </div>
+{% else %}
+  <div class="alert alert-danger"><i class="bi bi-x-circle me-1"></i>Hay <b>{{ errores|length }}</b> error{{ errores|length|pluralize:"es" }}. No se importó nada: corrige el Excel y <a href="{% url 'inventario:importar' %}">súbelo de nuevo</a>.</div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3"><div class="card card-body py-3"><div class="small text-muted">Productos nuevos</div><div class="fs-4 fw-bold">{{ r.productos_nuevos|miles }}</div></div></div>
+  <div class="col-6 col-md-3"><div class="card card-body py-3"><div class="small text-muted">Se actualizan</div><div class="fs-4 fw-bold">{{ r.productos_actualizados|miles }}</div></div></div>
+  <div class="col-6 col-md-3"><div class="card card-body py-3"><div class="small text-muted">Lotes iniciales</div><div class="fs-4 fw-bold">{{ r.lotes|miles }}</div></div></div>
+  <div class="col-6 col-md-3"><div class="card card-body py-3"><div class="small text-muted">Unidades iniciales</div><div class="fs-4 fw-bold">{{ r.unidades_iniciales|miles }}</div></div></div>
+</div>
+
+{% if r.categorias_nuevas or r.subcategorias_nuevas or r.marcas_nuevas or r.proveedores_nuevos %}
+<div class="card card-body mb-3 small">
+  <div class="fw-semibold mb-1">Se crearán:</div>
+  {% if r.categorias_nuevas %}<div><b>Categorías:</b> {{ r.categorias_nuevas|join:", " }}</div>{% endif %}
+  {% if r.subcategorias_nuevas %}<div><b>Subcategorías:</b> {{ r.subcategorias_nuevas|join:", " }}</div>{% endif %}
+  {% if r.marcas_nuevas %}<div><b>Marcas:</b> {{ r.marcas_nuevas|join:", " }}</div>{% endif %}
+  {% if r.proveedores_nuevos %}<div><b>Proveedores:</b> {{ r.proveedores_nuevos|join:", " }}</div>{% endif %}
+</div>
+{% endif %}
+
+{% if errores %}
+<div class="card mb-3">
+  <div class="card-header bg-white fw-semibold text-danger">Errores ({{ errores|length }}{% if errores|length == 500 %}+{% endif %})</div>
+  <div class="table-responsive" style="max-height:420px">
+    <table class="table table-sm mb-0 small"><thead class="table-light"><tr><th>Fila</th><th>Columna</th><th>Problema</th></tr></thead><tbody>
+      {% for fila, col, msg in errores %}<tr><td>{{ fila }}</td><td><code>{{ col }}</code></td><td>{{ msg }}</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+</div>
+{% endif %}
+
+{% if avisos %}
+<div class="card">
+  <div class="card-header bg-white fw-semibold text-warning">Avisos ({{ avisos|length }}) — no impiden importar</div>
+  <div class="table-responsive" style="max-height:300px">
+    <table class="table table-sm mb-0 small"><thead class="table-light"><tr><th>Fila</th><th>Aviso</th></tr></thead><tbody>
+      {% for fila, msg in avisos %}<tr><td>{{ fila }}</td><td>{{ msg }}</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
