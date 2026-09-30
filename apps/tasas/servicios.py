@@ -2,6 +2,7 @@ import logging
 import os
 import ssl
 import tempfile
+import warnings
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlparse
 
@@ -80,7 +81,10 @@ def _cargar_certs(datos, url=''):
     )
     for cargar in intentos:
         try:
-            certs = cargar(datos)
+            with warnings.catch_warnings():
+                # El PKCS#7 del BCV viene en BER (no DER estricto); cryptography lo lee igual pero avisa.
+                warnings.simplefilter('ignore', UserWarning)
+                certs = cargar(datos)
             if certs:
                 return certs
         except Exception:  # noqa: BLE001 - se prueba el siguiente formato
