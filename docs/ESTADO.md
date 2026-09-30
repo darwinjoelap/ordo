@@ -8,8 +8,8 @@
 | 3 | Catálogo, inventario, proveedores, compras | Código listo (3A + 3B), 79 tests en verde |
 | 4 | Clientes, presupuestos, ventas, precios, validación | Código listo y en develop |
 | 5 | Comisiones | Código listo y en develop |
-| 6 | PWA iPhone, Android y web | Código listo, 132 tests en verde |
-| 7 | Migración BioLife y producción | Pendiente |
+| 6 | PWA iPhone, Android y web | Código listo y en develop |
+| 7 | Migración BioLife y producción | En curso: staging (guía en docs/DESPLIEGUE_RAILWAY.md) |
 
 ## Fase 1 — detalle
 - [x] Proyecto Django 5.2 con settings base/dev/prod
