@@ -68,28 +68,55 @@ def _urls_ca_issuers(cert):
     return [d.access_location.value for d in aia if d.access_method == AuthorityInformationAccessOID.CA_ISSUERS]
 
 
-def _cargar_cert(datos):
+def _cargar_certs(datos, url=''):
+    """Certificados de una descarga AIA: DER, PEM o PKCS#7 (.p7c/.p7b), en DER o PEM."""
     from cryptography import x509
-    try:
-        return x509.load_der_x509_certificate(datos)
-    except ValueError:
-        return x509.load_pem_x509_certificate(datos)
+    from cryptography.hazmat.primitives.serialization import pkcs7
+    intentos = (
+        lambda d: [x509.load_der_x509_certificate(d)],
+        lambda d: x509.load_pem_x509_certificates(d),
+        lambda d: pkcs7.load_der_pkcs7_certificates(d),
+        lambda d: pkcs7.load_pem_pkcs7_certificates(d),
+    )
+    for cargar in intentos:
+        try:
+            certs = cargar(datos)
+            if certs:
+                return certs
+        except Exception:  # noqa: BLE001 - se prueba el siguiente formato
+            continue
+    muestra = datos[:40]
+    raise ValueError(f'Formato de certificado no reconocido en {url} ({len(datos)} bytes, inicio {muestra!r}).')
 
 
 def intermedios_por_aia(host, port=443, max_niveles=3):
     """PEM de los certificados intermedios del servidor, obtenidos por AIA (sin raíces autofirmadas)."""
     from cryptography import x509
     cert = x509.load_pem_x509_certificate(ssl.get_server_certificate((host, port), timeout=20).encode())
-    intermedios = []
+    intermedios, vistos = [], set()
     for _ in range(max_niveles):
         urls = _urls_ca_issuers(cert)
         if not urls:
             break
-        cert = _cargar_cert(requests.get(urls[0], timeout=20).content)
-        if cert.issuer == cert.subject:      # raíz: no se agrega, debe estar en certifi
+        respuesta = requests.get(urls[0], timeout=20, headers={'User-Agent': 'Mozilla/5.0 (Ordo)'})
+        respuesta.raise_for_status()
+        siguiente = None
+        for c in _cargar_certs(respuesta.content, urls[0]):
+            if c.issuer == c.subject or c.fingerprint(_sha256()) in vistos:
+                continue                     # raíz: no se agrega, debe estar en certifi
+            vistos.add(c.fingerprint(_sha256()))
+            intermedios.append(_pem(c))
+            if c.subject == cert.issuer:
+                siguiente = c
+        if siguiente is None:
             break
-        intermedios.append(_pem(cert))
+        cert = siguiente
     return intermedios
+
+
+def _sha256():
+    from cryptography.hazmat.primitives import hashes
+    return hashes.SHA256()
 
 
 def bundle_con_intermedios(host, port=443):

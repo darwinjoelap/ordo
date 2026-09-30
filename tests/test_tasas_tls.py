@@ -63,3 +63,20 @@ class CadenaBCVTests(SimpleTestCase):
             r = servicios.descargar_bcv()
         self.assertEqual(r.text, 'ok')
         self.assertEqual(llamadas, [True, '/tmp/ordo-ca-prueba.pem'])   # nunca verify=False
+
+    def test_acepta_pkcs7_como_publican_algunas_autoridades(self):
+        from cryptography.hazmat.primitives.serialization import pkcs7
+        p7 = pkcs7.serialize_certificates([self.inter], serialization.Encoding.DER)
+        self.descargas['http://ca.ejemplo/inter.cer'] = p7
+        pem_hoja = self.hoja.public_bytes(serialization.Encoding.PEM).decode()
+        with mock.patch('ssl.get_server_certificate', return_value=pem_hoja), \
+                mock.patch.object(servicios.requests, 'get', side_effect=self._get):
+            self.assertEqual(len(servicios.intermedios_por_aia('www.bcv.org.ve')), 1)
+
+    def test_descarga_que_no_es_certificado_da_error_claro(self):
+        self.descargas['http://ca.ejemplo/inter.cer'] = b'<html>Moved</html>'
+        pem_hoja = self.hoja.public_bytes(serialization.Encoding.PEM).decode()
+        with mock.patch('ssl.get_server_certificate', return_value=pem_hoja), \
+                mock.patch.object(servicios.requests, 'get', side_effect=self._get), \
+                self.assertRaisesRegex(ValueError, 'ca.ejemplo/inter.cer'):
+            servicios.intermedios_por_aia('www.bcv.org.ve')
