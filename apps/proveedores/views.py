@@ -17,7 +17,7 @@ from .models import Proveedor
 @requiere('proveedores.gestionar')
 def lista(request):
     q = request.GET.get('q', '').strip()
-    proveedores = Proveedor.objects.annotate(n_productos=Count('productos', distinct=True))
+    proveedores = Proveedor.objects.annotate(n_productos=Count('productos', distinct=True)).order_by('nombre', 'pk')
     if q:
         proveedores = proveedores.filter(Q(nombre__icontains=q) | Q(rif__icontains=q) | Q(contacto__icontains=q))
     pagina = Paginator(proveedores, 50).get_page(request.GET.get('page'))
