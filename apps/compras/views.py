@@ -196,12 +196,20 @@ def panel_pedido(request):
         dias = max(1, min(365, int(request.GET.get('dias', 30))))
     except ValueError:
         dias = 30
-    proveedor_id = request.GET.get('proveedor', '')
-    todos = request.GET.get('todos') == '1'
-    grupos = sugerencias.calcular(dias, proveedor_id or None, solo_necesarios=not todos)
+    from apps.inventario.models import Categoria, Marca, Subcategoria
+    g = request.GET
+    proveedor_id = g.get('proveedor', '')
+    f = {k: g.get(k, '') for k in ('categoria', 'subcategoria', 'marca')}
+    todos = g.get('todos') == '1'
+    grupos = sugerencias.calcular(dias, proveedor_id or None, solo_necesarios=not todos,
+                                  categoria_id=f['categoria'] or None, subcategoria_id=f['subcategoria'] or None,
+                                  marca_id=f['marca'] or None)
     return render(request, 'compras/panel_pedido.html', {
         'titulo': 'Panel de pedido', 'grupos': grupos, 'dias': dias, 'proveedor_id': proveedor_id, 'todos': todos,
-        'proveedores': Proveedor.objects.filter(activo=True),
+        'f': f, 'proveedores': Proveedor.objects.filter(activo=True),
+        'categorias': Categoria.objects.order_by('nombre'),
+        'subcategorias': Subcategoria.objects.select_related('categoria').order_by('nombre'),
+        'marcas': Marca.objects.order_by('nombre'),
     })
 
 

@@ -140,3 +140,9 @@
 - [x] Reportes → Apartados: por presupuesto (lotes y fecha límite) y total por producto
 - [x] El disponible de inventario ya no cuenta lotes vencidos (un producto con solo lotes vencidos figura como agotado)
 - [ ] Respaldo diario de la BD: se decide al preparar producción
+
+## Panel de pedido (mejoras)
+- [x] Columna "Con pedido": días que alcanza disponible + en camino + lo que se pide; se recalcula al editar la cantidad
+- [x] Consumo con los días reales de historial (30 a 90) y aviso "Con vencidos" por producto
+- [x] Filtros: proveedor, categoría, subcategoría (según la categoría) y marca
+- [x] Script `biolifeventas_a_ordo.py`: «dias_por_unidad» calculado con ventas reales de 90 días

@@ -12,15 +12,24 @@ Uso (PowerShell, desde la carpeta de BioLifeVentas y con SU venv):
     python manage.py shell -c "exec(open(r'C:\\proyectos\\ordo\\scripts\\biolifeventas_a_ordo.py', encoding='utf-8').read())"
 
 Genera: productos_biolife_para_ordo.xlsx en la carpeta actual.
+
+«dias_por_unidad» se CALCULA con las ventas reales de BioLifeVentas (no se copia factor_venta_dias):
+el cron `recalcular_factores_venta` de BioLifeVentas guarda ahí los días que dura el stock, no los días
+por unidad vendida, y copiarlo haría creer a Ordo que los productos casi no se venden.
+    con ventas en 90 días  → días de historial / unidades vendidas (historial = desde la 1.ª venta, 30 a 90 días)
+    sin ventas en 90 días  → 90 (rota menos de 1 unidad cada 90 días), salvo factor manual (auto-ajuste apagado)
 """
 import os
 from collections import Counter
-from decimal import Decimal
+from datetime import timedelta
+
+from django.db.models import Min, Sum
+from django.utils import timezone
 
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 
-from inventario.models import Lote, Producto  # modelos de BioLifeVentas
+from inventario.models import Lote, MovimientoInventario, Producto  # modelos de BioLifeVentas
 
 # Mismo orden de columnas que la plantilla de Ordo (apps/inventario/importacion.py)
 COLUMNAS = ['codigo', 'nombre', 'categoria', 'subcategoria', 'marca', 'unidad', 'proveedor', 'costo_usd',
@@ -49,6 +58,31 @@ lotes_por_producto = {}
 for l in Lote.objects.filter(cantidad_actual__gt=0).order_by('fecha_vencimiento', 'fecha_ingreso'):
     lotes_por_producto.setdefault(l.producto_id, []).append(l)
 
+# ── Consumo real de los últimos 90 días ──────────────────────────────────────
+DIAS, MINIMO = 90, 30
+ahora = timezone.now()
+vendidas_90 = {r['lote__producto']: abs(r['t'] or 0) for r in
+               MovimientoInventario.objects.filter(tipo='VENTA', fecha__gte=ahora - timedelta(days=DIAS))
+               .values('lote__producto').annotate(t=Sum('cantidad'))}
+primera_venta = dict(MovimientoInventario.objects.filter(tipo='VENTA').values('lote__producto')
+                     .annotate(f=Min('fecha')).values_list('lote__producto', 'f'))
+origen_factor = Counter()
+
+
+def dias_por_unidad(p):
+    vendidas = vendidas_90.get(p.pk, 0)
+    if vendidas > 0:
+        antiguedad = (ahora - primera_venta[p.pk]).days if p.pk in primera_venta else DIAS
+        base = min(DIAS, max(MINIMO, antiguedad))
+        origen_factor['ventas'] += 1
+        return max(0.01, round(base / vendidas, 2))
+    if not getattr(p, 'factor_auto_ajuste', True) and p.factor_venta_dias and p.factor_venta_dias > 0:
+        origen_factor['manual'] += 1
+        return float(p.factor_venta_dias)
+    origen_factor['sin_ventas'] += 1
+    return float(DIAS)
+
+
 unidades_usadas = Counter()
 n_prod = n_lotes = unidades_totales = apartadas = 0
 sin_lote_con_exigencia = []
@@ -59,7 +93,7 @@ for p in productos:
             p.marca.nombre if p.marca else None, unidad,
             p.proveedor_habitual.nombre if p.proveedor_habitual else None,
             float(p.precio_costo_usd), float(p.precio_venta_usd), p.stock_minimo,
-            float(p.factor_venta_dias or Decimal('30')), si_no(p.requiere_lote), si_no(p.requiere_vencimiento),
+            dias_por_unidad(p), si_no(p.requiere_lote), si_no(p.requiere_vencimiento),
             p.descripcion or None, si_no(p.activo)]
     lotes = lotes_por_producto.get(p.pk, [])
     n_prod += 1
@@ -87,6 +121,8 @@ wn['A1'].font = Font(bold=True, size=13)
 wn.append([f'Productos: {n_prod} · Lotes con existencia: {n_lotes} · Unidades en existencia: {unidades_totales}'])
 wn.append([f'Unidades APARTADAS hoy en BioLifeVentas: {apartadas} (entran como existencia normal; '
            'los apartados se migran con los presupuestos en la fase 7).'])
+wn.append([f'Días por unidad: {origen_factor["ventas"]} productos calculados con ventas reales de 90 días, '
+           f'{origen_factor["manual"]} con factor manual, {origen_factor["sin_ventas"]} sin ventas recientes (=90).'])
 wn.append([])
 if faltan:
     wn.append(['ANTES DE IMPORTAR crea en Ordo › Inventario › Catálogo › Unidades estas abreviaturas:'])
@@ -103,5 +139,7 @@ wb.save(salida)
 
 print(f'Listo: {os.path.abspath(salida)}')
 print(f'  {n_prod} productos · {n_lotes} lotes · {unidades_totales} unidades ({apartadas} apartadas)')
+print(f'  Días por unidad: {origen_factor["ventas"]} con ventas reales · {origen_factor["manual"]} manual · '
+      f'{origen_factor["sin_ventas"]} sin ventas recientes')
 if faltan:
     print(f'  Crea primero en Ordo estas unidades: {", ".join(faltan)}')

@@ -314,8 +314,36 @@ class PanelPedidoTests(ComprasBase):
             lote = servicios.ingresar(self.p1, 100, Decimal('10'), self.dueno)
             servicios.apartar_fefo(self.p1, 90, self.dueno)
             servicios.descontar_apartado(lote, 90, self.dueno)       # 90 vendidas en 90 días → 1/día
+            MovimientoInventario.todos.filter(tipo='VENTA').update(fecha=timezone.now() - timedelta(days=30))
+            self.vender(5, hace_dias=120)          # vende hace tiempo: historial completo de 90 días
             s = sugerencias.calcular(dias_cobertura=60)[self.prov][0]
         self.assertEqual((s.fuente, s.consumo_diario, s.disponible, s.sugerido), ('ventas', 1.0, 10, 50))
+        self.assertEqual((s.dias_restantes, s.dias_con_pedido), (10, 60))
+
+    def vender(self, cantidad, hace_dias):
+        servicios.ingresar(self.p1, cantidad, Decimal('10'), self.dueno)
+        movs = [servicios.descontar_apartado(r.lote, r.cantidad, self.dueno).pk
+                for r in servicios.apartar_fefo(self.p1, cantidad, self.dueno)]
+        MovimientoInventario.todos.filter(pk__in=movs).update(fecha=timezone.now() - timedelta(days=hace_dias))
+
+    def test_producto_nuevo_usa_los_dias_reales_de_historial(self):
+        with self.en_empresa():
+            self.vender(45, hace_dias=45)          # vende desde hace 45 días → 1/día (no 0,5)
+            s = sugerencias.calcular(dias_cobertura=30, solo_necesarios=False)[self.prov][0]
+            self.assertEqual(s.consumo_diario, 1.0)
+
+    def test_historial_corto_se_divide_entre_30_como_minimo(self):
+        with self.en_empresa():
+            self.vender(15, hace_dias=5)           # 15 en 5 días no son 3/día: se toma 15/30
+            s = sugerencias.calcular(dias_cobertura=30, solo_necesarios=False)[self.prov][0]
+            self.assertEqual(s.consumo_diario, 0.5)
+
+    def test_columna_con_pedido_en_el_panel(self):
+        with self.en_empresa():
+            servicios.ingresar(self.p1, 4, Decimal('10'), self.dueno)
+        r = self.client.get(reverse('compras:panel_pedido'), {'dias': 30})
+        self.assertContains(r, 'Con pedido')
+        self.assertContains(r, 'data-consumo="1.0"')
 
     def test_crear_orden_desde_panel(self):
         r = self.client.post(reverse('compras:crear_desde_panel'), {
@@ -335,3 +363,24 @@ class ListaPreciosTests(ComprasBase):
         self.client.force_login(self.vendedor)     # el vendedor también puede generarla
         r = self.client.get(reverse('inventario:lista_precios'), {'generar': 1, 'con_existencia': 1})
         self.assertTrue(r.content.startswith(b'%PDF'))
+
+
+class PanelFiltrosTests(ComprasBase):
+    def test_filtra_por_categoria_subcategoria_y_marca(self):
+        from apps.inventario.models import Categoria, Marca, Subcategoria
+        with self.en_empresa():
+            otra_cat = Categoria.objects.create(nombre='Equipos')
+            sub = Subcategoria.objects.create(categoria=self.p1.categoria, nombre='Química')
+            marca = Marca.objects.create(nombre='Wiener')
+            Producto.todos.filter(pk=self.p1.pk).update(subcategoria=sub, marca=marca)
+            Producto.todos.filter(pk=self.p2.pk).update(categoria=otra_cat, stock_minimo=5)
+
+            def productos(**kw):
+                return {s.producto.pk for g in sugerencias.calcular(30, solo_necesarios=False, **kw).values() for s in g}
+            self.assertEqual(productos(categoria_id=otra_cat.pk), {self.p2.pk})
+            self.assertEqual(productos(subcategoria_id=sub.pk), {self.p1.pk})
+            self.assertEqual(productos(marca_id=marca.pk), {self.p1.pk})
+        r = self.client.get(reverse('compras:panel_pedido'), {'categoria': otra_cat.pk, 'todos': '1'})
+        self.assertContains(r, self.p2.nombre)
+        self.assertNotContains(r, self.p1.nombre)
+        self.assertContains(r, 'Quitar filtros')
