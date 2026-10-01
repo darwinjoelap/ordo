@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+  <div><h1 class="h3 mb-0">Tasa del día</h1>
+    <div class="small text-muted">Ordo consulta el BCV cada mañana. Si no se actualizó, carga la tasa de hoy para tu empresa.</div></div>
+  {% if vigente %}<div class="text-end"><div class="small text-muted">En uso</div>
+    <div class="fs-4 fw-bold {% if vigente.fecha != hoy %}text-warning-emphasis{% endif %}">Bs {{ vigente.bs_por_usd|floatformat:"4g" }}</div>
+    <div class="small text-muted">{{ vigente.fecha|date:"d/m/Y" }} · {% if vigente.fuente == 'EMPRESA' %}cargada por tu empresa{% else %}{{ vigente.get_fuente_display }}{% endif %}</div></div>{% endif %}
+</div>
+{% if vigente and vigente.fecha != hoy %}<div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i>La tasa en uso no es de hoy. Consulta el BCV o cárgala a mano.</div>{% endif %}
+<div class="row g-3">
+  <div class="col-lg-4">
+    <form method="post" class="card card-body mb-3">{% csrf_token %}
+      <div class="fw-semibold mb-2">Cargar la tasa de hoy ({{ hoy|date:"d/m/Y" }})</div>
+      <label class="form-label small" for="valor">Bs por USD</label>
+      <input id="valor" name="valor" inputmode="decimal" required class="form-control mb-2" placeholder="Ej.: 36,5021">
+      <div class="small text-muted mb-2">Solo aplica a tu empresa. Los presupuestos guardan la tasa al emitirse; los ya emitidos no cambian.</div>
+      <button class="btn btn-primary btn-sm" onclick="return confirm('¿Usar esta tasa hoy en tu empresa?')"><i class="bi bi-save me-1"></i>Guardar tasa</button>
+    </form>
+    <form method="post" class="card card-body">{% csrf_token %}<input type="hidden" name="accion" value="bcv">
+      <div class="fw-semibold mb-1">Reintentar con el BCV</div>
+      <div class="small text-muted mb-2">Última del BCV: {% if bcv %}Bs {{ bcv.bs_por_usd|floatformat:"4g" }} ({{ bcv.fecha|date:"d/m/Y" }}){% else %}ninguna{% endif %}</div>
+      <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Consultar BCV</button>
+    </form>
+  </div>
+  <div class="col-lg-8">
+    <div class="card mb-3"><div class="card-header bg-white fw-semibold">Tasas cargadas por tu empresa</div>
+      {% if propias %}<div class="table-responsive"><table class="table table-sm align-middle mb-0">
+        <thead class="table-light"><tr><th>Fecha</th><th class="text-end">Bs por USD</th><th class="d-none d-sm-table-cell">Registró</th><th></th></tr></thead>
+        <tbody>{% for t in propias %}<tr><td>{{ t.fecha|date:"d/m/Y" }}</td><td class="text-end">{{ t.bs_por_usd|floatformat:"4g" }}</td>
+          <td class="d-none d-sm-table-cell small">{{ t.registrada_por.nombre_visible|default:"—" }}</td>
+          <td class="text-end">{% if t.fecha == hoy %}<form method="post" onsubmit="return confirm('¿Quitar tu tasa de hoy y usar la del BCV?')">{% csrf_token %}<input type="hidden" name="accion" value="borrar"><input type="hidden" name="fecha" value="{{ t.fecha|date:'Y-m-d' }}"><button class="btn btn-link btn-sm p-0 text-danger">Usar la del BCV</button></form>{% endif %}</td></tr>{% endfor %}</tbody>
+      </table></div>{% else %}<div class="card-body text-muted small">Tu empresa no ha cargado tasas: usa la del BCV.</div>{% endif %}
+    </div>
+    <div class="card"><div class="card-header bg-white fw-semibold">Historial BCV</div>
+      {% if historial_bcv %}<div class="table-responsive"><table class="table table-sm align-middle mb-0">
+        <thead class="table-light"><tr><th>Fecha</th><th class="text-end">Bs por USD</th><th>Fuente</th></tr></thead>
+        <tbody>{% for t in historial_bcv %}<tr><td>{{ t.fecha|date:"d/m/Y" }}</td><td class="text-end">{{ t.bs_por_usd|floatformat:"4g" }}</td><td class="small">{{ t.get_fuente_display }}</td></tr>{% endfor %}</tbody>
+      </table></div>{% else %}<div class="card-body text-muted small">Sin registros.</div>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

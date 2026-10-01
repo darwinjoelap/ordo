@@ -143,3 +143,49 @@ class ApartadosTests(Base):
         r = self.client.get(reverse('ventas:reporte_apartados'))
         self.assertNotContains(r, p.numero)
         self.assertContains(r, q.numero)
+
+
+class TasaEmpresaTests(Base):
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+        from apps.empresas.models import Empresa
+        self.otra_emp = Empresa.objects.get(nombre='Beta')
+
+    def test_la_tasa_propia_manda_ese_dia_y_solo_en_su_empresa(self):
+        from apps.tasas import servicios as tasas
+        tasas.registrar_de_empresa(self.empresa, Decimal('120'), self.dueno)
+        self.assertEqual(tasas.tasa_vigente(self.empresa).bs_por_usd, Decimal('120'))
+        self.assertEqual(tasas.tasa_vigente(self.otra_emp).bs_por_usd, Decimal('100'))   # la otra no cambia
+        self.assertEqual(tasas.tasa_vigente().bs_por_usd, Decimal('100'))
+        with self.empresa_ctx():                                        # se congela al emitir
+            p = ventas.crear(self.cliente, self.vendedor, self.empresa)
+            ventas.agregar_item(p, self.prod, 1, None, self.perfil, True)
+            p = ventas.emitir(p)
+        self.assertEqual(p.tasa_bs, Decimal('120'))
+
+    def test_una_tasa_bcv_mas_reciente_la_reemplaza(self):
+        from apps.tasas import servicios as tasas
+        tasas.registrar_de_empresa(self.empresa, Decimal('120'), self.dueno, fecha=HOY - timedelta(days=1))
+        TasaCambio.objects.filter(fecha=HOY).delete()
+        TasaCambio.objects.create(fecha=HOY - timedelta(days=2), bs_por_usd=Decimal('90'))
+        tasas.limpiar_cache()
+        self.assertEqual(tasas.tasa_vigente(self.empresa).bs_por_usd, Decimal('120'))   # la suya es más nueva
+        tasas.registrar(Decimal('130'), TasaCambio.Fuente.BCV)                          # hoy responde el BCV
+        self.assertEqual(tasas.tasa_vigente(self.empresa).bs_por_usd, Decimal('130'))
+
+    def test_pantalla_permisos_y_volver_al_bcv(self):
+        url = reverse('empresas:tasa')
+        self.client.force_login(self.vendedor)
+        self.assertEqual(self.client.get(url).status_code, 403)
+        self.client.force_login(self.dueno)
+        self.assertContains(self.client.get(url), 'Tasa del día')
+        self.client.post(url, {'valor': '1.050,25'})
+        r = self.client.get(reverse('core:inicio'))
+        self.assertEqual(r.context['tasa'].bs_por_usd, Decimal('1050.25'))
+        self.assertContains(r, 'Tasa cargada por la empresa')
+        self.client.post(url, {'accion': 'borrar', 'fecha': HOY.isoformat()})
+        self.assertEqual(self.client.get(reverse('core:inicio')).context['tasa'].bs_por_usd, Decimal('100'))
+        self.client.post(url, {'valor': '0'})
+        from apps.tasas.models import TasaEmpresa
+        self.assertFalse(TasaEmpresa.todos.exists())

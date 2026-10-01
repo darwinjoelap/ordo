@@ -1,7 +1,9 @@
 from django.contrib import admin
 
+from apps.core.admin import EmpresaModelAdmin
+
 from . import servicios
-from .models import TasaCambio
+from .models import TasaCambio, TasaEmpresa
 
 
 @admin.register(TasaCambio)
@@ -15,3 +17,9 @@ class TasaCambioAdmin(admin.ModelAdmin):
             obj.registrada_por = request.user
         super().save_model(request, obj, form, change)
         servicios.limpiar_cache()
+
+
+@admin.register(TasaEmpresa)
+class TasaEmpresaAdmin(EmpresaModelAdmin):
+    list_display = ['fecha', 'empresa', 'bs_por_usd', 'registrada_por', 'actualizado_en']
+    list_filter = ['empresa']

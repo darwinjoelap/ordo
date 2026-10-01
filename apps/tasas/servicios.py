@@ -11,20 +11,61 @@ from bs4 import BeautifulSoup
 from django.core.cache import cache
 from django.utils import timezone
 
-from .models import TasaCambio
+from .models import TasaCambio, TasaEmpresa
 
 log = logging.getLogger('apps.tasas')
 URL_BCV = 'https://www.bcv.org.ve/'
 CLAVE_CACHE = 'ordo:tasa_vigente'
 
 
-def tasa_vigente():
-    """Última tasa registrada (cacheada 5 min). None si no hay ninguna."""
+def tasa_global():
+    """Última tasa BCV/plataforma (cacheada 5 min). None si no hay ninguna."""
     tasa = cache.get(CLAVE_CACHE)
     if tasa is None:
         tasa = TasaCambio.objects.order_by('-fecha').first() or False
         cache.set(CLAVE_CACHE, tasa, 300)
     return tasa or None
+
+
+def _clave_empresa(empresa_id):
+    return f'{CLAVE_CACHE}:empresa:{empresa_id}'
+
+
+def tasa_de_empresa(empresa):
+    """Última tasa cargada a mano por la empresa (cacheada). None si no tiene."""
+    clave = _clave_empresa(empresa.pk)
+    tasa = cache.get(clave)
+    if tasa is None:
+        tasa = TasaEmpresa.todos.filter(empresa=empresa).order_by('-fecha').first() or False
+        cache.set(clave, tasa, 300)
+    return tasa or None
+
+
+def tasa_vigente(empresa=None):
+    """
+    Tasa que usa la empresa: la más reciente entre la global y la suya; si son del mismo día, la suya.
+    Sin empresa (plataforma, comandos), la global.
+    """
+    global_ = tasa_global()
+    if empresa is None:
+        return global_
+    propia = tasa_de_empresa(empresa)
+    if propia and (global_ is None or propia.fecha >= global_.fecha):
+        return propia
+    return global_
+
+
+def registrar_de_empresa(empresa, valor, usuario, fecha=None):
+    tasa, _ = TasaEmpresa.todos.update_or_create(
+        empresa=empresa, fecha=fecha or timezone.localdate(),
+        defaults={'bs_por_usd': valor, 'registrada_por': usuario})
+    cache.delete(_clave_empresa(empresa.pk))
+    return tasa
+
+
+def borrar_de_empresa(empresa, fecha):
+    TasaEmpresa.todos.filter(empresa=empresa, fecha=fecha).delete()
+    cache.delete(_clave_empresa(empresa.pk))
 
 
 def limpiar_cache():

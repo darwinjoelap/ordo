@@ -12,7 +12,7 @@ def ordo(request):
     tasa = None
     if getattr(request, 'user', None) is not None and request.user.is_authenticated:
         from apps.tasas.servicios import tasa_vigente
-        tasa = tasa_vigente()
+        tasa = tasa_vigente(empresa)
     aviso = None
     if empresa and membresia and membresia.rol in ('DUENO', 'ADMIN'):
         dias = empresa.dias_para_vencer

@@ -133,4 +133,4 @@ def tasas(request):
         return redirect('plataforma:tasas')
     return render(request, 'plataforma/tasas.html', {
         'titulo': 'Tasa BCV', 'tasas': TasaCambio.objects.select_related('registrada_por')[:60],
-        'vigente': tasas_srv.tasa_vigente(), 'hoy': timezone.localdate()})
+        'vigente': tasas_srv.tasa_global(), 'hoy': timezone.localdate()})

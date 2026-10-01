@@ -133,6 +133,8 @@
 ## Paridad con BioLifeVentas — bloque B
 - [x] Venta sin IVA (exenta) por documento; en el PDF sale "IVA: Exento" (modo FIJO: solo gestión)
 - [x] Plataforma → Tasa BCV: historial, carga manual (reemplaza la del día) y "Consultar BCV ahora"
+- [x] Empresa → Tasa del día (Dueño/Administrador): tasa propia de hoy solo para su empresa, reintentar BCV,
+      volver a la del BCV; la tasa de la barra superior abre esta pantalla
 - [x] Tablero: por cobrar, por entregar, lotes vencidos con stock, próximos a vencer (30 días), bajo mínimo
 - [x] Lista de ventas filtrable por "sin pago" / "sin entregar"
 - [x] Reportes → Apartados: por presupuesto (lotes y fecha límite) y total por producto

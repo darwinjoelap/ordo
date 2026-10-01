@@ -47,3 +47,4 @@
 | 2026-10-01 | Venta exenta = IVA 0 % en el documento; el vendedor la marca salvo en modo de precio FIJO | Como BioLifeVentas (`incluye_iva`), respetando el control de precios |
 | 2026-10-01 | Tasa manual solo desde Plataforma (superusuario) | La tasa es global; una empresa no debe cambiarla para todas |
 | 2026-10-01 | Disponible = existencia − apartado − libre en lotes vencidos | Lo vencido no se puede vender; alertas y panel de pedido quedan correctos |
+| 2026-10-01 | Cada empresa puede cargar su propia tasa del día (TasaEmpresa); se usa la más reciente entre la global y la propia, y la propia gana el mismo día | El tenant no depende de la plataforma si el BCV falla, y un error suyo no afecta a otras empresas |

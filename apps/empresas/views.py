@@ -1,3 +1,4 @@
+import logging
 from io import BytesIO
 
 from django.contrib import messages
@@ -114,3 +115,54 @@ def pdf_prueba(request):
     respuesta = HttpResponse(buffer.getvalue(), content_type='application/pdf')
     respuesta['Content-Disposition'] = 'inline; filename="prueba-encabezado.pdf"'
     return respuesta
+
+
+@login_required
+@requiere('tasa.cargar')
+def tasa(request):
+    """Tasa del día de la empresa: ver la vigente, cargar una propia si el BCV no actualizó, o volver a la del BCV."""
+    from datetime import date
+    from decimal import Decimal, InvalidOperation
+
+    from django.utils import timezone
+
+    from apps.tasas import servicios as tasas
+    from apps.tasas.models import TasaCambio, TasaEmpresa
+    hoy = timezone.localdate()
+    empresa = request.empresa
+    if request.method == 'POST':
+        accion = request.POST.get('accion')
+        if accion == 'borrar':
+            try:
+                fecha = date.fromisoformat(request.POST.get('fecha', ''))
+            except ValueError:
+                fecha = None
+            if fecha:
+                tasas.borrar_de_empresa(empresa, fecha)
+                messages.success(request, 'Tasa propia eliminada: se usa la del BCV.')
+        elif accion == 'bcv':
+            try:
+                t = tasas.actualizar_desde_bcv()
+                messages.success(request, f'BCV consultado: Bs {t.bs_por_usd} ({t.fecha:%d/%m/%Y}).')
+            except Exception as e:  # el sitio del BCV falla seguido
+                logging.getLogger('apps.tasas').warning('Consulta al BCV desde %s falló: %s', empresa, e)
+                messages.error(request, 'El BCV no respondió. Puedes cargar la tasa del día a mano.')
+        else:
+            try:
+                texto = request.POST.get('valor', '').strip()
+                if ',' in texto:                       # formato venezolano: 1.234,5678
+                    texto = texto.replace('.', '').replace(',', '.')
+                valor = Decimal(texto)
+                if valor <= 0:
+                    raise InvalidOperation
+            except (InvalidOperation, ValueError):
+                messages.error(request, 'Indica una tasa mayor que cero (ej.: 36,5021).')
+            else:
+                tasas.registrar_de_empresa(empresa, valor.quantize(Decimal('0.0001')), request.user, hoy)
+                messages.success(request, f'Tasa de hoy guardada para {empresa.nombre}: Bs {valor}.')
+        return redirect('empresas:tasa')
+    return render(request, 'empresas/tasa.html', {
+        'titulo': 'Tasa del día', 'hoy': hoy, 'vigente': tasas.tasa_vigente(empresa), 'bcv': tasas.tasa_global(),
+        'propias': TasaEmpresa.objects.select_related('registrada_por')[:30],
+        'historial_bcv': TasaCambio.objects.all()[:15],
+    })

@@ -15,6 +15,7 @@ GESTION = {Rol.DUENO, Rol.ADMIN}
 PERMISOS = {
     # Empresa y equipo
     'empresa.configurar': GESTION,
+    'tasa.cargar': GESTION,
     'usuarios.gestionar': GESTION,
     # Inventario y compras (Fase 3)
     'inventario.ver': TODOS,

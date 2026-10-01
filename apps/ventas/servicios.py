@@ -155,7 +155,7 @@ def emitir(p):
     _exigir(p, E.BORRADOR, E.EMITIDO)
     if not ItemPresupuesto.objects.filter(presupuesto=p).exists():
         raise ErrorVenta('Agrega al menos un producto.')
-    tasa = tasa_vigente()
+    tasa = tasa_vigente(p.empresa)
     p.tasa_bs = tasa.bs_por_usd if tasa else None
     p.fecha = timezone.localdate()
     p.estado = E.EMITIDO

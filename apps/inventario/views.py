@@ -251,7 +251,7 @@ def lista_precios(request):
             productos = productos.filter(anot_stock_disponible__gt=0)
         contenido = lista_precios_pdf(productos, request.empresa,
                                       mostrar_existencia=bool(request.GET.get('mostrar_existencia')),
-                                      tasa=tasa_vigente() if request.GET.get('en_bs') else None)
+                                      tasa=tasa_vigente(request.empresa) if request.GET.get('en_bs') else None)
         r = HttpResponse(contenido, content_type='application/pdf')
         r['Content-Disposition'] = 'inline; filename="lista-de-precios.pdf"'
         return r
