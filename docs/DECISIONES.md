@@ -51,3 +51,5 @@
 | 2026-10-01 | Consumo diario = ventas de 90 días ÷ días de historial (desde la 1.ª venta, entre 30 y 90); sin factor guardado por cron | Siempre al día; un producto nuevo no se subestima ni una semana de ventas lo dispara |
 | 2026-10-01 | Al migrar, «días por unidad» se calcula con las ventas reales de BioLifeVentas, no se copia su factor | Su cron guarda días de stock en ese campo (error de BioLifeVentas) |
 | 2026-10-01 | Unidades iniciales de laboratorio (Vial, Mililitro, Test, Tubo, Rollo) para todas las empresas, también las existentes (migración inventario 0006) | La mayoría de productos de BioLife se miden en VIAL; la importación no falla por unidades faltantes |
+| 2026-10-01 | Migración por JSON exportado desde BioLifeVentas + importador en Ordo (pantalla de Plataforma y comando) | No se modifica BioLifeVentas; una transacción; simulación con verificación antes de guardar |
+| 2026-10-01 | Usuarios migrados con su contraseña cifrada; números de documento originales; sin comisiones históricas | Nadie cambia su forma de entrar; trazabilidad con BioLifeVentas; BioLifeVentas no tenía comisiones |

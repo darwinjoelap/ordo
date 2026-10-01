@@ -9,7 +9,7 @@
 | 4 | Clientes, presupuestos, ventas, precios, validación | Código listo y en develop |
 | 5 | Comisiones | Código listo y en develop |
 | 6 | PWA iPhone, Android y web | Código listo y en develop |
-| 7 | Migración BioLife y producción | En curso: staging (guía en docs/DESPLIEGUE_RAILWAY.md) |
+| 7 | Migración BioLife y producción | Herramienta lista (docs/MIGRACION_BIOLIFE.md); falta ensayo con datos reales y producción |
 
 ## Fase 1 — detalle
 - [x] Proyecto Django 5.2 con settings base/dev/prod
@@ -146,3 +146,13 @@
 - [x] Consumo con los días reales de historial (30 a 90) y aviso "Con vencidos" por producto
 - [x] Filtros: proveedor, categoría, subcategoría (según la categoría) y marca
 - [x] Script `biolifeventas_a_ordo.py`: «dias_por_unidad» calculado con ventas reales de 90 días
+
+## Fase 7 — migración BioLifeVentas
+- [x] `scripts/biolifeventas_exportar.py`: exporta TODO a JSON (solo lectura), con resumen para cuadrar
+- [x] Importador (`apps/core/migracion_biolife.py`): usuarios con su clave, catálogo, proveedores, productos, lotes,
+      kardex completo, clientes, presupuestos/ventas (facturación, pago, entrega, apartados), órdenes de compra, tasas
+- [x] Una transacción; simulación; `--vaciar`; verificación de existencias, apartados, ventas y total vendido
+- [x] Plataforma → empresa → "Migrar desde BioLifeVentas" (subir JSON, simular, guardar) y comando `importar_biolifeventas`
+- [x] Probado con una copia de los modelos de BioLifeVentas y datos de prueba (13 tests)
+- [ ] Ensayo con datos reales en staging
+- [ ] Entorno de producción, respaldo diario y corte

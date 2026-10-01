@@ -134,3 +134,36 @@ def tasas(request):
     return render(request, 'plataforma/tasas.html', {
         'titulo': 'Tasa BCV', 'tasas': TasaCambio.objects.select_related('registrada_por')[:60],
         'vigente': tasas_srv.tasa_global(), 'hoy': timezone.localdate()})
+
+
+@solo_plataforma
+def migrar(request, pk):
+    """Importa la exportación de BioLifeVentas (JSON) en esta empresa. Primero simular, luego guardar."""
+    import json
+
+    from apps.core.migracion_biolife import ErrorMigracion, Importador, datos_de_negocio
+    empresa = get_object_or_404(Empresa, pk=pk)
+    resultado = None
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo')
+        simular = request.POST.get('guardar') != '1'
+        vaciar = request.POST.get('vaciar') == '1'
+        if not archivo or not archivo.name.lower().endswith('.json'):
+            messages.error(request, 'Elige el archivo .json generado por scripts/biolifeventas_exportar.py.')
+        elif archivo.size > 100 * 1024 * 1024:
+            messages.error(request, 'El archivo supera 100 MB.')
+        else:
+            try:
+                datos = json.load(archivo)
+                resultado = Importador(datos, empresa).ejecutar(simular=simular, vaciar=vaciar)
+                log.warning('Migración BioLifeVentas en %s por %s (simular=%s, vaciar=%s, ok=%s)',
+                            empresa.nombre, request.user.username, simular, vaciar, resultado.ok)
+                if not simular:
+                    messages.success(request, f'Migración guardada en {empresa.nombre}.')
+            except ValueError:
+                messages.error(request, 'El archivo no es un JSON válido.')
+            except ErrorMigracion as e:
+                messages.error(request, str(e))
+    return render(request, 'plataforma/migrar.html', {
+        'titulo': f'Migrar BioLifeVentas → {empresa.nombre}', 'empresa': empresa, 'r': resultado,
+        'ocupada': {k: n for k, n in datos_de_negocio(empresa).items() if n}})

@@ -3,7 +3,8 @@
 <a href="{% url 'plataforma:lista' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Empresas</a>
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mt-2 mb-3">
   <h1 class="h3 mb-0">{{ titulo }}</h1>
-  {% if empresa %}<form method="post" action="{% url 'plataforma:entrar' empresa.pk %}">{% csrf_token %}<button class="btn btn-sm btn-primary"><i class="bi bi-box-arrow-in-right me-1"></i>Entrar como soporte</button></form>{% endif %}
+  {% if empresa %}<form method="post" action="{% url 'plataforma:entrar' empresa.pk %}">{% csrf_token %}<button class="btn btn-sm btn-primary"><i class="bi bi-box-arrow-in-right me-1"></i>Entrar como soporte</button></form>
+  <a href="{% url 'plataforma:migrar' empresa.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-database-up me-1"></i>Migrar desde BioLifeVentas</a>{% endif %}
   {% if enlace %}<div class="small w-100">Enlace: <a href="{{ enlace }}" target="_blank">{{ enlace }}</a>
     <button type="button" class="btn btn-sm btn-link p-0 ms-1" onclick="navigator.clipboard.writeText('{{ enlace|escapejs }}').then(()=>{this.textContent='copiado'})" title="Copiar"><i class="bi bi-clipboard"></i></button></div>{% endif %}
 </div>

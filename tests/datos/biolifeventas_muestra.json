@@ -1,0 +1,786 @@
+{
+ "version": 1,
+ "origen": "BioLifeVentas",
+ "exportado_en": "2026-10-01T16:06:12.461912",
+ "usuarios": [
+  {
+   "id": 1,
+   "username": "Admin",
+   "first_name": "Darwin",
+   "last_name": "Arroyo",
+   "email": "a@b.com",
+   "telefono": "",
+   "rol": "ADMIN",
+   "activo_sistema": true,
+   "is_active": true,
+   "is_superuser": true,
+   "password": "pbkdf2_sha256$1000000$mHilvngC2ORATgtwfkQh9T$AGVgvey8GMHeo4GKYlxLuXQdMgbKPfqxrISCgU7+f6I=",
+   "date_joined": "2026-10-01T20:06:11.018243+00:00",
+   "last_login": null
+  },
+  {
+   "id": 2,
+   "username": "ana",
+   "first_name": "Ana",
+   "last_name": "Pérez",
+   "email": "",
+   "telefono": "",
+   "rol": "CONTROL_TOTAL",
+   "activo_sistema": true,
+   "is_active": true,
+   "is_superuser": false,
+   "password": "pbkdf2_sha256$1000000$RnO8e0Le1o28j2OkLlzciE$/OSP9MRf0zHx+yJ5on8ltjv7QrlLO4I3ycGWqIOWwog=",
+   "date_joined": "2026-10-01T20:06:11.245020+00:00",
+   "last_login": null
+  },
+  {
+   "id": 3,
+   "username": "luis",
+   "first_name": "Luis",
+   "last_name": "",
+   "email": "luis@x.com",
+   "telefono": "0414",
+   "rol": "VENDEDOR",
+   "activo_sistema": true,
+   "is_active": true,
+   "is_superuser": false,
+   "password": "pbkdf2_sha256$1000000$1JNShsb4UAwM16tAsrmcA0$RkoHup5REgH+9qNneiNjwu6ecGltxKqRvsfIuf8cyAA=",
+   "date_joined": "2026-10-01T20:06:11.465422+00:00",
+   "last_login": null
+  },
+  {
+   "id": 4,
+   "username": "pedro",
+   "first_name": "",
+   "last_name": "",
+   "email": "",
+   "telefono": "",
+   "rol": "VENDEDOR",
+   "activo_sistema": false,
+   "is_active": true,
+   "is_superuser": false,
+   "password": "pbkdf2_sha256$1000000$e4cijZQkIgafxMwmIYXfEJ$HNdT+9fHA3EJAwKeEvujyZTZ2Z6OsO6B67Gg10ewCvo=",
+   "date_joined": "2026-10-01T20:06:11.682345+00:00",
+   "last_login": null
+  }
+ ],
+ "configuracion": {
+  "nombre_empresa": "Biolife de Venezuela, CA",
+  "rif": "J-123",
+  "iva_porcentaje": "16.00",
+  "dias_vencimiento_apartado": 15,
+  "condiciones_presupuesto": "Precios sujetos a tasa del día de emisión. Validez según fecha indicada."
+ },
+ "categorias": [
+  {
+   "id": 1,
+   "nombre": "Reactivos",
+   "descripcion": ""
+  },
+  {
+   "id": 2,
+   "nombre": "Equipos",
+   "descripcion": ""
+  }
+ ],
+ "subcategorias": [
+  {
+   "id": 1,
+   "categoria_id": 1,
+   "nombre": "Química"
+  }
+ ],
+ "marcas": [
+  {
+   "id": 1,
+   "nombre": "Wiener Lab",
+   "activa": true
+  },
+  {
+   "id": 2,
+   "nombre": "Mindray",
+   "activa": false
+  }
+ ],
+ "proveedores": [
+  {
+   "id": 1,
+   "nombre": "Distribuidora Lara",
+   "rif": "J-9",
+   "contacto_principal": "Carlos",
+   "telefono": "0251",
+   "email": "",
+   "notas": "",
+   "activo": true
+  },
+  {
+   "id": 2,
+   "nombre": "Importadora X",
+   "rif": "",
+   "contacto_principal": "",
+   "telefono": "",
+   "email": "",
+   "notas": "",
+   "activo": false
+  }
+ ],
+ "direcciones_proveedor": [
+  {
+   "id": 1,
+   "proveedor_id": 1,
+   "etiqueta": "Almacén",
+   "direccion_completa": "Zona Ind. II",
+   "ciudad": "Barquisimeto",
+   "estado": "Lara",
+   "pais": "Venezuela",
+   "es_principal": true,
+   "activa": true
+  },
+  {
+   "id": 2,
+   "proveedor_id": 1,
+   "etiqueta": "Oficina",
+   "direccion_completa": "Av. 20",
+   "ciudad": "Caracas",
+   "estado": "",
+   "pais": "Venezuela",
+   "es_principal": false,
+   "activa": true
+  }
+ ],
+ "productos": [
+  {
+   "id": 1,
+   "codigo": "GLU-01",
+   "nombre": "Glucosa 2x50 ml",
+   "descripcion": "",
+   "categoria_id": 1,
+   "subcategoria_id": 1,
+   "marca_id": 1,
+   "proveedor_habitual_id": 1,
+   "unidad": "VIAL",
+   "requiere_lote": true,
+   "requiere_vencimiento": true,
+   "precio_costo_usd": "10.00",
+   "precio_venta_usd": "20.00",
+   "stock_minimo": 5,
+   "factor_venta_dias": "120.00",
+   "factor_auto_ajuste": true,
+   "activo": true
+  },
+  {
+   "id": 2,
+   "codigo": "COL-01",
+   "nombre": "Colesterol",
+   "descripcion": "",
+   "categoria_id": 1,
+   "subcategoria_id": null,
+   "marca_id": null,
+   "proveedor_habitual_id": 1,
+   "unidad": "FRASCO",
+   "requiere_lote": true,
+   "requiere_vencimiento": true,
+   "precio_costo_usd": "8.00",
+   "precio_venta_usd": "15.00",
+   "stock_minimo": 0,
+   "factor_venta_dias": "7.00",
+   "factor_auto_ajuste": false,
+   "activo": true
+  },
+  {
+   "id": 3,
+   "codigo": "CEN-01",
+   "nombre": "Centrífuga",
+   "descripcion": "",
+   "categoria_id": 2,
+   "subcategoria_id": null,
+   "marca_id": null,
+   "proveedor_habitual_id": 2,
+   "unidad": "UN",
+   "requiere_lote": false,
+   "requiere_vencimiento": false,
+   "precio_costo_usd": "100.00",
+   "precio_venta_usd": "180.00",
+   "stock_minimo": 0,
+   "factor_venta_dias": "30.00",
+   "factor_auto_ajuste": true,
+   "activo": true
+  }
+ ],
+ "lotes": [
+  {
+   "id": 1,
+   "producto_id": 1,
+   "numero_lote": "G-A",
+   "fecha_vencimiento": "2026-11-10",
+   "cantidad_inicial": 20,
+   "cantidad_actual": 0,
+   "cantidad_apartada": 0,
+   "precio_costo_lote_usd": "9.50",
+   "proveedor_id": 1,
+   "fecha_ingreso": "2026-03-15",
+   "notas": ""
+  },
+  {
+   "id": 2,
+   "producto_id": 1,
+   "numero_lote": "G-B",
+   "fecha_vencimiento": "2027-07-28",
+   "cantidad_inicial": 30,
+   "cantidad_actual": 15,
+   "cantidad_apartada": 4,
+   "precio_costo_lote_usd": "10.00",
+   "proveedor_id": 1,
+   "fecha_ingreso": "2026-06-23",
+   "notas": ""
+  },
+  {
+   "id": 3,
+   "producto_id": 2,
+   "numero_lote": "C-A",
+   "fecha_vencimiento": "2026-09-26",
+   "cantidad_inicial": 10,
+   "cantidad_actual": 8,
+   "cantidad_apartada": 0,
+   "precio_costo_lote_usd": "8.00",
+   "proveedor_id": 1,
+   "fecha_ingreso": "2026-05-04",
+   "notas": ""
+  },
+  {
+   "id": 4,
+   "producto_id": 3,
+   "numero_lote": "",
+   "fecha_vencimiento": null,
+   "cantidad_inicial": 3,
+   "cantidad_actual": 2,
+   "cantidad_apartada": 0,
+   "precio_costo_lote_usd": "100.00",
+   "proveedor_id": 2,
+   "fecha_ingreso": "2026-05-04",
+   "notas": ""
+  }
+ ],
+ "movimientos": [
+  {
+   "id": 1,
+   "lote_id": 1,
+   "tipo": "INGRESO",
+   "cantidad": 20,
+   "fecha": "2026-03-15T20:06:11.018131+00:00",
+   "usuario_id": 2,
+   "referencia_tipo": "Ingreso de Compra",
+   "referencia_id": 1,
+   "motivo": ""
+  },
+  {
+   "id": 3,
+   "lote_id": 3,
+   "tipo": "INGRESO",
+   "cantidad": 10,
+   "fecha": "2026-05-04T20:06:11.018131+00:00",
+   "usuario_id": 2,
+   "referencia_tipo": "Ingreso de Compra",
+   "referencia_id": 3,
+   "motivo": ""
+  },
+  {
+   "id": 4,
+   "lote_id": 4,
+   "tipo": "INGRESO",
+   "cantidad": 3,
+   "fecha": "2026-05-04T20:06:11.018131+00:00",
+   "usuario_id": 2,
+   "referencia_tipo": "Ingreso de Compra",
+   "referencia_id": 4,
+   "motivo": ""
+  },
+  {
+   "id": 2,
+   "lote_id": 2,
+   "tipo": "INGRESO",
+   "cantidad": 30,
+   "fecha": "2026-06-23T20:06:11.018131+00:00",
+   "usuario_id": 2,
+   "referencia_tipo": "Ingreso de Compra",
+   "referencia_id": 2,
+   "motivo": ""
+  },
+  {
+   "id": 5,
+   "lote_id": 4,
+   "tipo": "APARTADO",
+   "cantidad": -1,
+   "fecha": "2026-07-13T20:06:11.018131+00:00",
+   "usuario_id": 3,
+   "referencia_tipo": "Presupuesto",
+   "referencia_id": 1,
+   "motivo": "Apartado en presupuesto 202600001"
+  },
+  {
+   "id": 6,
+   "lote_id": 1,
+   "tipo": "APARTADO",
+   "cantidad": -20,
+   "fecha": "2026-07-13T20:06:11.018131+00:00",
+   "usuario_id": 3,
+   "referencia_tipo": "Presupuesto",
+   "referencia_id": 1,
+   "motivo": "Apartado en presupuesto 202600001"
+  },
+  {
+   "id": 7,
+   "lote_id": 2,
+   "tipo": "APARTADO",
+   "cantidad": -10,
+   "fecha": "2026-07-13T20:06:11.018131+00:00",
+   "usuario_id": 3,
+   "referencia_tipo": "Presupuesto",
+   "referencia_id": 1,
+   "motivo": "Apartado en presupuesto 202600001"
+  },
+  {
+   "id": 8,
+   "lote_id": 4,
+   "tipo": "VENTA",
+   "cantidad": -1,
+   "fecha": "2026-07-13T20:06:11.018131+00:00",
+   "usuario_id": 2,
+   "referencia_tipo": "Presupuesto",
+   "referencia_id": 1,
+   "motivo": "Venta confirmada — Presupuesto 202600001"
+  },
+  {
+   "id": 9,
+   "lote_id": 1,
+   "tipo": "VENTA",
+   "cantidad": -20,
+   "fecha": "2026-07-13T20:06:11.018131+00:00",
+   "usuario_id": 2,
+   "referencia_tipo": "Presupuesto",
+   "referencia_id": 1,
+   "motivo": "Venta confirmada — Presupuesto 202600001"
+  },
+  {
+   "id": 10,
+   "lote_id": 2,
+   "tipo": "VENTA",
+   "cantidad": -10,
+   "fecha": "2026-07-13T20:06:11.018131+00:00",
+   "usuario_id": 2,
+   "referencia_tipo": "Presupuesto",
+   "referencia_id": 1,
+   "motivo": "Venta confirmada — Presupuesto 202600001"
+  },
+  {
+   "id": 14,
+   "lote_id": 2,
+   "tipo": "APARTADO",
+   "cantidad": -2,
+   "fecha": "2026-09-01T20:06:11.018131+00:00",
+   "usuario_id": 4,
+   "referencia_tipo": "Presupuesto",
+   "referencia_id": 4,
+   "motivo": "Apartado en presupuesto 202600004"
+  },
+  {
+   "id": 15,
+   "lote_id": 2,
+   "tipo": "LIBERACION",
+   "cantidad": 2,
+   "fecha": "2026-09-01T20:06:11.018131+00:00",
+   "usuario_id": 4,
+   "referencia_tipo": "Presupuesto",
+   "referencia_id": 4,
+   "motivo": "Cancelado — Presupuesto 202600004"
+  },
+  {
+   "id": 11,
+   "lote_id": 2,
+   "tipo": "APARTADO",
+   "cantidad": -5,
+   "fecha": "2026-09-21T20:06:11.018131+00:00",
+   "usuario_id": 2,
+   "referencia_tipo": "Presupuesto",
+   "referencia_id": 2,
+   "motivo": "Apartado en presupuesto 202600002"
+  },
+  {
+   "id": 12,
+   "lote_id": 2,
+   "tipo": "VENTA",
+   "cantidad": -5,
+   "fecha": "2026-09-21T20:06:11.018131+00:00",
+   "usuario_id": 2,
+   "referencia_tipo": "Presupuesto",
+   "referencia_id": 2,
+   "motivo": "Venta confirmada — Presupuesto 202600002"
+  },
+  {
+   "id": 13,
+   "lote_id": 2,
+   "tipo": "APARTADO",
+   "cantidad": -4,
+   "fecha": "2026-09-29T20:06:11.018131+00:00",
+   "usuario_id": 3,
+   "referencia_tipo": "Presupuesto",
+   "referencia_id": 3,
+   "motivo": "Apartado en presupuesto 202600003"
+  },
+  {
+   "id": 16,
+   "lote_id": 3,
+   "tipo": "BAJA_VENC",
+   "cantidad": -2,
+   "fecha": "2026-10-01T20:06:12.104994+00:00",
+   "usuario_id": 2,
+   "referencia_tipo": "Ajuste Manual",
+   "referencia_id": null,
+   "motivo": "Vencido"
+  }
+ ],
+ "clientes": [
+  {
+   "id": 1,
+   "nombre": "Clínica Sol",
+   "rif": "J-1",
+   "direccion": "",
+   "telefono": "0251-1",
+   "email": "",
+   "contacto": "",
+   "activo": true,
+   "creado_en": "2026-10-01T20:06:12.002914+00:00"
+  },
+  {
+   "id": 2,
+   "nombre": "Lab Luna",
+   "rif": "J-2",
+   "direccion": "",
+   "telefono": "",
+   "email": "",
+   "contacto": "",
+   "activo": true,
+   "creado_en": "2026-10-01T20:06:12.004191+00:00"
+  },
+  {
+   "id": 3,
+   "nombre": "Hospital Viejo",
+   "rif": "",
+   "direccion": "",
+   "telefono": "",
+   "email": "",
+   "contacto": "",
+   "activo": false,
+   "creado_en": "2026-10-01T20:06:12.005920+00:00"
+  }
+ ],
+ "presupuestos": [
+  {
+   "id": 1,
+   "numero": "202600001",
+   "cliente_id": 1,
+   "vendedor_id": 3,
+   "fecha_emision": "2026-07-13T20:06:11.018131+00:00",
+   "fecha_validez": "2026-10-08",
+   "incluye_iva": true,
+   "iva_porcentaje": "16.00",
+   "descuento_global_porcentaje": "0.00",
+   "tasa_cambio_usada": "36.2000",
+   "estado": "CONFIRMADO",
+   "dias_validez_apartado": 15,
+   "fecha_apartado": "2026-10-01T20:06:12.026680+00:00",
+   "fecha_vencimiento_apartado": "2026-10-16T20:06:12.026680+00:00",
+   "notas": "",
+   "condiciones": "Pago de contado",
+   "entregado": false,
+   "fecha_entrega": null,
+   "creado_en": "2026-07-13T20:06:11.018131+00:00",
+   "actualizado_en": "2026-10-01T20:06:12.008574+00:00"
+  },
+  {
+   "id": 2,
+   "numero": "202600002",
+   "cliente_id": 2,
+   "vendedor_id": 2,
+   "fecha_emision": "2026-09-21T20:06:11.018131+00:00",
+   "fecha_validez": "2026-10-08",
+   "incluye_iva": false,
+   "iva_porcentaje": "16.00",
+   "descuento_global_porcentaje": "7.00",
+   "tasa_cambio_usada": "36.2000",
+   "estado": "CONFIRMADO",
+   "dias_validez_apartado": 15,
+   "fecha_apartado": "2026-10-01T20:06:12.050882+00:00",
+   "fecha_vencimiento_apartado": "2026-10-16T20:06:12.050882+00:00",
+   "notas": "",
+   "condiciones": "Pago de contado",
+   "entregado": false,
+   "fecha_entrega": null,
+   "creado_en": "2026-09-21T20:06:11.018131+00:00",
+   "actualizado_en": "2026-10-01T20:06:12.041724+00:00"
+  },
+  {
+   "id": 3,
+   "numero": "202600003",
+   "cliente_id": 1,
+   "vendedor_id": 3,
+   "fecha_emision": "2026-09-29T20:06:11.018131+00:00",
+   "fecha_validez": "2026-10-08",
+   "incluye_iva": true,
+   "iva_porcentaje": "16.00",
+   "descuento_global_porcentaje": "0.00",
+   "tasa_cambio_usada": "36.2000",
+   "estado": "APARTADO",
+   "dias_validez_apartado": 15,
+   "fecha_apartado": "2026-10-01T20:06:12.069733+00:00",
+   "fecha_vencimiento_apartado": "2026-10-16T20:06:12.069733+00:00",
+   "notas": "",
+   "condiciones": "Pago de contado",
+   "entregado": false,
+   "fecha_entrega": null,
+   "creado_en": "2026-09-29T20:06:11.018131+00:00",
+   "actualizado_en": "2026-10-01T20:06:12.060429+00:00"
+  },
+  {
+   "id": 4,
+   "numero": "202600004",
+   "cliente_id": 2,
+   "vendedor_id": 4,
+   "fecha_emision": "2026-09-01T20:06:11.018131+00:00",
+   "fecha_validez": "2026-10-08",
+   "incluye_iva": true,
+   "iva_porcentaje": "16.00",
+   "descuento_global_porcentaje": "0.00",
+   "tasa_cambio_usada": "36.2000",
+   "estado": "CANCELADO",
+   "dias_validez_apartado": 15,
+   "fecha_apartado": "2026-10-01T20:06:12.082720+00:00",
+   "fecha_vencimiento_apartado": "2026-10-16T20:06:12.082720+00:00",
+   "notas": "",
+   "condiciones": "Pago de contado",
+   "entregado": false,
+   "fecha_entrega": null,
+   "creado_en": "2026-09-01T20:06:11.018131+00:00",
+   "actualizado_en": "2026-10-01T20:06:12.087542+00:00"
+  },
+  {
+   "id": 5,
+   "numero": "202600005",
+   "cliente_id": 1,
+   "vendedor_id": 3,
+   "fecha_emision": "2026-09-30T20:06:11.018131+00:00",
+   "fecha_validez": "2026-10-08",
+   "incluye_iva": true,
+   "iva_porcentaje": "16.00",
+   "descuento_global_porcentaje": "0.00",
+   "tasa_cambio_usada": "36.2000",
+   "estado": "BORRADOR",
+   "dias_validez_apartado": 15,
+   "fecha_apartado": null,
+   "fecha_vencimiento_apartado": null,
+   "notas": "",
+   "condiciones": "Pago de contado",
+   "entregado": false,
+   "fecha_entrega": null,
+   "creado_en": "2026-09-30T20:06:11.018131+00:00",
+   "actualizado_en": "2026-10-01T20:06:12.092109+00:00"
+  },
+  {
+   "id": 6,
+   "numero": "202600006",
+   "cliente_id": 2,
+   "vendedor_id": 3,
+   "fecha_emision": "2026-09-28T20:06:11.018131+00:00",
+   "fecha_validez": "2026-10-08",
+   "incluye_iva": true,
+   "iva_porcentaje": "16.00",
+   "descuento_global_porcentaje": "0.00",
+   "tasa_cambio_usada": "36.2000",
+   "estado": "EMITIDO",
+   "dias_validez_apartado": 15,
+   "fecha_apartado": null,
+   "fecha_vencimiento_apartado": null,
+   "notas": "",
+   "condiciones": "Pago de contado",
+   "entregado": false,
+   "fecha_entrega": null,
+   "creado_en": "2026-09-28T20:06:11.018131+00:00",
+   "actualizado_en": "2026-10-01T20:06:12.102876+00:00"
+  }
+ ],
+ "items_presupuesto": [
+  {
+   "id": 1,
+   "presupuesto_id": 1,
+   "producto_id": 1,
+   "lote_id": 1,
+   "cantidad": 20,
+   "precio_unitario_usd": "20.00"
+  },
+  {
+   "id": 2,
+   "presupuesto_id": 1,
+   "producto_id": 3,
+   "lote_id": 4,
+   "cantidad": 1,
+   "precio_unitario_usd": "180.00"
+  },
+  {
+   "id": 3,
+   "presupuesto_id": 1,
+   "producto_id": 1,
+   "lote_id": 2,
+   "cantidad": 10,
+   "precio_unitario_usd": "20.00"
+  },
+  {
+   "id": 4,
+   "presupuesto_id": 2,
+   "producto_id": 1,
+   "lote_id": 2,
+   "cantidad": 5,
+   "precio_unitario_usd": "19.99"
+  },
+  {
+   "id": 5,
+   "presupuesto_id": 3,
+   "producto_id": 1,
+   "lote_id": 2,
+   "cantidad": 4,
+   "precio_unitario_usd": "20.00"
+  },
+  {
+   "id": 6,
+   "presupuesto_id": 4,
+   "producto_id": 1,
+   "lote_id": 2,
+   "cantidad": 2,
+   "precio_unitario_usd": "20.00"
+  },
+  {
+   "id": 7,
+   "presupuesto_id": 5,
+   "producto_id": 2,
+   "lote_id": null,
+   "cantidad": 1,
+   "precio_unitario_usd": "15.00"
+  },
+  {
+   "id": 8,
+   "presupuesto_id": 6,
+   "producto_id": 3,
+   "lote_id": null,
+   "cantidad": 1,
+   "precio_unitario_usd": "175.00"
+  }
+ ],
+ "ventas": [
+  {
+   "id": 1,
+   "presupuesto_id": 1,
+   "fecha_venta": "2026-07-13T20:06:11.018131+00:00",
+   "confirmada_por_id": 2,
+   "metodo_pago": "ZELLE",
+   "notas": "",
+   "pagado": true,
+   "fecha_pago": "2026-07-18",
+   "facturado": true,
+   "numero_factura": "000123",
+   "numero_control": "00-0456",
+   "fecha_facturacion": "2026-07-14"
+  },
+  {
+   "id": 2,
+   "presupuesto_id": 2,
+   "fecha_venta": "2026-09-21T20:06:11.018131+00:00",
+   "confirmada_por_id": 2,
+   "metodo_pago": "",
+   "notas": "",
+   "pagado": false,
+   "fecha_pago": null,
+   "facturado": false,
+   "numero_factura": "",
+   "numero_control": "",
+   "fecha_facturacion": null
+  }
+ ],
+ "ordenes_compra": [
+  {
+   "id": 1,
+   "numero": "OC-2026-001",
+   "proveedor_id": 1,
+   "estado": "BORRADOR",
+   "creado_por_id": 2,
+   "fecha_creacion": "2026-10-01T20:06:12.107798+00:00",
+   "fecha_cierre": null,
+   "notas": ""
+  },
+  {
+   "id": 2,
+   "numero": "OC-2026-002",
+   "proveedor_id": 1,
+   "estado": "CERRADA",
+   "creado_por_id": 2,
+   "fecha_creacion": "2026-10-01T20:06:12.110941+00:00",
+   "fecha_cierre": "2026-09-11T20:06:11.018131+00:00",
+   "notas": ""
+  }
+ ],
+ "items_orden_compra": [
+  {
+   "id": 1,
+   "orden_id": 1,
+   "producto_id": 1,
+   "cantidad_pedida": 50,
+   "cantidad_recibida": 0,
+   "precio_costo_usd": "10.00"
+  },
+  {
+   "id": 2,
+   "orden_id": 2,
+   "producto_id": 2,
+   "cantidad_pedida": 20,
+   "cantidad_recibida": 10,
+   "precio_costo_usd": "8.00"
+  }
+ ],
+ "tasas": [
+  {
+   "fecha": "2026-09-21",
+   "tasa_bs_por_usd": "30.0000",
+   "fuente": "BCV_AUTO",
+   "scraping_exitoso": false
+  },
+  {
+   "fecha": "2026-09-28",
+   "tasa_bs_por_usd": "35.1000",
+   "fuente": "BCV_AUTO",
+   "scraping_exitoso": true
+  },
+  {
+   "fecha": "2026-09-29",
+   "tasa_bs_por_usd": "36.2000",
+   "fuente": "BCV_AUTO",
+   "scraping_exitoso": true
+  },
+  {
+   "fecha": "2026-09-30",
+   "tasa_bs_por_usd": "36.5000",
+   "fuente": "BCV_AUTO",
+   "scraping_exitoso": true
+  }
+ ],
+ "resumen": {
+  "productos": 3,
+  "lotes": 4,
+  "movimientos": 16,
+  "unidades_en_existencia": 25,
+  "unidades_apartadas": 4,
+  "clientes": 3,
+  "presupuestos": 6,
+  "ventas": 2,
+  "ordenes_compra": 2,
+  "usuarios": 4,
+  "total_ventas_usd": "997.75"
+ }
+}

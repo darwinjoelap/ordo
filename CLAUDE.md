@@ -49,7 +49,9 @@ python manage.py runserver
 - `apps/core/management/commands/tareas_programadas.py` — cron diario (vence apartados + tasa BCV)
 - `apps/compras` — órdenes de compra, recepción (`servicios.py`), panel de pedido (`sugerencias.py`), PDF
 - `apps/core/secuencias.py` — `siguiente_numero('OC')` correlativos por empresa
-- `scripts/biolifeventas_a_ordo.py` — exporta BioLifeVentas a la plantilla (se ejecuta DESDE biolifeventas)
+- `scripts/biolifeventas_a_ordo.py` — exporta productos de BioLifeVentas a la plantilla Excel
+- `scripts/biolifeventas_exportar.py` + `apps/core/migracion_biolife.py` — migración completa (Fase 7, docs/MIGRACION_BIOLIFE.md);
+  Plataforma → empresa → Migrar, o `importar_biolifeventas`
 - `apps/core/pwa.py` — manifest, service worker (`/sw.js`), `/offline/`, `/instalar/`; `static/js/pwa.js` registra y muestra el aviso de instalación
 - `templates/` — base.html (barra superior, menú lateral, barra inferior móvil)
 - `static/img/marca/` — logo Ordo e iconos PWA

@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block contenido %}
+<a href="{% url 'plataforma:editar' empresa.pk %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> {{ empresa.nombre }}</a>
+<h1 class="h3 mt-2 mb-1">Migrar desde BioLifeVentas</h1>
+<p class="small text-muted mb-3">Sube el archivo de <code>scripts/biolifeventas_exportar.py</code>. Primero <b>Simular</b>: hace todo, muestra la verificación y no guarda nada.</p>
+<div class="row g-3">
+  <div class="col-lg-5">
+    <form method="post" enctype="multipart/form-data" class="card card-body">{% csrf_token %}
+      <label class="form-label small" for="archivo">Archivo .json</label>
+      <input type="file" id="archivo" name="archivo" accept=".json,application/json" required class="form-control mb-3">
+      {% if ocupada %}<div class="alert alert-warning small py-2">La empresa ya tiene datos: {% for k, n in ocupada.items %}{{ n }} {{ k }}{% if not forloop.last %}, {% endif %}{% endfor %}.</div>
+      <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="vaciar" value="1" id="vaciar">
+        <label class="form-check-label small" for="vaciar">Borrar esos datos y reemplazarlos (usuarios, membresías y Mi empresa se conservan)</label></div>{% endif %}
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary" name="guardar" value="0"><i class="bi bi-eye me-1"></i>Simular</button>
+        <button class="btn btn-danger" name="guardar" value="1" onclick="return confirm('¿Guardar la migración en {{ empresa.nombre|escapejs }}? Se hace en una sola operación: entra todo o nada.')"><i class="bi bi-database-check me-1"></i>Migrar y guardar</button>
+      </div>
+      <div class="small text-muted mt-3">El archivo trae las contraseñas cifradas de los usuarios: bórralo de tu equipo al terminar.</div>
+    </form>
+  </div>
+  <div class="col-lg-7">
+    {% if r %}
+    <div class="card mb-3"><div class="card-header bg-white fw-semibold d-flex justify-content-between">
+      <span>Verificación BioLifeVentas → Ordo</span>
+      {% if r.ok %}<span class="badge text-bg-success">Todo cuadra</span>{% else %}<span class="badge text-bg-danger">Hay diferencias</span>{% endif %}</div>
+      <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+        <thead class="table-light"><tr><th>Dato</th><th class="text-end">BioLifeVentas</th><th class="text-end">Ordo</th><th></th></tr></thead>
+        <tbody>{% for nombre, antes, despues, ok in r.verificacion %}<tr><td>{{ nombre }}</td><td class="text-end">{{ antes }}</td><td class="text-end">{{ despues }}</td>
+          <td class="text-center">{% if ok %}<i class="bi bi-check-circle-fill text-success" aria-label="ok"></i>{% else %}<i class="bi bi-x-circle-fill text-danger" aria-label="diferencia"></i>{% endif %}</td></tr>{% endfor %}</tbody>
+      </table></div></div>
+    {% if r.avisos %}<div class="card"><div class="card-header bg-white fw-semibold">Avisos</div>
+      <ul class="list-group list-group-flush small">{% for a in r.avisos %}<li class="list-group-item">{{ a }}</li>{% endfor %}</ul></div>{% endif %}
+    {% else %}
+    <div class="card card-body small text-muted">
+      <div class="fw-semibold text-body mb-1">Qué se migra</div>
+      Usuarios (misma contraseña), catálogo, proveedores, productos, lotes, kardex completo, clientes, presupuestos y ventas
+      (con facturación, pago y entrega), apartados con sus lotes, órdenes de compra y tasas que falten.
+      No se generan comisiones de ventas antiguas.
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
