@@ -156,3 +156,12 @@
 - [x] Probado con una copia de los modelos de BioLifeVentas y datos de prueba (13 tests)
 - [ ] Ensayo con datos reales en staging
 - [ ] Entorno de producción, respaldo diario y corte
+
+## Panel de pedido por clasificación y visor de PDF (01/10/2026)
+- [x] Panel de pedido: filas agrupadas por categoría › subcategoría (alfabético) con total de unidades por grupo,
+      total por proveedor y tarjeta "Total por clasificación" (se recalcula al escribir cantidades)
+- [x] PDF del pedido (`compras:panel_pedido_pdf`): clasificado igual, total de unidades por clasificación y general;
+      usa las cantidades escritas en el panel (`?c=producto:cantidad,...`)
+- [x] Visor de PDF dentro de la app (`/visor/?u=`, pdf.js en static/vendor/pdfjs): en la PWA instalada los enlaces
+      `data-pdf` abren ahí, y "atrás" vuelve a la pantalla anterior en vez de cerrar la app. Compartir / Descargar
+- [x] Recepción de órdenes con productos que no llegaron: verificado con pruebas (tests/test_panel_pdf.py)

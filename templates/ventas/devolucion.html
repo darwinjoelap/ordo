@@ -8,7 +8,7 @@
     <div class="small text-muted">Devolución de <a href="{% url 'ventas:detalle' p.pk %}">{{ p.numero }}</a> · {{ p.cliente.nombre }} · {{ dev.fecha|date:"d/m/Y" }} · registró {{ dev.creada_por.nombre_visible }}</div>
     <div class="small mt-1"><b>Motivo:</b> {{ dev.motivo }}</div>
   </div>
-  <a href="{% url 'ventas:devolucion_pdf' dev.pk %}" target="_blank" class="btn btn-outline-secondary btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+  <a href="{% url 'ventas:devolucion_pdf' dev.pk %}" target="_blank" data-pdf class="btn btn-outline-secondary btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
 </div>
 <div class="row g-3">
   <div class="col-lg-8">

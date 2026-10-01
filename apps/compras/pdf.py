@@ -54,3 +54,50 @@ def orden_compra_pdf(orden, empresa, mostrar_costos=True):
     pie = pie_empresa(empresa)
     doc.build(e, onFirstPage=pie, onLaterPages=pie)
     return buffer.getvalue()
+
+
+def panel_pedido_pdf(empresa, clasificaciones, dias, filtros=''):
+    """clasificaciones: salida de sugerencias.por_clasificacion()."""
+    from django.utils import timezone
+
+    from apps.core.pdf import ESTILO_DATO
+    buffer = BytesIO()
+    doc = documento(buffer, titulo_pdf='Panel de pedido')
+    color = colors.HexColor(empresa.perfil.color_principal or '#053D74')
+    gris = colors.HexColor('#E5E7EB')
+    e = encabezado_empresa(empresa, titulo='PEDIDO SUGERIDO',
+                           subtitulo=f'Fecha: {timezone.localdate():%d/%m/%Y}<br/>Cobertura: {dias} días')
+    if filtros:
+        e += [Paragraph(f'<b>Filtros:</b> {filtros}', ESTILO_DATO), Spacer(1, 3 * mm)]
+
+    filas = [['Código', 'Producto', 'Proveedor', 'Disp.', 'En camino', 'Pedir', 'Und.']]
+    estilo = [
+        ('BACKGROUND', (0, 0), (-1, 0), color), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'), ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+        ('ALIGN', (3, 0), (5, -1), 'RIGHT'), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LINEBELOW', (0, 0), (-1, -1), 0.25, colors.HexColor('#D1D5DB')),
+    ]
+    total = productos = 0
+    for clas, lineas, unidades in clasificaciones:
+        n = len(filas)
+        filas.append([Paragraph(f'<b>{clas}</b>', ESTILO_CELDA), '', '', '', '',
+                      Paragraph(f'<para align="right"><b>{unidades}</b></para>', ESTILO_CELDA), 'und.'])
+        estilo += [('SPAN', (0, n), (4, n)), ('BACKGROUND', (0, n), (-1, n), gris)]
+        for s, cantidad in lineas:
+            p = s.producto
+            filas.append([p.codigo, Paragraph(p.nombre, ESTILO_CELDA),
+                          Paragraph(p.proveedor_habitual.nombre if p.proveedor_habitual else '—', ESTILO_CELDA),
+                          s.disponible, s.en_camino or '—', cantidad, p.unidad.abreviatura])
+        total += unidades
+        productos += len(lineas)
+    n = len(filas)
+    filas.append([f'TOTAL GENERAL · {productos} productos · {len(clasificaciones)} clasificaciones', '', '', '', '',
+                  total, 'und.'])
+    estilo += [('SPAN', (0, n), (4, n)), ('FONTNAME', (0, n), (-1, n), 'Helvetica-Bold'),
+               ('LINEABOVE', (0, n), (-1, n), 1, color)]
+    tabla = Table(filas, colWidths=[24 * mm, 66 * mm, 38 * mm, 14 * mm, 18 * mm, 14 * mm, 12 * mm], repeatRows=1)
+    tabla.setStyle(TableStyle(estilo))
+    e.append(tabla)
+    pie = pie_empresa(empresa)
+    doc.build(e, onFirstPage=pie, onLaterPages=pie)
+    return buffer.getvalue()

@@ -16,7 +16,7 @@ from apps.proveedores.models import Proveedor
 from . import servicios, sugerencias
 from .forms import ItemForm, OrdenForm
 from .models import ItemOrdenCompra, OrdenCompra
-from .pdf import orden_compra_pdf
+from .pdf import orden_compra_pdf, panel_pedido_pdf
 
 Estado = OrdenCompra.Estado
 
@@ -189,28 +189,70 @@ def pdf(request, pk):
 
 # ── Panel de pedido ───────────────────────────────────────────────────────────
 
+def _panel(request):
+    """Filtros del panel (GET) → (grupos por proveedor, días, filtros)."""
+    g = request.GET
+    try:
+        dias = max(1, min(365, int(g.get('dias', 30))))
+    except ValueError:
+        dias = 30
+    f = {k: g.get(k, '') for k in ('proveedor', 'categoria', 'subcategoria', 'marca')}
+    f['todos'] = g.get('todos') == '1'
+    grupos = sugerencias.calcular(dias, f['proveedor'] or None, solo_necesarios=not f['todos'],
+                                  categoria_id=f['categoria'] or None, subcategoria_id=f['subcategoria'] or None,
+                                  marca_id=f['marca'] or None)
+    return grupos, dias, f
+
+
 @login_required
 @requiere('compras.gestionar')
 def panel_pedido(request):
-    try:
-        dias = max(1, min(365, int(request.GET.get('dias', 30))))
-    except ValueError:
-        dias = 30
     from apps.inventario.models import Categoria, Marca, Subcategoria
-    g = request.GET
-    proveedor_id = g.get('proveedor', '')
-    f = {k: g.get(k, '') for k in ('categoria', 'subcategoria', 'marca')}
-    todos = g.get('todos') == '1'
-    grupos = sugerencias.calcular(dias, proveedor_id or None, solo_necesarios=not todos,
-                                  categoria_id=f['categoria'] or None, subcategoria_id=f['subcategoria'] or None,
-                                  marca_id=f['marca'] or None)
+    grupos, dias, f = _panel(request)
+    consulta = request.GET.copy()
+    consulta.pop('c', None)
     return render(request, 'compras/panel_pedido.html', {
-        'titulo': 'Panel de pedido', 'grupos': grupos, 'dias': dias, 'proveedor_id': proveedor_id, 'todos': todos,
-        'f': f, 'proveedores': Proveedor.objects.filter(activo=True),
+        'titulo': 'Panel de pedido', 'grupos': grupos, 'dias': dias, 'proveedor_id': f['proveedor'],
+        'todos': f['todos'], 'f': f, 'proveedores': Proveedor.objects.filter(activo=True),
         'categorias': Categoria.objects.order_by('nombre'),
         'subcategorias': Subcategoria.objects.select_related('categoria').order_by('nombre'),
         'marcas': Marca.objects.order_by('nombre'),
+        'resumen': sugerencias.por_clasificacion(grupos), 'querystring': consulta.urlencode(),
     })
+
+
+@login_required
+@requiere('compras.gestionar')
+def panel_pedido_pdf_vista(request):
+    """
+    PDF del pedido clasificado por categoría › subcategoría, con total de unidades por clasificación.
+    ?c=12:5,13:10 → cantidades escritas en el panel (producto:cantidad); sin "c" usa lo sugerido.
+    """
+    from apps.inventario.models import Categoria, Marca, Subcategoria
+    grupos, dias, f = _panel(request)
+    cantidades = None
+    if 'c' in request.GET:
+        cantidades = {}
+        for par in request.GET['c'].split(','):
+            try:
+                pid, cant = par.split(':')
+                cantidades[int(pid)] = max(0, int(cant))
+            except ValueError:
+                continue
+    textos = []
+    for clave, modelo, etiqueta in (('proveedor', Proveedor, 'Proveedor'), ('categoria', Categoria, 'Categoría'),
+                                    ('subcategoria', Subcategoria, 'Subcategoría'), ('marca', Marca, 'Marca')):
+        if f[clave] == 'ninguno':
+            textos.append('Sin proveedor habitual')
+        elif f[clave].isdigit():
+            obj = modelo.objects.filter(pk=f[clave]).first()
+            if obj:
+                textos.append(f'{etiqueta}: {obj.nombre}')
+    contenido = panel_pedido_pdf(request.empresa, sugerencias.por_clasificacion(grupos, cantidades), dias,
+                                 ' · '.join(textos))
+    r = HttpResponse(contenido, content_type='application/pdf')
+    r['Content-Disposition'] = 'inline; filename="pedido.pdf"'
+    return r
 
 
 @login_required

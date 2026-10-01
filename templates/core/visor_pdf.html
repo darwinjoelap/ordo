@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block contenido %}
+<div class="d-flex align-items-center gap-2 mb-2 sticky-top bg-body py-2" style="top:0;z-index:5">
+  <button type="button" id="visor-volver" class="btn btn-primary btn-sm"><i class="bi bi-arrow-left me-1"></i>Volver</button>
+  <span class="small text-muted text-truncate flex-grow-1" id="visor-nombre"></span>
+  <button type="button" id="visor-menos" class="btn btn-outline-secondary btn-sm" aria-label="Alejar"><i class="bi bi-zoom-out"></i></button>
+  <button type="button" id="visor-mas" class="btn btn-outline-secondary btn-sm" aria-label="Acercar"><i class="bi bi-zoom-in"></i></button>
+  <button type="button" id="visor-compartir" class="btn btn-outline-secondary btn-sm" hidden><i class="bi bi-share me-1"></i>Compartir</button>
+  <a id="visor-descargar" class="btn btn-outline-secondary btn-sm" hidden><i class="bi bi-download me-1"></i>Descargar</a>
+</div>
+<div id="visor-estado" class="text-center text-muted py-5"><div class="spinner-border spinner-border-sm me-2"></div>Cargando documento…</div>
+<div id="visor-paginas" class="overflow-auto" data-url="{{ url_pdf }}"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module">
+  import * as pdfjsLib from "{% static 'vendor/pdfjs/pdf.min.mjs' %}";
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "{% static 'vendor/pdfjs/pdf.worker.min.mjs' %}";
+
+  const cont = document.getElementById('visor-paginas'), estado = document.getElementById('visor-estado');
+  document.getElementById('visor-volver').addEventListener('click', () => {
+    if (history.length > 1) history.back(); else location.href = '/';
+  });
+  let zoom = 100;
+  function aplicarZoom(d) {
+    zoom = Math.min(300, Math.max(100, zoom + d));
+    cont.querySelectorAll('canvas').forEach((c) => { c.style.width = zoom + '%'; });
+  }
+  document.getElementById('visor-mas').addEventListener('click', () => aplicarZoom(50));
+  document.getElementById('visor-menos').addEventListener('click', () => aplicarZoom(-50));
+
+  try {
+    const resp = await fetch(cont.dataset.url, { credentials: 'same-origin' });
+    if (!resp.ok || !(resp.headers.get('Content-Type') || '').includes('pdf')) throw new Error('respuesta');
+    const m = /filename="?([^";]+)"?/.exec(resp.headers.get('Content-Disposition') || '');
+    const nombre = m ? m[1] : 'documento.pdf';
+    const blob = await resp.blob();
+    document.getElementById('visor-nombre').textContent = nombre;
+
+    const descargar = document.getElementById('visor-descargar');
+    descargar.href = URL.createObjectURL(blob); descargar.download = nombre; descargar.hidden = false;
+    const archivo = new File([blob], nombre, { type: 'application/pdf' });
+    if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
+      const compartir = document.getElementById('visor-compartir');
+      compartir.hidden = false;
+      compartir.addEventListener('click', () => { navigator.share({ files: [archivo], title: nombre }).catch(() => {}); });
+    }
+
+    const pdf = await pdfjsLib.getDocument({ data: await blob.arrayBuffer() }).promise;
+    const nitidez = Math.min(3, (window.devicePixelRatio || 1) * 1.5);
+    for (let n = 1; n <= pdf.numPages; n++) {
+      const pagina = await pdf.getPage(n);
+      const base = pagina.getViewport({ scale: 1 });
+      const vista = pagina.getViewport({ scale: (cont.clientWidth / base.width) * nitidez });
+      const lienzo = document.createElement('canvas');
+      lienzo.width = vista.width; lienzo.height = vista.height;
+      lienzo.style.width = zoom + '%'; lienzo.className = 'd-block border bg-white mb-2';
+      cont.appendChild(lienzo);
+      await pagina.render({ canvasContext: lienzo.getContext('2d'), viewport: vista }).promise;
+      estado.hidden = true;
+    }
+  } catch (e) {
+    estado.textContent = 'No se pudo mostrar el documento. ';
+    const a = document.createElement('a'); a.href = cont.dataset.url; a.textContent = 'Abrirlo directamente';
+    estado.appendChild(a);
+  }
+</script>
+{% endblock %}

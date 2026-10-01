@@ -6,7 +6,7 @@
   <div><h1 class="h3 mb-1">{{ liq.numero }} <span class="badge text-bg-{{ liq.css_estado }} fs-6 align-middle">{{ liq.estado }}</span></h1>
     <div class="small text-muted">{{ liq.vendedor.nombre_visible }} · ventas hasta {{ liq.hasta|date:"d/m/Y" }} · creada {{ liq.creada_en|date:"d/m/Y" }} por {{ liq.creada_por.nombre_visible }}</div>
     {% if liq.pagada %}<div class="small text-success">Pagada el {{ liq.fecha_pago|date:"d/m/Y" }}{% if liq.metodo_pago %} · {{ liq.metodo_pago }}{% endif %}{% if liq.referencia %} · Ref. {{ liq.referencia }}{% endif %}</div>{% endif %}</div>
-  <a href="{% url 'comisiones:liquidacion_pdf' liq.pk %}" target="_blank" class="btn btn-outline-secondary btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+  <a href="{% url 'comisiones:liquidacion_pdf' liq.pk %}" target="_blank" data-pdf class="btn btn-outline-secondary btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
 </div>
 <div class="row g-3">
   <div class="col-lg-8"><div class="card">

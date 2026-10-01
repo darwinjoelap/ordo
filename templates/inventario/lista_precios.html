@@ -2,7 +2,7 @@
 {% block contenido %}
 <a href="{% url 'inventario:lista' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Inventario</a>
 <h1 class="h3 mt-2 mb-3">Lista de precios</h1>
-<form method="get" target="_blank" class="card card-body" style="max-width:560px">
+<form method="get" target="_blank" data-pdf class="card card-body" style="max-width:560px">
   <input type="hidden" name="generar" value="1">
   <label class="form-label" for="cat">Categoría</label>
   <select name="categoria" id="cat" class="form-select mb-3"><option value="">Todas</option>{% for c in categorias %}<option value="{{ c.pk }}">{{ c.nombre }}</option>{% endfor %}</select>

@@ -10,9 +10,11 @@ El service worker:
 import json
 
 from django.conf import settings
-from django.http import HttpResponse, JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.templatetags.static import static
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import cache_control, never_cache
 
 PRECARGA = [
@@ -114,6 +116,20 @@ self.addEventListener('fetch', (e) => {
   }
 });
 """
+
+
+@login_required
+def visor_pdf(request):
+    """
+    Muestra un PDF de la app DENTRO de la app (pdf.js). En la PWA instalada, abrir el PDF directo saca al usuario
+    de la app y "atrás" la cierra; con el visor, "atrás" vuelve a la pantalla anterior.
+    Solo acepta rutas internas (?u=/ventas/5/pdf/).
+    """
+    u = request.GET.get('u', '')
+    if not u.startswith('/') or u.startswith('//') or '\\' in u \
+            or not url_has_allowed_host_and_scheme(u, allowed_hosts=None):
+        raise Http404
+    return render(request, 'core/visor_pdf.html', {'titulo': 'Documento', 'url_pdf': u})
 
 
 def instalar(request):

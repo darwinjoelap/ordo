@@ -9,8 +9,8 @@
   </div>
   <div class="d-flex gap-2 flex-wrap">
     <div class="btn-group">
-      <a href="{% url 'compras:pdf' orden.pk %}" target="_blank" class="btn btn-outline-secondary btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
-      <a href="{% url 'compras:pdf' orden.pk %}?costos=0" target="_blank" class="btn btn-outline-secondary btn-sm">sin costos</a>
+      <a href="{% url 'compras:pdf' orden.pk %}" target="_blank" data-pdf class="btn btn-outline-secondary btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+      <a href="{% url 'compras:pdf' orden.pk %}?costos=0" target="_blank" data-pdf class="btn btn-outline-secondary btn-sm">sin costos</a>
     </div>
     {% if orden.recibible %}<a href="{% url 'compras:recibir' orden.pk %}" class="btn btn-success btn-sm"><i class="bi bi-box-arrow-in-down me-1"></i>Recibir mercancía</a>{% endif %}
     <form method="post" action="{% url 'compras:cambiar_estado' orden.pk %}" class="d-flex gap-2">

@@ -43,6 +43,12 @@ class Sugerencia:
         return int((self.disponible + self.en_camino + self.sugerido) / self.consumo_diario)
 
     @property
+    def clasificacion(self):
+        """Categoría › Subcategoría (para agrupar y totalizar)."""
+        p = self.producto
+        return f'{p.categoria.nombre} › {p.subcategoria.nombre}' if p.subcategoria_id else p.categoria.nombre
+
+    @property
     def costo_estimado(self):
         return self.sugerido * self.producto.precio_costo_usd
 
@@ -67,7 +73,7 @@ def calcular(dias_cobertura=30, proveedor_id=None, solo_necesarios=True, categor
         .values('producto').annotate(t=Sum(F('cantidad_pedida') - F('cantidad_recibida')))
     }
     productos = (Producto.objects.filter(activo=True).con_stock()
-                 .select_related('proveedor_habitual', 'unidad').order_by('nombre'))
+                 .select_related('proveedor_habitual', 'unidad', 'categoria', 'subcategoria').order_by('nombre'))
     if categoria_id:
         productos = productos.filter(categoria_id=categoria_id)
     if subcategoria_id:
@@ -99,5 +105,33 @@ def calcular(dias_cobertura=30, proveedor_id=None, solo_necesarios=True, categor
             continue
         s = Sugerencia(p, disponible, camino, round(consumo, 4), dias, sugerido, fuente)
         grupos.setdefault(p.proveedor_habitual, []).append(s)
+    # Dentro de cada proveedor: por clasificación (categoría › subcategoría) y nombre
+    for lineas in grupos.values():
+        lineas.sort(key=lambda s: _orden_clasificacion(s))
     # Proveedores por nombre; "sin proveedor" al final
     return OrderedDict(sorted(grupos.items(), key=lambda kv: (kv[0] is None, kv[0].nombre if kv[0] else '')))
+
+
+def _orden_clasificacion(s):
+    p = s.producto
+    return (p.categoria.nombre.lower(), p.subcategoria.nombre.lower() if p.subcategoria_id else '', p.nombre.lower())
+
+
+def por_clasificacion(grupos, cantidades=None):
+    """
+    Junta las líneas de todos los proveedores y las agrupa por clasificación, en orden alfabético.
+    cantidades: {producto_id: cantidad} para usar lo que el usuario escribió en vez de lo sugerido
+                (solo entran los productos indicados). Sin cantidades, entra todo lo que tenga sugerido > 0.
+    Devuelve [(clasificación, [(Sugerencia, cantidad a pedir)], total de unidades)].
+    """
+    lineas = []
+    for ls in grupos.values():
+        for s in ls:
+            cantidad = s.sugerido if cantidades is None else cantidades.get(s.producto.pk, 0)
+            if cantidad > 0:
+                lineas.append((s, cantidad))
+    lineas.sort(key=lambda par: _orden_clasificacion(par[0]))
+    salida = OrderedDict()
+    for s, cantidad in lineas:
+        salida.setdefault(s.clasificacion, []).append((s, cantidad))
+    return [(clas, ls, sum(c for _, c in ls)) for clas, ls in salida.items()]

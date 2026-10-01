@@ -13,6 +13,26 @@
   const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   if (standalone) document.documentElement.classList.add('ordo-instalada');
 
+  // PDF dentro de la app instalada: abrirlos directo saca de la app y "atrás" la cierra.
+  // Los enlaces/formularios con data-pdf se muestran en el visor interno (/visor/), que sí vuelve con "atrás".
+  if (standalone) {
+    const visor = function (href) {
+      const u = new URL(href, location.href);
+      return u.origin === location.origin ? '/visor/?u=' + encodeURIComponent(u.pathname + u.search) : null;
+    };
+    document.addEventListener('click', function (e) {
+      const a = e.target.closest('a[data-pdf]');
+      const destino = a && visor(a.href);
+      if (destino) { e.preventDefault(); location.href = destino; }
+    });
+    document.addEventListener('submit', function (e) {
+      const f = e.target;
+      if (!f.matches || !f.matches('form[data-pdf]') || (f.method || 'get').toLowerCase() !== 'get') return;
+      const destino = visor(f.action.split('?')[0] + '?' + new URLSearchParams(new FormData(f)).toString());
+      if (destino) { e.preventDefault(); location.href = destino; }
+    });
+  }
+
   function descartadoReciente() {
     try {
       const t = parseInt(localStorage.getItem(CLAVE) || '0', 10);

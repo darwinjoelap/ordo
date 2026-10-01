@@ -8,6 +8,7 @@ urlpatterns = [
     path('', views.lista, name='lista'),
     path('nueva/', views.crear, name='crear'),
     path('pedido/', views.panel_pedido, name='panel_pedido'),
+    path('pedido/pdf/', views.panel_pedido_pdf_vista, name='panel_pedido_pdf'),
     path('pedido/crear/', views.crear_desde_panel, name='crear_desde_panel'),
     path('<int:pk>/', views.detalle, name='detalle'),
     path('<int:pk>/agregar/', views.agregar_item, name='agregar_item'),

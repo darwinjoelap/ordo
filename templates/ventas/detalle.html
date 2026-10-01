@@ -16,9 +16,9 @@
   <div class="dropdown">
     <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</button>
     <ul class="dropdown-menu dropdown-menu-end">
-      <li><a class="dropdown-item" target="_blank" href="{% url 'ventas:pdf' p.pk %}?moneda=ambas">USD y Bs</a></li>
-      <li><a class="dropdown-item" target="_blank" href="{% url 'ventas:pdf' p.pk %}?moneda=usd">Solo USD</a></li>
-      {% if p.tasa_bs %}<li><a class="dropdown-item" target="_blank" href="{% url 'ventas:pdf' p.pk %}?moneda=bs">Solo Bs</a></li>{% endif %}
+      <li><a class="dropdown-item" target="_blank" data-pdf href="{% url 'ventas:pdf' p.pk %}?moneda=ambas">USD y Bs</a></li>
+      <li><a class="dropdown-item" target="_blank" data-pdf href="{% url 'ventas:pdf' p.pk %}?moneda=usd">Solo USD</a></li>
+      {% if p.tasa_bs %}<li><a class="dropdown-item" target="_blank" data-pdf href="{% url 'ventas:pdf' p.pk %}?moneda=bs">Solo Bs</a></li>{% endif %}
     </ul>
   </div>
 </div>

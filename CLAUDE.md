@@ -53,6 +53,7 @@ python manage.py runserver
 - `scripts/biolifeventas_exportar.py` + `apps/core/migracion_biolife.py` — migración completa (Fase 7, docs/MIGRACION_BIOLIFE.md);
   Plataforma → empresa → Migrar, o `importar_biolifeventas`
 - `apps/core/pwa.py` — manifest, service worker (`/sw.js`), `/offline/`, `/instalar/`; `static/js/pwa.js` registra y muestra el aviso de instalación
+- Visor de PDF: todo enlace/formulario GET que abra un PDF lleva `data-pdf` (en la PWA instalada se abre en `/visor/`, `pwa.visor_pdf`)
 - `templates/` — base.html (barra superior, menú lateral, barra inferior móvil)
 - `static/img/marca/` — logo Ordo e iconos PWA
 - `tests/` — `python manage.py test tests`
