@@ -26,6 +26,21 @@
   {% endif %}
 </div>
 
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3"><a href="{% url 'ventas:lista' %}?estado=ventas&pendiente=pago" class="card card-body h-100 text-decoration-none">
+    <div class="small text-muted">Por cobrar</div><div class="fs-4 fw-bold {% if por_cobrar.n %}text-warning-emphasis{% endif %}">{{ por_cobrar.usd|default:0|usd }}</div><div class="small text-muted">{{ por_cobrar.n }} venta{{ por_cobrar.n|pluralize }} sin pago</div></a></div>
+  <div class="col-6 col-lg-3"><a href="{% url 'ventas:lista' %}?estado=ventas&pendiente=entrega" class="card card-body h-100 text-decoration-none">
+    <div class="small text-muted">Por entregar</div><div class="fs-4 fw-bold {% if por_entregar %}text-warning-emphasis{% endif %}">{{ por_entregar }}</div><div class="small text-muted">venta{{ por_entregar|pluralize }} validada{{ por_entregar|pluralize }}</div></a></div>
+  {% if n_lotes_vencidos is not None %}
+  <div class="col-6 col-lg-3"><a href="{% url 'inventario:lista' %}?alerta=vencidos" class="card card-body h-100 text-decoration-none">
+    <div class="small text-muted">Lotes vencidos con stock</div><div class="fs-4 fw-bold {% if n_lotes_vencidos %}text-danger{% endif %}">{{ n_lotes_vencidos }}</div><div class="small text-muted">{{ n_lotes_proximos }} vence{{ n_lotes_proximos|pluralize:"n" }} en 30 días</div></a></div>
+  {% endif %}
+  {% if 'presupuestos.ver_todos' not in permisos and bajo_minimo is not None %}
+  <div class="col-6 col-lg-3"><a href="{% url 'inventario:lista' %}" class="card card-body h-100 text-decoration-none">
+    <div class="small text-muted">Bajo stock mínimo</div><div class="fs-4 fw-bold {% if bajo_minimo %}text-danger{% endif %}">{{ bajo_minimo }}</div><div class="small text-muted">producto{{ bajo_minimo|pluralize }}</div></a></div>
+  {% endif %}
+</div>
+
 <div class="row g-3">
   <div class="col-lg-7">
     <div class="card"><div class="card-header bg-white fw-semibold">Actividad reciente</div>
@@ -46,10 +61,12 @@
       </div>
       {% else %}<div class="card-body text-muted small">Nada por vencer.</div>{% endif %}
     </div>
+    {% include 'core/partials/alertas_inventario.html' %}
   </div>
 </div>
 {% elif bajo_minimo is not None %}
 <div class="row g-3"><div class="col-6 col-lg-3"><a href="{% url 'inventario:lista' %}" class="card card-body text-decoration-none">
-  <div class="small text-muted">Bajo stock mínimo</div><div class="fs-4 fw-bold {% if bajo_minimo %}text-danger{% endif %}">{{ bajo_minimo }}</div></a></div></div>
+  <div class="small text-muted">Bajo stock mínimo</div><div class="fs-4 fw-bold {% if bajo_minimo %}text-danger{% endif %}">{{ bajo_minimo }}</div></a></div>
+  <div class="col-lg-6">{% include 'core/partials/alertas_inventario.html' %}</div></div>
 {% endif %}
 {% endblock %}

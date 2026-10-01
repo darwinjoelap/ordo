@@ -4,7 +4,8 @@
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
   <div><h1 class="h3 mb-0">Reportes de ventas</h1>
     <div class="small text-muted">{% if ve_todo %}Toda la empresa{% else %}Tus ventas{% endif %} · {{ f.desde|date:"d/m/Y" }} al {{ f.hasta|date:"d/m/Y" }}</div></div>
-  {% if 'reportes.ver' in permisos %}<a href="{% url 'ventas:reporte_facturacion' %}?desde={{ f.desde|date:'Y-m-d' }}&hasta={{ f.hasta|date:'Y-m-d' }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-receipt me-1"></i>Facturación</a>{% endif %}
+  <div class="d-flex gap-2"><a href="{% url 'ventas:reporte_apartados' %}" class="btn btn-outline-warning btn-sm"><i class="bi bi-lock me-1"></i>Apartados</a>
+  {% if 'reportes.ver' in permisos %}<a href="{% url 'ventas:reporte_facturacion' %}?desde={{ f.desde|date:'Y-m-d' }}&hasta={{ f.hasta|date:'Y-m-d' }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-receipt me-1"></i>Facturación</a>{% endif %}</div>
 </div>
 
 <form method="get" class="card card-body mb-3">

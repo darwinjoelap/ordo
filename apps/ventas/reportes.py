@@ -294,3 +294,32 @@ def analitica(request):
         'clientes': clientes, 'categorias': Categoria.objects.order_by('nombre'),
         'productos': Producto.objects.filter(activo=True).order_by('nombre').only('pk', 'nombre', 'codigo'),
     })
+
+
+# ── Inventario apartado ───────────────────────────────────────────────────────
+
+@login_required
+@requiere('presupuestos.crear')
+def apartados(request):
+    """Qué está apartado, para quién, por quién y hasta cuándo; y el total por producto."""
+    from .models import Reserva
+    docs = (Presupuesto.objects.filter(estado=E.APARTADO).select_related('cliente', 'vendedor')
+            .order_by('apartado_hasta', 'pk'))
+    if not tiene_permiso(request, 'presupuestos.ver_todos'):
+        docs = docs.filter(vendedor=request.user)
+    docs = list(docs)
+    reservas = (Reserva.objects.filter(item__presupuesto__in=docs)
+                .select_related('item__producto__unidad', 'lote').order_by('item__producto__nombre', 'lote__fecha_vencimiento'))
+    por_doc, por_producto = {}, {}
+    for r in reservas:
+        por_doc.setdefault(r.item.presupuesto_id, []).append(r)
+        prod = r.item.producto
+        fila = por_producto.setdefault(prod.pk, {'producto': prod, 'cantidad': 0, 'docs': set()})
+        fila['cantidad'] += r.cantidad
+        fila['docs'].add(r.item.presupuesto_id)
+    for p in docs:
+        p.lista_reservas = por_doc.get(p.pk, [])
+    productos = sorted(por_producto.values(), key=lambda x: (-x['cantidad'], x['producto'].nombre))
+    return render(request, 'ventas/apartados.html', {
+        'titulo': 'Inventario apartado', 'docs': docs, 'productos': productos,
+        'total_usd': sum((p.total_usd for p in docs), CERO), 'ahora': timezone.now()})

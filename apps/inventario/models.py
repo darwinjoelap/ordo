@@ -88,16 +88,19 @@ UNIDADES_INICIALES = [
 class ProductoQuerySet(EmpresaQuerySet):
     def con_stock(self):
         """
-        Anota en UNA consulta: anot_stock_total, anot_stock_apartado,
-        anot_stock_disponible y anot_tiene_vencidos.
+        Anota en UNA consulta: anot_stock_total, anot_stock_apartado, anot_stock_vencido (libre en lotes
+        vencidos), anot_stock_disponible (sin apartado ni vencido) y anot_tiene_vencidos.
         """
         hoy = timezone.localdate()
         vencidos = Lote.todos.filter(producto=OuterRef('pk'), fecha_vencimiento__lt=hoy, cantidad_actual__gt=0)
         return self.annotate(
             anot_stock_total=Coalesce(Sum('lotes__cantidad_actual'), Value(0), output_field=IntegerField()),
             anot_stock_apartado=Coalesce(Sum('lotes__cantidad_apartada'), Value(0), output_field=IntegerField()),
+            anot_stock_vencido=Coalesce(
+                Sum(F('lotes__cantidad_actual') - F('lotes__cantidad_apartada'),
+                    filter=Q(lotes__fecha_vencimiento__lt=hoy)), Value(0), output_field=IntegerField()),
             anot_tiene_vencidos=Exists(vencidos),
-        ).annotate(anot_stock_disponible=F('anot_stock_total') - F('anot_stock_apartado'))
+        ).annotate(anot_stock_disponible=F('anot_stock_total') - F('anot_stock_apartado') - F('anot_stock_vencido'))
 
     def buscar(self, texto):
         texto = (texto or '').strip()
@@ -173,8 +176,22 @@ class Producto(EmpresaModel):
         return self.lotes.aggregate(t=Sum('cantidad_apartada'))['t'] or 0
 
     @cached_property
+    def stock_vencido(self):
+        """Unidades libres en lotes vencidos: no se pueden vender."""
+        if hasattr(self, 'anot_stock_vencido'):
+            return self.anot_stock_vencido
+        hoy = timezone.localdate()
+        lotes = self._lotes_precargados()
+        if lotes is not None:
+            return sum(l.cantidad_actual - l.cantidad_apartada for l in lotes
+                       if l.fecha_vencimiento and l.fecha_vencimiento < hoy)
+        return sum(l.cantidad_actual - l.cantidad_apartada
+                   for l in self.lotes.filter(fecha_vencimiento__lt=hoy))
+
+    @property
     def stock_disponible(self):
-        return self.stock_total - self.stock_apartado
+        """Lo que se puede vender: sin lo apartado ni lo que está en lotes vencidos."""
+        return self.stock_total - self.stock_apartado - self.stock_vencido
 
     @property
     def alerta_stock_minimo(self):

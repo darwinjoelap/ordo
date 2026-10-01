@@ -1,0 +1,12 @@
+{% load ordo %}{% if lotes_vencidos or lotes_proximos or criticos %}
+<div class="card mt-3"><div class="card-header bg-white fw-semibold"><i class="bi bi-box-seam me-1"></i>Inventario</div>
+  <div class="list-group list-group-flush small">
+    {% for l in lotes_vencidos %}<a href="{% url 'inventario:detalle' l.producto_id %}" class="list-group-item list-group-item-action d-flex justify-content-between gap-2">
+      <span class="text-truncate"><span class="badge text-bg-danger me-1">Vencido</span>{{ l.producto.nombre }} · {{ l.numero_lote|default:"s/n" }}</span><span class="text-nowrap text-danger">{{ l.fecha_vencimiento|date:"d/m/Y" }} · {{ l.cantidad_actual|miles }}</span></a>{% endfor %}
+    {% for l in lotes_proximos %}<a href="{% url 'inventario:detalle' l.producto_id %}" class="list-group-item list-group-item-action d-flex justify-content-between gap-2">
+      <span class="text-truncate"><span class="badge text-bg-warning me-1">Vence</span>{{ l.producto.nombre }} · {{ l.numero_lote|default:"s/n" }}</span><span class="text-nowrap text-muted">{{ l.fecha_vencimiento|date:"d/m/Y" }} · {{ l.cantidad_actual|miles }}</span></a>{% endfor %}
+    {% for p in criticos %}<a href="{% url 'inventario:detalle' p.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between gap-2">
+      <span class="text-truncate"><span class="badge text-bg-secondary me-1">Mínimo</span>{{ p.nombre }}</span><span class="text-nowrap text-muted">{{ p.anot_stock_disponible|miles }} / {{ p.stock_minimo|miles }}</span></a>{% endfor %}
+  </div>
+</div>
+{% endif %}

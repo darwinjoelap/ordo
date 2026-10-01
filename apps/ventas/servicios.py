@@ -107,8 +107,8 @@ def agregar_item(p, producto, cantidad, precio, perfil, puede_fijar_precio):
 
 
 @transaction.atomic
-def actualizar_items(p, cambios, quitar, perfil, puede_fijar_precio, descuento_pct=None):
-    """cambios: {item_id: (cantidad, precio)} · quitar: [item_id]"""
+def actualizar_items(p, cambios, quitar, perfil, puede_fijar_precio, descuento_pct=None, sin_iva=None):
+    """cambios: {item_id: (cantidad, precio)} · quitar: [item_id] · sin_iva: True = venta exenta, False = IVA de la empresa"""
     _exigir(p, E.BORRADOR, E.EMITIDO)
     for item in ItemPresupuesto.objects.filter(presupuesto=p).select_related('producto'):
         if item.pk in quitar:
@@ -126,6 +126,9 @@ def actualizar_items(p, cambios, quitar, perfil, puede_fijar_precio, descuento_p
             raise ErrorVenta('El descuento debe estar entre 0 y 100 %.')
         p.descuento_pct = descuento_pct
         p.save(update_fields=['descuento_pct'])
+    if sin_iva is not None:
+        p.iva_pct = Decimal('0') if sin_iva else perfil.iva_porcentaje
+        p.save(update_fields=['iva_pct'])
     recalcular_totales(p)
 
 

@@ -14,11 +14,11 @@ Objetivo: que BioLife no pierda funciones al pasar a Ordo.
       filtros fecha/vendedor/cliente/categoría/producto; el vendedor solo ve lo suyo
 - [x] **Lista de ventas por rango de fechas** con total del período
 
-## B. Falta en Ordo — importante
-- [ ] IVA por documento (venta sin IVA / exenta); hoy siempre toma el IVA de la empresa
-- [ ] Tasa manual sin entrar a `/admin/`: pantalla en Plataforma con historial y fuente (BCV / manual)
-- [ ] Tablero: lotes vencidos con stock, lista de stock crítico, filtros "pendiente de cobro" / "pendiente de entrega"
-- [ ] Reporte de inventario apartado (qué está apartado, cliente, vendedor, hasta cuándo)
+## B. Importante — HECHO salvo respaldo (01/10/2026)
+- [x] IVA por documento (venta sin IVA / exenta); hoy siempre toma el IVA de la empresa
+- [x] Tasa manual sin entrar a `/admin/`: pantalla en Plataforma con historial y fuente (BCV / manual)
+- [x] Tablero: lotes vencidos con stock, lista de stock crítico, filtros "pendiente de cobro" / "pendiente de entrega"
+- [x] Reporte de inventario apartado (qué está apartado, cliente, vendedor, hasta cuándo)
 - [ ] Respaldo diario de la BD (BioLifeVentas: `respaldar_bd` → Google Drive, 30 copias) — decidir en producción
 
 ## C. Menor / a decidir

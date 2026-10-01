@@ -10,6 +10,7 @@ urlpatterns = [
     path('por-validar/', views.por_validar, name='por_validar'),
     path('reportes/', reportes.analitica, name='reportes'),
     path('reportes/facturacion/', reportes.facturacion, name='reporte_facturacion'),
+    path('reportes/apartados/', reportes.apartados, name='reporte_apartados'),
     path('devoluciones/', views_devoluciones.lista, name='devoluciones'),
     path('devoluciones/<int:pk>/', views_devoluciones.detalle, name='devolucion'),
     path('devoluciones/<int:pk>/pdf/', views_devoluciones.pdf, name='devolucion_pdf'),

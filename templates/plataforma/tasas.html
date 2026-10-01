@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block contenido %}
+<a href="{% url 'plataforma:lista' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Empresas</a>
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2 mb-3">
+  <div><h1 class="h3 mb-0">Tasa BCV</h1><div class="small text-muted">Única para todas las empresas. El cron la consulta a diario a las 7:00 a. m.</div></div>
+  {% if vigente %}<div class="text-end"><div class="small text-muted">Vigente</div><div class="fs-5 fw-bold {% if vigente.fecha != hoy %}text-warning-emphasis{% endif %}">Bs {{ vigente.bs_por_usd|floatformat:"4g" }}</div><div class="small text-muted">{{ vigente.fecha|date:"d/m/Y" }}</div></div>{% endif %}
+</div>
+<div class="row g-3">
+  <div class="col-lg-4">
+    <form method="post" class="card card-body mb-3">{% csrf_token %}
+      <div class="fw-semibold mb-2">Cargar a mano</div>
+      <label class="form-label small" for="valor">Bs por USD</label>
+      <input id="valor" name="valor" inputmode="decimal" required class="form-control form-control-sm mb-2" placeholder="Ej.: 36,5021">
+      <label class="form-label small" for="fecha">Fecha</label>
+      <input id="fecha" type="date" name="fecha" value="{{ hoy|date:'Y-m-d' }}" max="{{ hoy|date:'Y-m-d' }}" class="form-control form-control-sm mb-2">
+      <div class="small text-muted mb-2">Si ya hay tasa para esa fecha, se reemplaza.</div>
+      <button class="btn btn-primary btn-sm"><i class="bi bi-save me-1"></i>Guardar tasa</button>
+    </form>
+    <form method="post" class="card card-body">{% csrf_token %}<input type="hidden" name="accion" value="bcv">
+      <div class="fw-semibold mb-1">Consultar el BCV ahora</div>
+      <div class="small text-muted mb-2">Lo mismo que hace el cron. Si el sitio del BCV no responde, cárgala a mano.</div>
+      <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Consultar BCV</button>
+    </form>
+  </div>
+  <div class="col-lg-8"><div class="card">
+    <div class="card-header bg-white fw-semibold">Historial (últimos 60 días registrados)</div>
+    {% if tasas %}<div class="table-responsive"><table class="table table-sm align-middle mb-0">
+      <thead class="table-light"><tr><th>Fecha</th><th class="text-end">Bs por USD</th><th>Fuente</th><th class="d-none d-sm-table-cell">Registró</th></tr></thead>
+      <tbody>{% for t in tasas %}<tr>
+        <td>{{ t.fecha|date:"d/m/Y" }}</td><td class="text-end">{{ t.bs_por_usd|floatformat:"4g" }}</td>
+        <td><span class="badge text-bg-{% if t.fuente == 'MANUAL' %}warning{% else %}success{% endif %}">{{ t.get_fuente_display }}</span></td>
+        <td class="d-none d-sm-table-cell small">{% if t.registrada_por %}{{ t.registrada_por.nombre_visible }}{% else %}Automático{% endif %}</td>
+      </tr>{% endfor %}</tbody></table></div>
+    {% else %}<div class="card-body text-muted">Aún no hay tasas registradas.</div>{% endif %}
+  </div></div>
+</div>
+{% endblock %}

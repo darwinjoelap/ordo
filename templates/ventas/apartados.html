@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+<a href="{% url 'ventas:reportes' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Reportes</a>
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2 mb-3">
+  <div><h1 class="h3 mb-0">Inventario apartado</h1>
+    <div class="small text-muted">{{ docs|length }} presupuesto{{ docs|length|pluralize }} apartado{{ docs|length|pluralize }} · {{ total_usd|usd }}</div></div>
+</div>
+<div class="row g-3">
+  <div class="col-lg-8"><div class="card">
+    <div class="card-header bg-white fw-semibold">Por presupuesto <span class="small text-muted fw-normal">(el que vence primero arriba)</span></div>
+    {% if docs %}<div class="list-group list-group-flush">
+      {% for p in docs %}<a href="{% url 'ventas:detalle' p.pk %}" class="list-group-item list-group-item-action">
+        <div class="d-flex justify-content-between flex-wrap gap-2">
+          <div><span class="fw-semibold">{{ p.numero }}</span> · {{ p.cliente.nombre }}<div class="small text-muted">{{ p.vendedor.nombre_visible }} · {{ p.total_usd|usd }}</div></div>
+          <div class="small text-end {% if p.apartado_hasta < ahora %}text-danger fw-semibold{% else %}text-muted{% endif %}"><i class="bi bi-alarm"></i> hasta {{ p.apartado_hasta|date:"d/m/Y H:i" }}{% if p.apartado_hasta < ahora %}<div>vencido: se libera en la próxima revisión</div>{% endif %}</div>
+        </div>
+        <ul class="small text-muted mb-0 mt-1 ps-3">{% for r in p.lista_reservas %}<li>{{ r.item.producto.nombre }} · lote {{ r.lote.numero_lote|default:"s/n" }}{% if r.lote.fecha_vencimiento %} (vto. {{ r.lote.fecha_vencimiento|date:"d/m/Y" }}){% endif %}: <b>{{ r.cantidad|miles }}</b> {{ r.item.producto.unidad.abreviatura }}</li>{% endfor %}</ul>
+      </a>{% endfor %}
+    </div>{% else %}<div class="card-body text-muted">No hay stock apartado.</div>{% endif %}
+  </div></div>
+  <div class="col-lg-4"><div class="card">
+    <div class="card-header bg-white fw-semibold">Por producto</div>
+    {% if productos %}<div class="table-responsive"><table class="table table-sm align-middle mb-0 small">
+      <thead class="table-light"><tr><th>Producto</th><th class="text-end">Apartado</th><th class="text-end">Docs.</th></tr></thead>
+      <tbody>{% for x in productos %}<tr><td><a href="{% url 'inventario:detalle' x.producto.pk %}">{{ x.producto.nombre }}</a></td><td class="text-end fw-semibold">{{ x.cantidad|miles }}</td><td class="text-end">{{ x.docs|length }}</td></tr>{% endfor %}</tbody>
+    </table></div>{% else %}<div class="card-body text-muted small">—</div>{% endif %}
+  </div></div>
+</div>
+{% endblock %}

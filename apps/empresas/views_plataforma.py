@@ -94,3 +94,43 @@ def salir(request):
     request.session.pop(SESION_SOPORTE, None)
     request.session.pop(SESION_EMPRESA, None)
     return redirect('plataforma:lista')
+
+
+@solo_plataforma
+def tasas(request):
+    """Tasa BCV (única para todas las empresas): historial, carga manual y consulta al BCV."""
+    from datetime import date
+    from decimal import Decimal, InvalidOperation
+
+    from django.utils import timezone
+
+    from apps.tasas import servicios as tasas_srv
+    from apps.tasas.models import TasaCambio
+    if request.method == 'POST':
+        if request.POST.get('accion') == 'bcv':
+            try:
+                t = tasas_srv.actualizar_desde_bcv()
+                messages.success(request, f'Tasa BCV registrada: Bs {t.bs_por_usd} ({t.fecha:%d/%m/%Y}).')
+            except Exception as e:  # el BCV falla seguido: se informa y se puede cargar a mano
+                logging.getLogger('apps.tasas').warning('Consulta manual al BCV falló: %s', e)
+                messages.error(request, f'No se pudo consultar el BCV ({e.__class__.__name__}). Cárgala a mano.')
+        else:
+            try:
+                texto = request.POST.get('valor', '').strip()
+                if ',' in texto:                      # formato venezolano: 1.234,5678
+                    texto = texto.replace('.', '').replace(',', '.')
+                valor = Decimal(texto)
+                fecha = date.fromisoformat(request.POST.get('fecha') or timezone.localdate().isoformat())
+                if valor <= 0:
+                    raise InvalidOperation
+                if fecha > timezone.localdate():
+                    raise ValueError('futura')
+            except (InvalidOperation, ValueError):
+                messages.error(request, 'Indica una tasa mayor que cero y una fecha que no sea futura.')
+            else:
+                tasas_srv.registrar(valor.quantize(Decimal('0.0001')), TasaCambio.Fuente.MANUAL, request.user, fecha)
+                messages.success(request, f'Tasa del {fecha:%d/%m/%Y} guardada: Bs {valor}.')
+        return redirect('plataforma:tasas')
+    return render(request, 'plataforma/tasas.html', {
+        'titulo': 'Tasa BCV', 'tasas': TasaCambio.objects.select_related('registrada_por')[:60],
+        'vigente': tasas_srv.tasa_vigente(), 'hoy': timezone.localdate()})

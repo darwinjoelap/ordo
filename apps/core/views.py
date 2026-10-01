@@ -38,6 +38,9 @@ def inicio(request):
                               .select_related('cliente').order_by('apartado_hasta')[:5],
             'abiertos': docs.filter(estado__in=[E.BORRADOR, E.EMITIDO]).count(),
             'ultimos': docs.select_related('cliente').order_by('-actualizado_en')[:6],
+            'por_cobrar': docs.filter(estado=E.VALIDADA, pagado=False).aggregate(
+                n=Count('pk'), usd=Sum(F('total_usd') - F('devuelto_usd'))),
+            'por_entregar': docs.filter(estado=E.VALIDADA, entregado=False).count(),
         })
     if tiene_permiso(request, 'comisiones.ver_propias'):
         from apps.comisiones.models import AjusteComision, Comision
@@ -45,8 +48,17 @@ def inicio(request):
             (m.objects.filter(vendedor=request.user, fecha__gte=inicio_mes.date()).aggregate(t=Sum('monto_usd'))['t'] or 0
              for m in (Comision, AjusteComision)), 0)
     if tiene_permiso(request, 'inventario.ver'):
-        ctx['bajo_minimo'] = (Producto.objects.filter(activo=True, stock_minimo__gt=0).con_stock()
-                              .filter(anot_stock_disponible__lte=F('stock_minimo')).count())
+        from apps.inventario.models import Lote
+        hoy = ahora.date()
+        criticos = (Producto.objects.filter(activo=True, stock_minimo__gt=0).con_stock()
+                    .filter(anot_stock_disponible__lte=F('stock_minimo')).order_by('anot_stock_disponible', 'nombre'))
+        con_stock = Lote.objects.filter(cantidad_actual__gt=0).select_related('producto')
+        vencidos = con_stock.filter(fecha_vencimiento__lt=hoy).order_by('fecha_vencimiento')
+        proximos = con_stock.filter(fecha_vencimiento__gte=hoy, fecha_vencimiento__lte=hoy + timedelta(days=30)) \
+            .order_by('fecha_vencimiento')
+        ctx.update({'bajo_minimo': criticos.count(), 'criticos': criticos[:5],
+                    'lotes_vencidos': vencidos[:5], 'n_lotes_vencidos': vencidos.count(),
+                    'lotes_proximos': proximos[:5], 'n_lotes_proximos': proximos.count()})
     return render(request, 'core/inicio.html', ctx)
 
 

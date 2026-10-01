@@ -80,6 +80,9 @@
       <div class="card card-body mb-3">
         <div class="row g-3">
           {% if precio_editable %}<div class="col-sm-4"><label class="form-label small" for="descuento">Descuento (%)</label><input id="descuento" type="text" inputmode="decimal" name="descuento_pct" value="{{ p.descuento_pct|floatformat:'-2' }}" class="form-control form-control-sm"></div>{% endif %}
+          {% if precio_editable %}<div class="col-sm-8 d-flex align-items-end"><input type="hidden" name="iva_enviado" value="1">
+            <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="sin_iva" value="1" id="sin_iva" {% if not p.iva_pct %}checked{% endif %}>
+            <label class="form-check-label small" for="sin_iva">Venta sin IVA (exenta)</label></div></div>{% endif %}
           <div class="col-12"><label class="form-label small" for="condiciones">Condiciones (salen en el PDF)</label><textarea id="condiciones" name="condiciones" rows="2" class="form-control form-control-sm">{{ p.condiciones }}</textarea></div>
           <div class="col-12"><label class="form-label small" for="notas">Notas internas</label><textarea id="notas" name="notas" rows="2" class="form-control form-control-sm">{{ p.notas }}</textarea></div>
         </div>
@@ -95,7 +98,7 @@
         <dl class="row mb-0 small">
           <dt class="col-6 fw-normal">Subtotal</dt><dd class="col-6 text-end mb-1">{{ p.subtotal_usd|usd }}</dd>
           {% if p.descuento_usd %}<dt class="col-6 fw-normal">Descuento ({{ p.descuento_pct|floatformat:"-2" }} %)</dt><dd class="col-6 text-end mb-1">-{{ p.descuento_usd|usd }}</dd>{% endif %}
-          {% if p.iva_usd %}<dt class="col-6 fw-normal">IVA ({{ p.iva_pct|floatformat:"-2" }} %)</dt><dd class="col-6 text-end mb-1">{{ p.iva_usd|usd }}</dd>{% endif %}
+          {% if p.iva_usd %}<dt class="col-6 fw-normal">IVA ({{ p.iva_pct|floatformat:"-2" }} %)</dt><dd class="col-6 text-end mb-1">{{ p.iva_usd|usd }}</dd>{% elif not p.iva_pct %}<dt class="col-6 fw-normal">IVA</dt><dd class="col-6 text-end mb-1">Exento</dd>{% endif %}
           <dt class="col-6 fs-5">Total</dt><dd class="col-6 text-end fs-5 fw-bold mb-0">{{ p.total_usd|usd }}</dd>
           {% if p.total_bs %}<dt class="col-6 fw-normal text-muted">En bolívares</dt><dd class="col-6 text-end text-muted mb-0">Bs {{ p.total_bs|floatformat:"2g" }}</dd>{% endif %}
         </dl>

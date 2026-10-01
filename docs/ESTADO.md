@@ -129,3 +129,12 @@
       productos, clientes, vendedores, categorías y presupuestos por estado; filtros; el vendedor ve solo lo suyo
 - [x] Lista de ventas filtrada por fechas con total neto de devoluciones
 - [x] 17 tests en SQLite y PostgreSQL (201 en total)
+
+## Paridad con BioLifeVentas — bloque B
+- [x] Venta sin IVA (exenta) por documento; en el PDF sale "IVA: Exento" (modo FIJO: solo gestión)
+- [x] Plataforma → Tasa BCV: historial, carga manual (reemplaza la del día) y "Consultar BCV ahora"
+- [x] Tablero: por cobrar, por entregar, lotes vencidos con stock, próximos a vencer (30 días), bajo mínimo
+- [x] Lista de ventas filtrable por "sin pago" / "sin entregar"
+- [x] Reportes → Apartados: por presupuesto (lotes y fecha límite) y total por producto
+- [x] El disponible de inventario ya no cuenta lotes vencidos (un producto con solo lotes vencidos figura como agotado)
+- [ ] Respaldo diario de la BD: se decide al preparar producción

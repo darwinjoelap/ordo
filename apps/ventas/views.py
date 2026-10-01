@@ -60,6 +60,11 @@ def lista(request):
         qs = qs.filter(estado=estado)
     if q:
         qs = qs.filter(Q(numero__icontains=q) | Q(cliente__nombre__icontains=q) | Q(cliente__rif__icontains=q))
+    pendiente = g.get('pendiente', '')
+    if pendiente == 'pago':
+        qs = qs.filter(estado=E.VALIDADA, pagado=False)
+    elif pendiente == 'entrega':
+        qs = qs.filter(estado=E.VALIDADA, entregado=False)
     if vendedor and tiene_permiso(request, 'presupuestos.ver_todos'):
         qs = qs.filter(vendedor_id=vendedor)
     totales = qs.aggregate(n=Count('pk'), usd=Sum('total_usd'), devuelto=Sum('devuelto_usd'))
@@ -72,7 +77,7 @@ def lista(request):
         if tiene_permiso(request, 'presupuestos.ver_todos') else []
     return render(request, 'ventas/lista.html', {
         'titulo': 'Presupuestos y ventas', 'pagina': pagina, 'querystring': params.urlencode(),
-        'f': {'estado': estado, 'q': q, 'vendedor': vendedor, 'desde': desde, 'hasta': hasta}, 'estados': E.choices, 'totales': totales,
+        'f': {'estado': estado, 'q': q, 'vendedor': vendedor, 'desde': desde, 'hasta': hasta, 'pendiente': pendiente}, 'estados': E.choices, 'totales': totales,
         'vendedores': vendedores,
     })
 
@@ -192,8 +197,11 @@ def actualizar(request, pk):
         descuento = Decimal(descuento.replace(',', '.')) if descuento else None
         if descuento and not tiene_permiso(request, 'precios.fijar') and request.empresa.perfil.modo_precio == 'FIJO':
             descuento = None
-        servicios.actualizar_items(p, cambios, quitar, request.empresa.perfil, tiene_permiso(request, 'precios.fijar'),
-                                   descuento)
+        perfil = request.empresa.perfil
+        puede_iva = perfil.modo_precio != 'FIJO' or tiene_permiso(request, 'precios.fijar')
+        sin_iva = (request.POST.get('sin_iva') == '1') if puede_iva and 'iva_enviado' in request.POST else None
+        servicios.actualizar_items(p, cambios, quitar, perfil, tiene_permiso(request, 'precios.fijar'),
+                                   descuento, sin_iva=sin_iva)
         p.notas = request.POST.get('notas', p.notas)
         p.condiciones = request.POST.get('condiciones', p.condiciones)
         p.save(update_fields=['notas', 'condiciones'])

@@ -17,6 +17,8 @@
 </div>
 <form method="get" class="row g-2 mb-3 align-items-end">
   <input type="hidden" name="estado" value="{{ f.estado }}">
+  {% if f.pendiente %}<input type="hidden" name="pendiente" value="{{ f.pendiente }}">
+  <div class="col-12"><span class="badge text-bg-warning">{% if f.pendiente == 'pago' %}Sin pago{% else %}Sin entregar{% endif %}</span> <a href="?estado={{ f.estado }}" class="small">quitar</a></div>{% endif %}
   <div class="col-sm-6 col-md-4"><input type="search" name="q" value="{{ f.q }}" class="form-control form-control-sm" placeholder="Número, cliente o RIF"></div>
   {% if vendedores %}
   <div class="col-sm-4 col-md-3"><select name="vendedor" class="form-select form-select-sm"><option value="">Todos los vendedores</option>

@@ -44,3 +44,6 @@
 | 2026-10-01 | Analítica en montos sin IVA, después del descuento y neta de devoluciones; por fecha de validación | Lo que realmente ingresa; coherente con comisiones |
 | 2026-10-01 | PDF del presupuesto con el formato de BioLifeVentas (caja de cliente, columnas Lote y F. Venc., total de unidades); varios lotes en la misma celda con su cantidad entre paréntesis | Preferencia de BioLife; un renglón por producto |
 | 2026-10-01 | Montos en Bs: precio unitario en Bs redondeado primero y totales desde esos precios (`desglose_bs`) | Igual que BioLifeVentas: la tabla y los totales en Bs cuadran al céntimo |
+| 2026-10-01 | Venta exenta = IVA 0 % en el documento; el vendedor la marca salvo en modo de precio FIJO | Como BioLifeVentas (`incluye_iva`), respetando el control de precios |
+| 2026-10-01 | Tasa manual solo desde Plataforma (superusuario) | La tasa es global; una empresa no debe cambiarla para todas |
+| 2026-10-01 | Disponible = existencia − apartado − libre en lotes vencidos | Lo vencido no se puede vender; alertas y panel de pedido quedan correctos |

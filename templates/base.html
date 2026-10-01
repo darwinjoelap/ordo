@@ -87,7 +87,7 @@
     {% if empresa %}
     <div class="nav-seccion">Comercial</div>
     {% if 'presupuestos.crear' in permisos %}
-      <a href="{% url 'ventas:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'ventas' and request.resolver_match.url_name not in 'por_validar devoluciones devolucion reportes reporte_facturacion' %}active{% endif %}"><i class="bi bi-file-earmark-text"></i> Presupuestos</a>
+      <a href="{% url 'ventas:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'ventas' and request.resolver_match.url_name not in 'por_validar devoluciones devolucion reportes reporte_facturacion reporte_apartados' %}active{% endif %}"><i class="bi bi-file-earmark-text"></i> Presupuestos</a>
     {% endif %}
     {% if 'ventas.validar' in permisos %}
       <a href="{% url 'ventas:por_validar' %}" class="nav-link {% if request.resolver_match.url_name == 'por_validar' %}active{% endif %}"><i class="bi bi-bag-check"></i> Por validar</a>
@@ -96,7 +96,7 @@
       <a href="{% url 'ventas:devoluciones' %}" class="nav-link {% if request.resolver_match.url_name == 'devoluciones' or request.resolver_match.url_name == 'devolucion' %}active{% endif %}"><i class="bi bi-arrow-return-left"></i> Devoluciones</a>
     {% endif %}
     {% if 'presupuestos.crear' in permisos %}
-      <a href="{% url 'ventas:reportes' %}" class="nav-link {% if request.resolver_match.url_name == 'reportes' or request.resolver_match.url_name == 'reporte_facturacion' %}active{% endif %}"><i class="bi bi-bar-chart-line"></i> Reportes</a>
+      <a href="{% url 'ventas:reportes' %}" class="nav-link {% if request.resolver_match.url_name in 'reportes reporte_facturacion reporte_apartados' %}active{% endif %}"><i class="bi bi-bar-chart-line"></i> Reportes</a>
     {% endif %}
     {% if 'clientes.gestionar' in permisos %}
       <a href="{% url 'clientes:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'clientes' %}active{% endif %}"><i class="bi bi-people"></i> Clientes</a>

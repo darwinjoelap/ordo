@@ -212,7 +212,8 @@ class VistasInventarioTests(BaseInventario):
         self.client.force_login(self.dueno)
         self.assertContains(self.client.get(reverse('inventario:lista'), {'alerta': 'vencidos'}), 'Glucosa kit')
         self.assertContains(self.client.get(reverse('inventario:lista'), {'alerta': 'stock_minimo'}), 'Glucosa kit')
-        self.assertNotContains(self.client.get(reverse('inventario:lista'), {'alerta': 'agotados'}), 'Glucosa kit')
+        # solo tiene un lote vencido: no hay nada vendible, cuenta como agotado
+        self.assertContains(self.client.get(reverse('inventario:lista'), {'alerta': 'agotados'}), 'Glucosa kit')
 
     def test_desmarcar_solo_activos_muestra_inactivos(self):
         Producto.todos.filter(pk=self.prod.pk).update(activo=False)

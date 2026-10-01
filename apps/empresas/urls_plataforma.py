@@ -10,4 +10,5 @@ urlpatterns = [
     path('<int:pk>/', v.editar, name='editar'),
     path('<int:pk>/entrar/', v.entrar, name='entrar'),
     path('salir/', v.salir, name='salir'),
+    path('tasas/', v.tasas, name='tasas'),
 ]

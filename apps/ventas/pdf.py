@@ -225,6 +225,8 @@ def presupuesto_pdf(p, empresa, moneda='ambas'):
         tot.append(fila_total('Subtotal con descuento:', p.base_usd, 'base'))
     if p.iva_usd:
         tot.append(fila_total(f'IVA ({pct(p.iva_pct)} %):', p.iva_usd, 'iva'))
+    elif not p.iva_pct:
+        tot.append(['IVA:', 'Exento'] + (['Exento'] if moneda == 'ambas' else []))
     if moneda == 'usd':
         tot.append(['TOTAL USD:', usd(p.total_usd)])
     elif moneda == 'bs':
