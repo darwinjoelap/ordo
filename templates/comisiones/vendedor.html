@@ -3,7 +3,7 @@
 {% block contenido %}
 {% if 'comisiones.liquidar' in permisos %}<a href="{% url 'comisiones:inicio' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Comisiones</a>{% endif %}
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2 mb-3">
-  <div><h1 class="h3 mb-1">{% if es_propio %}Mis comisiones{% else %}{{ vendedor.get_full_name|default:vendedor.email }}{% endif %}</h1>
+  <div><h1 class="h3 mb-1">{% if es_propio %}Mis comisiones{% else %}{{ vendedor.nombre_visible }}{% endif %}</h1>
     <div class="small text-muted">{% if porcentaje is not None %}Porcentaje: {{ porcentaje|floatformat:"-2" }} %{% else %}Sin porcentaje asignado{% endif %}</div></div>
   {% if 'comisiones.liquidar' in permisos and disponible %}<a href="{% url 'comisiones:liquidar' vendedor.pk %}" class="btn btn-primary btn-sm">Liquidar {{ disponible|usd }}</a>{% endif %}
 </div>

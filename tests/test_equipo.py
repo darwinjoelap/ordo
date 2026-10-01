@@ -56,19 +56,20 @@ class PerfilTests(Base):
 
 class EquipoServicioTests(Base):
     def test_agregar_usuario_nuevo_crea_clave_temporal(self):
-        m, clave = equipo.agregar(self.empresa, self.m_admin, 'NUEVO@alfa.com', 'Luis', 'Gómez', Rol.VENDEDOR)
+        m, clave = equipo.agregar(self.empresa, self.m_admin, 'LGomez', 'Luis', 'Gómez', Rol.VENDEDOR)
         self.assertTrue(clave.startswith('Ordo-'))
-        self.assertEqual(m.usuario.email, 'nuevo@alfa.com')
+        self.assertEqual((m.usuario.username, m.usuario.empresa_cuenta), ('lgomez', self.empresa))
         self.assertTrue(m.usuario.check_password(clave))
         self.assertTrue(m.usuario.debe_cambiar_clave)
 
-    def test_agregar_usuario_existente_no_toca_su_clave(self):
-        m, clave = equipo.agregar(self.otra, self.m_dueno, 'v@alfa.com', 'x', 'y', Rol.VENDEDOR)
-        self.assertIsNone(clave)
-        self.vend.refresh_from_db()
-        self.assertTrue(self.vend.check_password('clave-segura-123'))
-        with self.assertRaises(equipo.ErrorEquipo):
-            equipo.agregar(self.empresa, self.m_dueno, 'v@alfa.com', 'x', 'y', Rol.VENDEDOR)   # ya es miembro
+    def test_mismo_usuario_en_otra_empresa_es_otra_cuenta(self):
+        equipo.agregar(self.empresa, self.m_dueno, 'maria', 'María', 'A', Rol.VENDEDOR)
+        with self.assertRaises(equipo.ErrorEquipo):                                    # repetido en la misma empresa
+            equipo.agregar(self.empresa, self.m_dueno, 'MARIA', 'x', 'y', Rol.VENDEDOR)
+        m_otra = Membresia(usuario=self.dueno, empresa=self.otra, rol=Rol.DUENO)
+        m2, _ = equipo.agregar(self.otra, m_otra, 'maria', 'María', 'B', Rol.VENDEDOR)   # en otra empresa: permitido
+        self.assertEqual(U.objects.filter(username='maria').count(), 2)
+        self.assertEqual(m2.usuario.empresa_cuenta, self.otra)
 
     def test_admin_no_asigna_dueno_ni_toca_duenos_ni_a_si_mismo(self):
         with self.assertRaises(equipo.ErrorEquipo):
@@ -92,11 +93,14 @@ class EquipoServicioTests(Base):
         self.client.force_login(self.vend)
         self.assertRedirects(self.client.get('/'), reverse('empresas:sin_empresa'))
 
-    def test_restablecer_clave_solo_si_pertenece_solo_a_esta_empresa(self):
+    def test_restablecer_clave_solo_de_cuentas_de_esta_empresa(self):
+        U.objects.filter(pk=self.vend.pk).update(empresa_cuenta=self.empresa)
+        self.m_vend.refresh_from_db()
         clave = equipo.restablecer_clave(self.m_admin, self.m_vend)
         self.vend.refresh_from_db()
         self.assertTrue(self.vend.check_password(clave) and self.vend.debe_cambiar_clave)
-        Membresia.objects.create(usuario=self.vend, empresa=self.otra, rol=Rol.VENDEDOR)
+        U.objects.filter(pk=self.vend.pk).update(empresa_cuenta=self.otra)           # cuenta de otra empresa
+        self.m_vend.refresh_from_db()
         with self.assertRaises(equipo.ErrorEquipo):
             equipo.restablecer_clave(self.m_admin, self.m_vend)
 
@@ -111,9 +115,10 @@ class EquipoVistasTests(Base):
         r = self.client.get(reverse('empresas:equipo'))
         self.assertContains(r, 'v@alfa.com')
         r = self.client.post(reverse('empresas:equipo_agregar'),
-                             {'email': 'n@alfa.com', 'nombre': 'Nora', 'apellido': 'Díaz', 'rol': Rol.ALMACEN})
+                             {'username': 'nora', 'nombre': 'Nora', 'apellido': 'Díaz', 'email': '', 'rol': Rol.ALMACEN})
         self.assertContains(r, 'Ordo-')
-        m = Membresia.objects.get(usuario__email='n@alfa.com')
+        self.assertContains(r, '/alfa/')
+        m = Membresia.objects.get(usuario__username='nora')
         self.assertEqual(m.rol, Rol.ALMACEN)
         self.client.post(reverse('empresas:equipo_actualizar', args=[m.pk]), {'rol': Rol.VENDEDOR, 'activa': '1'})
         m.refresh_from_db()

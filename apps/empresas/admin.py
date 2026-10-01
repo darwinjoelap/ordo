@@ -22,7 +22,7 @@ class EmpresaAdmin(admin.ModelAdmin):
 class MembresiaAdmin(admin.ModelAdmin):
     list_display = ['usuario', 'empresa', 'rol', 'activa']
     list_filter = ['rol', 'activa', 'empresa']
-    search_fields = ['usuario__email', 'empresa__nombre']
+    search_fields = ['usuario__username', 'empresa__nombre']
     autocomplete_fields = ['usuario', 'empresa']
 
 

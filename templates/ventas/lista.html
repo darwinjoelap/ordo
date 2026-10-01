@@ -20,7 +20,7 @@
   <div class="col-sm-6 col-md-4"><input type="search" name="q" value="{{ f.q }}" class="form-control form-control-sm" placeholder="Número, cliente o RIF"></div>
   {% if vendedores %}
   <div class="col-sm-4 col-md-3"><select name="vendedor" class="form-select form-select-sm"><option value="">Todos los vendedores</option>
-    {% for v in vendedores %}<option value="{{ v.pk }}" {% if f.vendedor == v.pk|stringformat:"s" %}selected{% endif %}>{{ v.get_full_name|default:v.email }}</option>{% endfor %}</select></div>
+    {% for v in vendedores %}<option value="{{ v.pk }}" {% if f.vendedor == v.pk|stringformat:"s" %}selected{% endif %}>{{ v.nombre_visible }}</option>{% endfor %}</select></div>
   {% endif %}
   <div class="col-auto"><button class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Filtrar</button></div>
 </form>
@@ -35,7 +35,7 @@
         <td class="fw-semibold text-nowrap">{{ p.numero }}{% if p.requiere_revision %} <i class="bi bi-exclamation-triangle-fill text-warning" title="Precio fuera de rango"></i>{% endif %}</td>
         <td>{{ p.cliente.nombre }}</td>
         <td class="d-none d-md-table-cell">{{ p.fecha|date:"d/m/Y" }}</td>
-        {% if 'presupuestos.ver_todos' in permisos %}<td class="d-none d-lg-table-cell small">{{ p.vendedor.get_full_name|default:p.vendedor.email }}</td>{% endif %}
+        {% if 'presupuestos.ver_todos' in permisos %}<td class="d-none d-lg-table-cell small">{{ p.vendedor.nombre_visible }}</td>{% endif %}
         <td><span class="badge text-bg-{{ p.css_estado }}">{{ p.get_estado_display }}</span>{% if p.pagado %} <i class="bi bi-cash text-success" title="Pagado"></i>{% endif %}{% if p.entregado %} <i class="bi bi-truck text-success" title="Entregado"></i>{% endif %}</td>
         <td class="text-end text-nowrap">{{ p.total_usd|usd }}</td>
       </tr>

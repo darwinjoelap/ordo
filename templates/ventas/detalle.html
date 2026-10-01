@@ -9,7 +9,7 @@
     <div class="text-muted small">
       <a href="{% url 'clientes:detalle' p.cliente_id %}">{{ p.cliente.nombre }}</a>{% if p.cliente.rif %} · {{ p.cliente.rif }}{% endif %}
       · {{ p.fecha|date:"d/m/Y" }}{% if p.editable %} · válido hasta {{ p.valido_hasta|date:"d/m/Y" }}{% endif %}
-      · Vendedor: {{ p.vendedor.get_full_name|default:p.vendedor.email }}
+      · Vendedor: {{ p.vendedor.nombre_visible }}
       {% if p.tasa_bs %} · Tasa {{ p.tasa_bs|floatformat:"2g" }} Bs/USD{% endif %}
     </div>
   </div>
@@ -122,7 +122,7 @@
           <div class="text-muted small"><i class="bi bi-hourglass-split me-1"></i>Esperando validación del administrador.</div>
         {% endif %}
       {% elif p.estado == 'VALIDADA' %}
-        <div class="text-success small"><i class="bi bi-patch-check-fill me-1"></i>Validada el {{ p.validado_en|date:"d/m/Y H:i" }}{% if p.validado_por %} por {{ p.validado_por.get_full_name|default:p.validado_por.email }}{% endif %}.</div>
+        <div class="text-success small"><i class="bi bi-patch-check-fill me-1"></i>Validada el {{ p.validado_en|date:"d/m/Y H:i" }}{% if p.validado_por %} por {{ p.validado_por.nombre_visible }}{% endif %}.</div>
       {% endif %}
       {% if p.estado in 'BORRADOR EMITIDO APARTADO RECHAZADA' %}
         <form method="post" action="{% url 'ventas:accion' p.pk 'cancelar' %}" class="d-grid" onsubmit="return confirm('¿Cancelar este presupuesto? Se libera el stock apartado.')">{% csrf_token %}<button class="btn btn-link btn-sm text-danger">Cancelar presupuesto</button></form>

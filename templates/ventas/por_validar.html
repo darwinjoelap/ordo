@@ -13,7 +13,7 @@
         <a href="{% url 'ventas:detalle' p.pk %}" class="fw-semibold">{{ p.numero }}</a>
         {% if p.requiere_revision %}<span class="badge text-bg-warning ms-1">Precio fuera de rango</span>{% endif %}
         <div class="small">{{ p.cliente.nombre }}</div>
-        <div class="small text-muted">{{ p.vendedor.get_full_name|default:p.vendedor.email }} · confirmada {{ p.confirmado_en|date:"d/m/Y H:i" }}{% if p.pagado %} · <span class="text-success">pagada ({{ p.get_metodo_pago_display }})</span>{% endif %}</div>
+        <div class="small text-muted">{{ p.vendedor.nombre_visible }} · confirmada {{ p.confirmado_en|date:"d/m/Y H:i" }}{% if p.pagado %} · <span class="text-success">pagada ({{ p.get_metodo_pago_display }})</span>{% endif %}</div>
       </div>
       <div class="text-end"><div class="fs-5 fw-bold">{{ p.total_usd|usd }}</div>{% if p.total_bs %}<div class="small text-muted">Bs {{ p.total_bs|floatformat:"2g" }}</div>{% endif %}</div>
     </div>

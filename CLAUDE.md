@@ -26,7 +26,8 @@ python manage.py runserver
 ## Estructura
 - `config/settings/{base,dev,prod}.py` — dev por defecto en manage.py; prod en wsgi/Railway
 - `apps/core` — inicio, healthcheck `/salud/`, utilidades comunes
-- `apps/usuarios` — Usuario con login por CORREO (sin username). El rol vive en la membresía
+- `apps/usuarios` — login por NOMBRE DE USUARIO, único POR EMPRESA (`empresa_cuenta`); cuentas de plataforma sin empresa.
+  Backend `usuarios/backends.py`: en `/<slug>/` busca en esa empresa; en `/cuenta/entrar/` y `/admin/` solo plataforma. El rol vive en la membresía
 - `apps/empresas` — Empresa, Membresia (rol), PerfilEmpresa (marca y datos para documentos), panel Mi empresa
 - `apps/empresas/equipo.py` — reglas del equipo (agregar, rol, desactivar, clave temporal); `apps/usuarios` → Mi perfil y middleware de cambio de clave obligatorio
 - `apps/empresas/plataforma.py` + `views_plataforma.py` — panel `/plataforma/` (solo superusuario); `views_entrada.py` → enlace `/<slug>/` (ruta AL FINAL de config/urls.py; slugs reservados en `RESERVADOS`)

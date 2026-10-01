@@ -5,8 +5,8 @@ Reglas:
 - Nadie modifica su propia membresía (evita quedarse sin acceso por error).
 - Solo un Dueño puede asignar el rol Dueño o modificar a otro Dueño.
 - Siempre queda al menos un Dueño activo.
-- Restablecer contraseña solo si la persona pertenece ÚNICAMENTE a esta empresa
-  (un admin de la empresa A no puede tocar la cuenta de alguien que también trabaja en B).
+- Cada empresa tiene sus propios usuarios (Usuario.empresa_cuenta): solo se restablece la clave de cuentas
+  de ESTA empresa, nunca de cuentas de plataforma u otras empresas.
 """
 import secrets
 
@@ -31,7 +31,7 @@ def roles_asignables(actor):
 
 
 def puede_gestionar(actor, objetivo):
-    if actor.pk == objetivo.pk:
+    if actor.pk is not None and actor.pk == objetivo.pk:
         return False
     if objetivo.rol == Rol.DUENO and actor.rol != Rol.DUENO:
         return False
@@ -39,7 +39,7 @@ def puede_gestionar(actor, objetivo):
 
 
 def solo_en_esta_empresa(usuario, empresa):
-    return not usuario.is_superuser and not Membresia.objects.filter(usuario=usuario).exclude(empresa=empresa).exists()
+    return not usuario.is_superuser and usuario.empresa_cuenta_id == empresa.pk
 
 
 def _validar_rol(actor, rol):
@@ -52,7 +52,8 @@ def _validar_rol(actor, rol):
 def _validar_limite(empresa, excluir_pk=None):
     if empresa.limite_usuarios is None:
         return
-    activos = Membresia.objects.filter(empresa=empresa, activa=True).exclude(pk=excluir_pk).count()
+    activos = (Membresia.objects.filter(empresa=empresa, activa=True, usuario__is_superuser=False)
+               .exclude(pk=excluir_pk).count())
     if activos >= empresa.limite_usuarios:
         raise ErrorEquipo(f'Tu plan permite {empresa.limite_usuarios} usuarios activos. '
                           'Desactiva a alguien o pide ampliar el plan.')
@@ -61,31 +62,25 @@ def _validar_limite(empresa, excluir_pk=None):
 def _quedaria_sin_dueno(m, nuevo_rol, nueva_activa):
     if m.rol != Rol.DUENO or (nuevo_rol == Rol.DUENO and nueva_activa):
         return False
-    otros = Membresia.objects.filter(empresa=m.empresa, rol=Rol.DUENO, activa=True).exclude(pk=m.pk)
+    otros = Membresia.objects.filter(empresa=m.empresa, rol=Rol.DUENO, activa=True,
+                                     usuario__is_superuser=False).exclude(pk=m.pk)
     return not otros.exists()
 
 
 @transaction.atomic
-def agregar(empresa, actor, email, nombre, apellido, rol):
-    """Devuelve (membresia, clave_temporal | None). La clave solo se genera si la cuenta es nueva."""
+def agregar(empresa, actor, username, nombre, apellido, rol, email=''):
+    """Crea un usuario propio de la empresa con clave temporal. Devuelve (membresia, clave_temporal)."""
+    from apps.usuarios.models import normalizar_usuario
     _validar_rol(actor, rol)
-    _validar_limite(empresa)
-    email = (email or '').strip().lower()
+    username = normalizar_usuario(username)
     U = get_user_model()
-    usuario = U.objects.filter(email__iexact=email).first()
-    clave = None
-    if usuario is None:
-        clave = clave_temporal()
-        usuario = U.objects.create_user(email, clave, first_name=nombre.strip(), last_name=apellido.strip(),
-                                        debe_cambiar_clave=True)
-    m = Membresia.objects.filter(usuario=usuario, empresa=empresa).first()
-    if m and m.activa:
-        raise ErrorEquipo(f'{email} ya forma parte del equipo.')
-    if m:
-        m.rol, m.activa = rol, True
-        m.save(update_fields=['rol', 'activa'])
-    else:
-        m = Membresia.objects.create(usuario=usuario, empresa=empresa, rol=rol)
+    if U.objects.filter(empresa_cuenta=empresa, username=username).exists():
+        raise ErrorEquipo(f'Ya existe el usuario "{username}" en esta empresa. Si está inactivo, reactívalo.')
+    _validar_limite(empresa)
+    clave = clave_temporal()
+    usuario = U.objects.create_user(username, clave, empresa_cuenta=empresa, email=email or '',
+                                    first_name=nombre.strip(), last_name=apellido.strip(), debe_cambiar_clave=True)
+    m = Membresia.objects.create(usuario=usuario, empresa=empresa, rol=rol)
     return m, clave
 
 

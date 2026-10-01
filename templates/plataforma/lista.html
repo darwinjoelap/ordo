@@ -8,7 +8,7 @@
   <input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Nombre, razón social, RIF o enlace"><button class="btn btn-outline-secondary"><i class="bi bi-search"></i></button></div></form>
 <div class="card"><div class="table-responsive">
   <table class="table align-middle mb-0">
-    <thead class="table-light"><tr><th>Empresa</th><th>Enlace</th><th>Plan</th><th>Vence</th><th class="text-center">Usuarios</th><th>Estado</th></tr></thead>
+    <thead class="table-light"><tr><th>Empresa</th><th>Enlace</th><th>Plan</th><th>Vence</th><th class="text-center">Usuarios</th><th>Estado</th><th></th></tr></thead>
     <tbody>
     {% for e in empresas %}
       <tr onclick="location.href='{% url 'plataforma:editar' e.pk %}'" role="button">
@@ -18,8 +18,9 @@
         <td class="small">{% if e.activa_hasta %}<span class="{% if e.dias_para_vencer < 0 %}text-danger fw-semibold{% elif e.dias_para_vencer <= 7 %}text-warning-emphasis fw-semibold{% endif %}">{{ e.activa_hasta|date:"d/m/Y" }}</span>{% else %}—{% endif %}</td>
         <td class="text-center">{{ e.n_activos }}{% if e.limite_usuarios %} / {{ e.limite_usuarios }}{% endif %}</td>
         <td>{% if e.esta_activa %}<span class="badge text-bg-success">Activa</span>{% elif e.estado == 'SUSPENDIDA' %}<span class="badge text-bg-danger">Suspendida</span>{% else %}<span class="badge text-bg-warning">Vencida</span>{% endif %}</td>
+        <td onclick="event.stopPropagation()"><form method="post" action="{% url 'plataforma:entrar' e.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary text-nowrap"><i class="bi bi-box-arrow-in-right me-1"></i>Entrar</button></form></td>
       </tr>
-    {% empty %}<tr><td colspan="6" class="text-muted text-center py-4">No hay empresas.</td></tr>{% endfor %}
+    {% empty %}<tr><td colspan="7" class="text-muted text-center py-4">No hay empresas.</td></tr>{% endfor %}
     </tbody>
   </table>
 </div></div>

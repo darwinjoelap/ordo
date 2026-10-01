@@ -17,7 +17,7 @@
         <dt class="col-4">Teléfono</dt><dd class="col-8">{{ cliente.telefono|default:"—" }}</dd>
         <dt class="col-4">Correo</dt><dd class="col-8">{{ cliente.email|default:"—" }}</dd>
         <dt class="col-4">Dirección</dt><dd class="col-8">{{ cliente.direccion|default:"—"|linebreaksbr }}</dd>
-        <dt class="col-4">Vendedor</dt><dd class="col-8">{{ cliente.vendedor.get_full_name|default:cliente.vendedor.email|default:"—" }}</dd>
+        <dt class="col-4">Vendedor</dt><dd class="col-8">{{ cliente.vendedor.nombre_visible|default:"—" }}</dd>
         <dt class="col-4">Notas</dt><dd class="col-8 mb-0">{{ cliente.notas|default:"—"|linebreaksbr }}</dd>
       </dl>
     </div>

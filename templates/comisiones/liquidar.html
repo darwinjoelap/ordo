@@ -2,7 +2,7 @@
 {% load ordo %}
 {% block contenido %}
 <a href="{% url 'comisiones:inicio' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Comisiones</a>
-<h1 class="h3 mt-2 mb-3">Liquidar · {{ vendedor.get_full_name|default:vendedor.email }}</h1>
+<h1 class="h3 mt-2 mb-3">Liquidar · {{ vendedor.nombre_visible }}</h1>
 <form method="get" class="d-flex gap-2 align-items-end mb-3">
   <div><label class="form-label small mb-1" for="hasta">Ventas validadas hasta</label><input type="date" id="hasta" name="hasta" value="{{ hasta|date:'Y-m-d' }}" class="form-control form-control-sm"></div>
   <button class="btn btn-sm btn-outline-secondary">Actualizar</button>

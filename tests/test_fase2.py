@@ -4,7 +4,7 @@ Pruebas de la Fase 2: empresas, membresías, aislamiento, permisos y panel Mi em
 import os
 import shutil
 import tempfile
-from io import BytesIO
+from io import BytesIO, StringIO
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
@@ -61,10 +61,11 @@ class EmpresaTests(BaseEmpresas):
         self.assertFalse(self.a.esta_activa)
 
     def test_comando_crear_empresa(self):
-        call_command('crear_empresa', 'Tienda Gamma', 'nuevo@gamma.com', '--password', 'clave-segura-123')
+        call_command('crear_empresa', 'Tienda Gamma', 'Gamma', '--password', 'clave-segura-123', stdout=StringIO())
         e = Empresa.objects.get(slug='tienda-gamma')
         m = Membresia.objects.get(empresa=e)
-        self.assertEqual((m.usuario.email, m.rol), ('nuevo@gamma.com', Rol.DUENO))
+        self.assertEqual((m.usuario.username, m.usuario.empresa_cuenta, m.rol), ('gamma', e, Rol.DUENO))
+        self.assertTrue(m.usuario.check_password('clave-segura-123'))
 
 
 class MiddlewareTests(BaseEmpresas):

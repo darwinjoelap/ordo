@@ -56,7 +56,7 @@ def presupuesto_pdf(p, empresa, moneda='ambas'):
         datos_cliente.append(contacto)
     if c.direccion:
         datos_cliente.append(c.direccion.replace('\n', ' '))
-    datos_cliente.append(f'<b>Vendedor:</b> {p.vendedor.get_full_name() or p.vendedor.email}')
+    datos_cliente.append(f'<b>Vendedor:</b> {p.vendedor.nombre_visible}')
     e += [Paragraph('<br/>'.join(datos_cliente), ESTILOS['Normal']), Spacer(1, 5 * mm)]
 
     en_usd, en_bs = moneda in ('usd', 'ambas'), moneda in ('bs', 'ambas')

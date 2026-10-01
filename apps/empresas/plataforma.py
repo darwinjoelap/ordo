@@ -36,8 +36,8 @@ def validar_enlace(slug, excluir_pk=None):
 def crear_empresa(datos):
     """
     datos: nombre_comercial, razon_social, rif, slug, plan, activa_hasta, limite_usuarios, notas,
-           email_dueno, nombre_dueno, apellido_dueno.
-    Devuelve (empresa, dueño, clave_temporal | None).
+           usuario_dueno, email_dueno, nombre_dueno, apellido_dueno.
+    Devuelve (empresa, dueño, clave_temporal). El Dueño es un usuario propio de la empresa.
     """
     empresa = Empresa.objects.create(
         nombre=datos['nombre_comercial'], slug=datos['slug'], plan=datos['plan'],
@@ -50,12 +50,11 @@ def crear_empresa(datos):
     perfil.save()
 
     U = get_user_model()
-    email = datos['email_dueno'].strip().lower()
-    dueno, clave = U.objects.filter(email__iexact=email).first(), None
-    if dueno is None:
-        clave = clave_temporal()
-        dueno = U.objects.create_user(email, clave, first_name=datos.get('nombre_dueno', '').strip(),
-                                      last_name=datos.get('apellido_dueno', '').strip(), debe_cambiar_clave=True)
+    clave = clave_temporal()
+    dueno = U.objects.create_user(datos['usuario_dueno'], clave, empresa_cuenta=empresa,
+                                  email=datos.get('email_dueno') or '',
+                                  first_name=(datos.get('nombre_dueno') or '').strip(),
+                                  last_name=(datos.get('apellido_dueno') or '').strip(), debe_cambiar_clave=True)
     Membresia.objects.create(usuario=dueno, empresa=empresa, rol=Rol.DUENO)
     return empresa, dueno, clave
 

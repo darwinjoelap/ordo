@@ -4,7 +4,7 @@
 <a href="{% if 'comisiones.liquidar' in permisos %}{% url 'comisiones:inicio' %}{% else %}{% url 'comisiones:detalle_vendedor' %}{% endif %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Comisiones</a>
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mt-2 mb-3">
   <div><h1 class="h3 mb-1">{{ liq.numero }} <span class="badge text-bg-{{ liq.css_estado }} fs-6 align-middle">{{ liq.estado }}</span></h1>
-    <div class="small text-muted">{{ liq.vendedor.get_full_name|default:liq.vendedor.email }} · ventas hasta {{ liq.hasta|date:"d/m/Y" }} · creada {{ liq.creada_en|date:"d/m/Y" }} por {{ liq.creada_por.get_full_name|default:liq.creada_por.email }}</div>
+    <div class="small text-muted">{{ liq.vendedor.nombre_visible }} · ventas hasta {{ liq.hasta|date:"d/m/Y" }} · creada {{ liq.creada_en|date:"d/m/Y" }} por {{ liq.creada_por.nombre_visible }}</div>
     {% if liq.pagada %}<div class="small text-success">Pagada el {{ liq.fecha_pago|date:"d/m/Y" }}{% if liq.metodo_pago %} · {{ liq.metodo_pago }}{% endif %}{% if liq.referencia %} · Ref. {{ liq.referencia }}{% endif %}</div>{% endif %}</div>
   <a href="{% url 'comisiones:liquidacion_pdf' liq.pk %}" target="_blank" class="btn btn-outline-secondary btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
 </div>

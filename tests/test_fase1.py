@@ -5,9 +5,9 @@ from django.urls import reverse
 
 
 class UsuarioTests(TestCase):
-    def test_crear_usuario_con_correo_normalizado(self):
-        u = get_user_model().objects.create_user('Ana@Empresa.COM', 'clave-segura-123')
-        self.assertEqual(u.email, 'ana@empresa.com')
+    def test_crear_usuario_normalizado(self):
+        u = get_user_model().objects.create_user('  Ana.Perez ', 'clave-segura-123', email='Ana@Empresa.COM')
+        self.assertEqual((u.username, u.email), ('ana.perez', 'ana@empresa.com'))
         self.assertTrue(u.check_password('clave-segura-123'))
         self.assertFalse(u.is_staff)
 
@@ -26,7 +26,7 @@ class AccesoTests(TestCase):
         r = self.client.get(reverse('core:inicio'))
         self.assertRedirects(r, f"{reverse('usuarios:login')}?next=/")
 
-    def test_login_con_correo_en_mayusculas(self):
+    def test_login_principal_con_usuario_en_mayusculas(self):
         r = self.client.post(reverse('usuarios:login'), {
             'username': 'VENDEDOR@empresa.com', 'password': 'clave-segura-123',
         })
@@ -36,7 +36,7 @@ class AccesoTests(TestCase):
         r = self.client.post(reverse('usuarios:login'), {
             'username': 'vendedor@empresa.com', 'password': 'mala',
         })
-        self.assertContains(r, 'Correo o contraseña incorrectos')
+        self.assertContains(r, 'Usuario o contraseña incorrectos')
 
     def test_inicio_con_sesion(self):
         from apps.empresas.models import Empresa, Membresia

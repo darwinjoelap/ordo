@@ -9,10 +9,12 @@ from django.contrib.auth import views as auth_views
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
-from apps.core.middleware import SESION_EMPRESA
+from apps.core.middleware import SESION_EMPRESA, SESION_SOPORTE
 from apps.usuarios.forms import LoginForm
 
 from .models import Empresa, Membresia
+
+COOKIE_EMPRESA = 'ordo_empresa'
 
 
 def _membresia(usuario, empresa):
@@ -25,11 +27,16 @@ class EntradaEmpresa(auth_views.LoginView):
 
     def dispatch(self, request, *args, **kwargs):
         self.empresa = get_object_or_404(Empresa.objects.select_related('perfil'), slug=kwargs['slug'])
-        if not self.empresa.esta_activa:
+        if not self.empresa.esta_activa and not request.user.is_superuser:
             return render(request, 'empresas/suspendida.html', {'empresa_marca': self.empresa}, status=403)
+        request.empresa_login = self.empresa          # el backend busca el usuario dentro de esta empresa
         if request.user.is_authenticated:
             if _membresia(request.user, self.empresa):
                 request.session[SESION_EMPRESA] = self.empresa.pk
+                request.session.pop(SESION_SOPORTE, None)
+                return redirect('core:inicio')
+            if request.user.is_superuser:
+                request.session[SESION_SOPORTE] = self.empresa.pk
                 return redirect('core:inicio')
             return render(request, 'empresas/sin_acceso.html', {'empresa_marca': self.empresa}, status=403)
         return super().dispatch(request, *args, **kwargs)
@@ -41,8 +48,14 @@ class EntradaEmpresa(auth_views.LoginView):
 
     def form_valid(self, form):
         respuesta = super().form_valid(form)
-        if _membresia(form.get_user(), self.empresa):
+        # Recordar la empresa en este equipo: la dirección principal y la app instalada vuelven a su login
+        respuesta.set_cookie(COOKIE_EMPRESA, self.empresa.slug, max_age=60 * 60 * 24 * 365, samesite='Lax',
+                             secure=self.request.is_secure(), httponly=True)
+        usuario = form.get_user()
+        if _membresia(usuario, self.empresa):
             self.request.session[SESION_EMPRESA] = self.empresa.pk
+        elif usuario.is_superuser:
+            self.request.session[SESION_SOPORTE] = self.empresa.pk
         return respuesta
 
     def get_success_url(self):

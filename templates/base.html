@@ -53,7 +53,7 @@
         <span class="ordo-avatar">{{ user.iniciales }}</span>
       </button>
       <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-        <li><h6 class="dropdown-header">{{ user }}{% if membresia %}<br><small class="text-muted">{{ membresia.get_rol_display }} · {{ empresa }}</small>{% endif %}</h6></li>
+        <li><h6 class="dropdown-header">{{ user }}{% if membresia %}<br><small class="text-muted">{% if membresia.soporte %}Soporte Ordo{% else %}{{ membresia.get_rol_display }}{% endif %} · {{ empresa }}</small>{% endif %}</h6></li>
         {% if membresias|length > 1 %}
           <li><a class="dropdown-item" href="{% url 'empresas:seleccionar' %}"><i class="bi bi-arrow-left-right me-2"></i>Cambiar de empresa</a></li>
         {% endif %}
@@ -123,6 +123,12 @@
 
   <!-- Contenido -->
   <main class="ordo-main">
+    {% if membresia.soporte %}
+      <div class="alert alert-info py-2 d-flex justify-content-between align-items-center gap-2 flex-wrap">
+        <span><i class="bi bi-headset me-1"></i>Modo soporte: estás dentro de <b>{{ perfil.nombre_comercial|default:empresa.nombre }}</b> como administrador de Ordo. No apareces en su equipo.{% if not empresa.esta_activa %} <b>Empresa suspendida o vencida.</b>{% endif %}</span>
+        <form method="post" action="{% url 'plataforma:salir' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary">Salir al panel</button></form>
+      </div>
+    {% endif %}
     {% if aviso_vencimiento is not None %}
       <div class="alert alert-warning py-2"><i class="bi bi-calendar-x me-1"></i>{% if aviso_vencimiento <= 0 %}El servicio de Ordo vence <b>hoy</b>.{% else %}El servicio de Ordo vence en <b>{{ aviso_vencimiento }} día{{ aviso_vencimiento|pluralize }}</b> ({{ empresa.activa_hasta|date:"d/m/Y" }}).{% endif %} Renueva para que tu equipo no pierda el acceso.</div>
     {% endif %}

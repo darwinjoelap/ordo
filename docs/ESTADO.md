@@ -98,3 +98,11 @@
 - [x] Enlace propio `/<enlace>/`: login con la marca de la empresa y la deja elegida
 - [x] Razón social y RIF solo se editan desde la plataforma (en Mi empresa quedan de solo lectura)
 - [x] Aviso al Dueño/Administrador 7 días antes del vencimiento; límite de usuarios aplicado en Equipo
+- [x] Modo soporte: el superusuario entra a cualquier empresa (botón Entrar o su enlace) con permisos de Dueño,
+      sin membresía, sin aparecer en Equipo ni contar en el límite; banner y botón "Salir al panel"
+
+## Login por usuario
+- [x] Usuario propio de cada empresa (`maria` puede existir en dos empresas); correo opcional
+- [x] Enlace `/<empresa>/` → login con usuario de esa empresa; queda recordada en el equipo (cookie)
+- [x] Dirección principal y `/admin/` → solo cuentas de plataforma (superusuario `darwinjoelap`)
+- [x] Migración de datos: usuario = parte del correo antes de la @; superusuarios quedan como plataforma

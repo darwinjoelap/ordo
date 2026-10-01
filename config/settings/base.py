@@ -93,6 +93,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ── Usuarios ──────────────────────────────────────────────────────────────────
 AUTH_USER_MODEL = 'usuarios.Usuario'
+AUTHENTICATION_BACKENDS = ['apps.usuarios.backends.UsuarioPorEmpresaBackend']
+# El usuario es único por empresa (no global): lo garantiza una restricción propia y el backend de arriba.
+SILENCED_SYSTEM_CHECKS = ['auth.W004']
 LOGIN_URL = 'usuarios:login'
 LOGIN_REDIRECT_URL = 'core:inicio'
 LOGOUT_REDIRECT_URL = 'usuarios:login'

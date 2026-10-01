@@ -16,7 +16,7 @@ class ClienteForm(FormBootstrap, forms.ModelForm):
         if puede_asignar and empresa:
             from django.contrib.auth import get_user_model
             self.fields['vendedor'].queryset = get_user_model().objects.filter(
-                membresias__empresa=empresa, membresias__activa=True).distinct()
+                membresias__empresa=empresa, membresias__activa=True, is_superuser=False).distinct()
         else:
             del self.fields['vendedor']
 

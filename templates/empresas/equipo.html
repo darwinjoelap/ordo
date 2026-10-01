@@ -7,12 +7,13 @@
 <div class="collapse mb-3 {% if form.errors %}show{% endif %}" id="agregar">
   <form method="post" action="{% url 'empresas:equipo_agregar' %}" class="card card-body" style="max-width:760px">{% csrf_token %}
     <div class="row g-2">
-      <div class="col-md-6">{% include 'partials/campo.html' with campo=form.email %}</div>
+      <div class="col-md-6">{% include 'partials/campo.html' with campo=form.username %}</div>
       <div class="col-md-6">{% include 'partials/campo.html' with campo=form.rol %}</div>
       <div class="col-md-6">{% include 'partials/campo.html' with campo=form.nombre %}</div>
       <div class="col-md-6">{% include 'partials/campo.html' with campo=form.apellido %}</div>
+      <div class="col-md-6">{% include 'partials/campo.html' with campo=form.email %}</div>
     </div>
-    <p class="small text-muted mt-2 mb-2">Si el correo es nuevo en Ordo se crea una <b>contraseña temporal</b> que verás una sola vez; la persona debe cambiarla al entrar. Si ya tiene cuenta (por ejemplo, en otra empresa), entra con su misma contraseña.</p>
+    <p class="small text-muted mt-2 mb-2">Se crea con una <b>contraseña temporal</b> que verás una sola vez; la persona debe cambiarla al entrar. El usuario es propio de esta empresa: entra por su enlace <code>/{{ empresa.slug }}/</code>.</p>
     <div><button class="btn btn-primary btn-sm">Agregar</button></div>
   </form>
 </div>
@@ -25,7 +26,7 @@
       <tr class="{% if not m.activa %}text-muted{% endif %}">
         <td>
           <div class="fw-semibold">{{ m.usuario.get_full_name|default:"(sin nombre)" }}{% if m.usuario_id == user.pk %} <span class="badge text-bg-light border">Tú</span>{% endif %}{% if not m.activa %} <span class="badge text-bg-secondary">Inactivo</span>{% endif %}</div>
-          <div class="small text-muted">{{ m.usuario.email }}{% if m.usuario.debe_cambiar_clave %} · <span class="text-warning-emphasis">contraseña temporal</span>{% endif %}</div>
+          <div class="small text-muted"><i class="bi bi-person"></i> {{ m.usuario.username }}{% if m.usuario.email %} · {{ m.usuario.email }}{% endif %}{% if m.usuario.debe_cambiar_clave %} · <span class="text-warning-emphasis">contraseña temporal</span>{% endif %}</div>
         </td>
         <td>
           {% if m.gestionable %}
@@ -41,12 +42,12 @@
         <td class="text-end text-nowrap">
           {% if m.gestionable %}
             {% if m.clave_restablecible %}
-            <form method="post" action="{% url 'empresas:equipo_clave' m.pk %}" class="d-inline" onsubmit="return confirm('¿Generar una contraseña temporal nueva para {{ m.usuario.email }}? La actual dejará de funcionar.')">{% csrf_token %}
+            <form method="post" action="{% url 'empresas:equipo_clave' m.pk %}" class="d-inline" onsubmit="return confirm('¿Generar una contraseña temporal nueva para {{ m.usuario.username }}? La actual dejará de funcionar.')">{% csrf_token %}
               <button class="btn btn-sm btn-outline-secondary" title="Restablecer contraseña"><i class="bi bi-key"></i></button></form>
             {% endif %}
             <form method="post" action="{% url 'empresas:equipo_actualizar' m.pk %}" class="d-inline">{% csrf_token %}
               <input type="hidden" name="rol" value="{{ m.rol }}">
-              {% if m.activa %}<input type="hidden" name="activa" value="0"><button class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Quitar el acceso de {{ m.usuario.email }} a esta empresa?')">Desactivar</button>
+              {% if m.activa %}<input type="hidden" name="activa" value="0"><button class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Quitar el acceso de {{ m.usuario.username }} a esta empresa?')">Desactivar</button>
               {% else %}<input type="hidden" name="activa" value="1"><button class="btn btn-sm btn-outline-success">Reactivar</button>{% endif %}
             </form>
           {% endif %}

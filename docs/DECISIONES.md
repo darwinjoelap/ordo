@@ -5,7 +5,7 @@
 | 2026-09-30 | Ordo desde cero en repo propio; BioLifeVentas solo como referencia | No poner en riesgo el sistema en producción |
 | 2026-09-30 | Multiempresa con esquema compartido (campo `empresa`) | Simple, una sola BD en Railway |
 | 2026-09-30 | Python 3.14 local y en Docker | Es la versión instalada en el equipo de desarrollo; Django 5.2 la soporta |
-| 2026-09-30 | Login por correo; rol en la membresía usuario↔empresa | Un usuario puede tener roles distintos en varias empresas |
+| 2026-09-30 | ~~Login por correo~~ → reemplazado (ver abajo); rol en la membresía usuario↔empresa | — |
 | 2026-09-30 | Bootstrap/HTMX servidos localmente | La PWA debe cargar sin depender de CDN |
 | 2026-09-30 | Railway Pro con entornos staging y production | Logs de 30 días, soporte, respaldos |
 | 2026-09-30 | `EmpresaModel.objects` devuelve vacío si no hay empresa activa; `todos` para uso interno | Evita fugas de datos por olvido de filtro |
@@ -32,3 +32,5 @@
 | 2026-09-30 | Restablecer contraseña de otro solo si pertenece únicamente a esa empresa | Un admin de una empresa no puede tomar cuentas que también usan otras empresas |
 | 2026-09-30 | Enlace por empresa como ruta `/<enlace>/` (subdominios más adelante, con dominio propio) | Funciona hoy en Railway sin DNS comodín |
 | 2026-09-30 | Razón social y RIF controlados por la plataforma | Datos fiscales verificados por Ordo; el cliente no los altera |
+| 2026-09-30 | Superusuario = soporte de Ordo: entra a cualquier empresa con membresía virtual (no guardada) | Control total sin mezclarse con los usuarios del cliente; queda en el log `apps.plataforma` |
+| 2026-09-30 | Login por nombre de usuario, único por empresa; correo opcional | Como BioLifeVentas; cada empresa administra sus usuarios. Se entra por el enlace de la empresa; la dirección principal es solo para cuentas de plataforma |

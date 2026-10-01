@@ -18,7 +18,7 @@
         <td class="fw-semibold">{{ c.nombre }}{% if not c.activo %} <span class="badge text-bg-secondary">Inactivo</span>{% endif %}</td>
         <td class="text-nowrap">{{ c.rif|default:"—" }}</td>
         <td class="d-none d-md-table-cell">{{ c.telefono|default:"—" }}</td>
-        {% if 'presupuestos.ver_todos' in permisos %}<td class="d-none d-md-table-cell small">{{ c.vendedor.get_full_name|default:c.vendedor.email|default:"—" }}</td>{% endif %}
+        {% if 'presupuestos.ver_todos' in permisos %}<td class="d-none d-md-table-cell small">{{ c.vendedor.nombre_visible|default:"—" }}</td>{% endif %}
       </tr>
     {% endfor %}
     </tbody>

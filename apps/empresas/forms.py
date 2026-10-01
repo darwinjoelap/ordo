@@ -1,5 +1,7 @@
 from django import forms
 
+from django.contrib.auth.validators import UnicodeUsernameValidator
+
 from apps.core.forms import FormBootstrap
 
 from .models import PerfilEmpresa
@@ -86,9 +88,11 @@ class PerfilEmpresaForm(forms.ModelForm):
 
 
 class InvitarForm(FormBootstrap, forms.Form):
-    email = forms.EmailField(label='Correo')
+    username = forms.CharField(label='Usuario', max_length=60, help_text='Para entrar. Ej.: maria, jperez.',
+                               validators=[UnicodeUsernameValidator()])
     nombre = forms.CharField(label='Nombre', max_length=150)
     apellido = forms.CharField(label='Apellido', max_length=150)
+    email = forms.EmailField(label='Correo (opcional)', required=False)
     rol = forms.ChoiceField(label='Rol')
 
     def __init__(self, *args, roles=(), **kwargs):
@@ -128,7 +132,8 @@ class _EmpresaPlataformaBase(FormBootstrap, forms.Form):
 
 
 class NuevaEmpresaForm(_EmpresaPlataformaBase):
-    email_dueno = forms.EmailField(label='Correo del Dueño')
+    usuario_dueno = forms.CharField(label='Usuario del Dueño', max_length=60, validators=[UnicodeUsernameValidator()])
+    email_dueno = forms.EmailField(label='Correo del Dueño (opcional)', required=False)
     nombre_dueno = forms.CharField(label='Nombre del Dueño', max_length=150, required=False)
     apellido_dueno = forms.CharField(label='Apellido del Dueño', max_length=150, required=False)
 

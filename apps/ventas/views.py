@@ -53,7 +53,7 @@ def lista(request):
     params = g.copy()
     params.pop('page', None)
     from django.contrib.auth import get_user_model
-    vendedores = get_user_model().objects.filter(membresias__empresa=request.empresa).distinct() \
+    vendedores = get_user_model().objects.filter(membresias__empresa=request.empresa, is_superuser=False).distinct() \
         if tiene_permiso(request, 'presupuestos.ver_todos') else []
     return render(request, 'ventas/lista.html', {
         'titulo': 'Presupuestos y ventas', 'pagina': pagina, 'querystring': params.urlencode(),

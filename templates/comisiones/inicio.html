@@ -9,7 +9,7 @@
   </div>
 </div>
 {% if sin_porcentaje %}
-<div class="alert alert-warning py-2 small"><i class="bi bi-exclamation-triangle me-1"></i>Sin porcentaje asignado (sus ventas generan 0): {% for v in sin_porcentaje %}{{ v.get_full_name|default:v.email }}{% if not forloop.last %}, {% endif %}{% endfor %}. <a href="{% url 'comisiones:configuracion' %}">Configurar</a></div>
+<div class="alert alert-warning py-2 small"><i class="bi bi-exclamation-triangle me-1"></i>Sin porcentaje asignado (sus ventas generan 0): {% for v in sin_porcentaje %}{{ v.nombre_visible }}{% if not forloop.last %}, {% endif %}{% endfor %}. <a href="{% url 'comisiones:configuracion' %}">Configurar</a></div>
 {% endif %}
 <p class="small text-muted">Base: venta sin IVA, después del descuento. {% if perfil.comision_requiere_pago %}Solo se liquidan comisiones de ventas <b>cobradas</b>.{% else %}Se liquidan al validar la venta.{% endif %}</p>
 <div class="row g-3 mb-3">
@@ -22,7 +22,7 @@
   <div class="table-responsive"><table class="table align-middle mb-0">
     <thead class="table-light"><tr><th>Vendedor</th><th class="text-end">Por liquidar</th><th class="text-end d-none d-sm-table-cell">Esperan cobro</th><th class="text-end d-none d-md-table-cell">Este mes</th><th></th></tr></thead>
     <tbody>{% for f in filas %}<tr>
-      <td><a href="{% url 'comisiones:vendedor' f.vendedor_id %}">{{ f.vendedor.get_full_name|default:f.vendedor.email }}</a></td>
+      <td><a href="{% url 'comisiones:vendedor' f.vendedor_id %}">{{ f.vendedor.nombre_visible }}</a></td>
       <td class="text-end fw-semibold">{{ f.disponible|usd }} <span class="small text-muted">({{ f.n_disponible }})</span></td>
       <td class="text-end d-none d-sm-table-cell">{{ f.por_cobrar|usd }}</td>
       <td class="text-end d-none d-md-table-cell">{{ f.mes|usd }}</td>
@@ -35,7 +35,7 @@
   {% if liquidaciones %}
   <div class="list-group list-group-flush">{% for l in liquidaciones %}
     <a href="{% url 'comisiones:liquidacion' l.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between">
-      <span><span class="fw-semibold">{{ l.numero }}</span> · {{ l.vendedor.get_full_name|default:l.vendedor.email }} <span class="badge text-bg-{{ l.css_estado }}">{{ l.estado }}</span></span><span>{{ l.total_usd|usd }}</span></a>{% endfor %}</div>
+      <span><span class="fw-semibold">{{ l.numero }}</span> · {{ l.vendedor.nombre_visible }} <span class="badge text-bg-{{ l.css_estado }}">{{ l.estado }}</span></span><span>{{ l.total_usd|usd }}</span></a>{% endfor %}</div>
   {% else %}<div class="card-body text-muted small">Sin liquidaciones todavía.</div>{% endif %}
 </div>
 {% endblock %}

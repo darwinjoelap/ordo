@@ -5,7 +5,7 @@
 <div class="ordo-login"><div class="card shadow-sm"><div class="card-body p-4 text-center">
   <img src="{% static 'img/marca/ordo-simbolo-web.png' %}" alt="Ordo" style="height:56px">
   <h1 class="h5 mt-3">No perteneces a {{ empresa_marca.perfil.nombre_comercial|default:empresa_marca.nombre }}</h1>
-  <p class="text-muted">Entraste como <b>{{ user.email }}</b>. Pide al administrador de esa empresa que te agregue, o entra con otra cuenta.</p>
+  <p class="text-muted">Entraste como <b>{{ user.username }}</b>. Pide al administrador de esa empresa que te agregue, o entra con otra cuenta.</p>
   <div class="d-flex justify-content-center gap-2">
     <a href="/" class="btn btn-outline-primary btn-sm">Ir a mi inicio</a>
     <form method="post" action="{% url 'usuarios:logout' %}">{% csrf_token %}<input type="hidden" name="next" value="/{{ empresa_marca.slug }}/"><button class="btn btn-link btn-sm">Cerrar sesión</button></form>

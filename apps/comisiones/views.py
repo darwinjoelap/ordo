@@ -23,7 +23,7 @@ from .pdf import liquidacion_pdf
 def vendedores(empresa):
     roles = PERMISOS['presupuestos.crear']
     ids = Membresia.objects.filter(empresa=empresa, activa=True, rol__in=roles).values_list('usuario_id', flat=True)
-    return get_user_model().objects.filter(pk__in=ids).order_by('first_name', 'email')
+    return get_user_model().objects.filter(pk__in=ids, is_superuser=False).order_by('first_name', 'username')
 
 
 def _mes(texto):
@@ -82,7 +82,7 @@ def detalle_vendedor(request, vendedor_id=None):
     disponible = servicios.disponibles(perfil, vendedor).aggregate(t=Sum('monto_usd'))['t'] or 0
     fila = PorcentajeVendedor.objects.filter(vendedor=vendedor).first()
     return render(request, 'comisiones/vendedor.html', {
-        'titulo': f'Comisiones · {vendedor.get_full_name() or vendedor.email}', 'vendedor': vendedor,
+        'titulo': f'Comisiones · {vendedor.nombre_visible}', 'vendedor': vendedor,
         'comisiones': comisiones, 'mes': mes, 'mes_anterior': (mes - timedelta(days=1)).replace(day=1),
         'mes_siguiente': _siguiente_mes(mes) if _siguiente_mes(mes) <= timezone.localdate() else None,
         'total_mes': total_mes, 'base_mes': base_mes, 'disponible': disponible,

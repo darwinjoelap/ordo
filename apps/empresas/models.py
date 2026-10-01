@@ -56,7 +56,7 @@ class Empresa(models.Model):
         return (self.activa_hasta - timezone.localdate()).days
 
     def usuarios_activos(self):
-        return self.membresias.filter(activa=True).count()
+        return self.membresias.filter(activa=True, usuario__is_superuser=False).count()
 
     @property
     def esta_activa(self):
@@ -88,7 +88,7 @@ class Membresia(models.Model):
     class Meta:
         verbose_name = 'Membresía'
         verbose_name_plural = 'Membresías'
-        ordering = ['empresa__nombre', 'usuario__email']
+        ordering = ['empresa__nombre', 'usuario__username']
         constraints = [
             models.UniqueConstraint(fields=['usuario', 'empresa'], name='membresia_unica'),
         ]

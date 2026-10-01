@@ -53,11 +53,11 @@ railway ssh             # abre una consola DENTRO del servicio web
 Dentro de la consola:
 ```bash
 python manage.py createsuperuser                       # admin de plataforma (/admin/)
-python manage.py crear_empresa "BioLife Diagnostics" tu@correo.com --password "<clave>"
+python manage.py crear_empresa "BioLife Diagnostics" darwin --enlace biolife --password "<clave>"   # o desde /plataforma/
 python manage.py actualizar_tasa_bcv
 exit
 ```
-- Si ya creaste el superusuario con ese mismo correo, omite `--password` en `crear_empresa`.
+- El superusuario (plataforma) entra por la dirección principal; el Dueño de la empresa entra por `/<enlace>/` con su usuario.
 - Si `actualizar_tasa_bcv` falla (el sitio del BCV a veces rechaza conexiones o tiene el certificado mal),
   carga la tasa a mano en `/admin/` → Tasas de cambio, y pásame el mensaje de error.
 

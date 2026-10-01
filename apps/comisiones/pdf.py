@@ -16,7 +16,7 @@ def liquidacion_pdf(liq, empresa):
     doc = documento(buffer, titulo_pdf=f'Liquidación {liq.numero}')
     sub = f'N° {liq.numero}<br/>Fecha: {liq.creada_en:%d/%m/%Y}<br/>Ventas hasta: {liq.hasta:%d/%m/%Y}'
     e = encabezado_empresa(empresa, titulo='LIQUIDACIÓN DE COMISIONES', subtitulo=sub)
-    nombre = liq.vendedor.get_full_name() or liq.vendedor.email
+    nombre = liq.vendedor.nombre_visible
     estado = liq.estado + (f' el {liq.fecha_pago:%d/%m/%Y}' if liq.pagada else '')
     if liq.pagada and liq.metodo_pago:
         estado += f' · {liq.metodo_pago}' + (f' · Ref. {liq.referencia}' if liq.referencia else '')
