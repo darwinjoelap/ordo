@@ -45,7 +45,8 @@ ORDO_APPS = [
     'apps.comisiones',
 ]
 
-INSTALLED_APPS = DJANGO_APPS + ORDO_APPS
+# apps.usuarios va primero para que su `createsuperuser` reemplace al de Django
+INSTALLED_APPS = ['apps.usuarios'] + DJANGO_APPS + [a for a in ORDO_APPS if a != 'apps.usuarios']
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
