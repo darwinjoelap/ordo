@@ -271,6 +271,7 @@ class MovimientoInventario(EmpresaModel):
         APARTADO = 'APARTADO', 'Apartado'
         LIBERACION = 'LIBERACION', 'Liberación de apartado'
         VENTA = 'VENTA', 'Venta'
+        DEVOLUCION = 'DEVOLUCION', 'Devolución de cliente'
 
     lote = models.ForeignKey(Lote, on_delete=models.PROTECT, related_name='movimientos', verbose_name='Lote')
     tipo = models.CharField('Tipo', max_length=12, choices=Tipo.choices)

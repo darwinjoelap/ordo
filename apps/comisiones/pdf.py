@@ -7,7 +7,7 @@ from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 from apps.core.pdf import ESTILO_CELDA, ESTILOS, documento, encabezado_empresa, pie_empresa
 from apps.core.templatetags.ordo import usd
 
-from .models import Comision
+from .models import AjusteComision, Comision
 
 
 def liquidacion_pdf(liq, empresa):
@@ -26,6 +26,11 @@ def liquidacion_pdf(liq, empresa):
     for c in comisiones:
         filas.append([f'{c.fecha:%d/%m/%Y}', c.presupuesto.numero, Paragraph(c.presupuesto.cliente.nombre, ESTILO_CELDA),
                       usd(c.base_usd), f'{c.porcentaje_efectivo:.2f}'.replace('.', ','), usd(c.monto_usd)])
+    for a in AjusteComision.todos.filter(liquidacion=liq).select_related('devolucion__presupuesto__cliente') \
+            .order_by('fecha', 'pk'):
+        filas.append([f'{a.fecha:%d/%m/%Y}', a.devolucion.numero,
+                      Paragraph(f'Devolución de {a.devolucion.presupuesto.numero} · {a.devolucion.presupuesto.cliente.nombre}',
+                                ESTILO_CELDA), '', '', usd(a.monto_usd)])
     filas.append(['', '', 'TOTAL', '', '', usd(liq.total_usd)])
     t = Table(filas, colWidths=[20 * mm, 32 * mm, 62 * mm, 28 * mm, 14 * mm, 30 * mm], repeatRows=1)
     t.setStyle(TableStyle([

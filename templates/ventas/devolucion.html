@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+<a href="{% url 'ventas:detalle' p.pk %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> {{ p.numero }}</a>
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mt-2 mb-3">
+  <div>
+    <h1 class="h3 mb-1">{{ dev.numero }} <span class="badge text-bg-{% if dev.reembolsado %}success{% else %}warning{% endif %} fs-6 align-middle">{% if dev.reembolsado %}Reembolsada{% else %}Sin reembolso{% endif %}</span></h1>
+    <div class="small text-muted">Devolución de <a href="{% url 'ventas:detalle' p.pk %}">{{ p.numero }}</a> · {{ p.cliente.nombre }} · {{ dev.fecha|date:"d/m/Y" }} · registró {{ dev.creada_por.nombre_visible }}</div>
+    <div class="small mt-1"><b>Motivo:</b> {{ dev.motivo }}</div>
+  </div>
+  <a href="{% url 'ventas:devolucion_pdf' dev.pk %}" target="_blank" class="btn btn-outline-secondary btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+</div>
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card mb-3"><div class="table-responsive"><table class="table align-middle mb-0">
+      <thead class="table-light"><tr><th>Producto</th><th class="d-none d-sm-table-cell">Lote</th><th class="text-end">Cant.</th><th class="text-end">Subtotal</th><th>Stock</th></tr></thead>
+      <tbody>{% for l in lineas %}<tr>
+        <td><div class="fw-semibold">{{ l.item.producto.nombre }}</div><div class="small text-muted">{{ l.item.producto.codigo }} · {{ l.item.precio_usd|usd }}</div></td>
+        <td class="d-none d-sm-table-cell small">{% if l.lote %}{{ l.lote.numero_lote|default:l.lote.pk }}{% else %}—{% endif %}</td>
+        <td class="text-end">{{ l.cantidad|miles }} {{ l.item.producto.unidad.abreviatura }}</td>
+        <td class="text-end text-nowrap">{{ l.subtotal_usd|usd }}</td>
+        <td>{% if l.reingresa %}<span class="badge text-bg-success">Volvió</span>{% else %}<span class="badge text-bg-secondary">No vuelve</span>{% endif %}</td>
+      </tr>{% endfor %}</tbody>
+    </table></div></div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card card-body mb-3">
+      <dl class="row mb-0 small">
+        <dt class="col-6 fw-normal">Subtotal</dt><dd class="col-6 text-end mb-1">{{ dev.subtotal_usd|usd }}</dd>
+        {% if dev.descuento_usd %}<dt class="col-6 fw-normal">Descuento</dt><dd class="col-6 text-end mb-1">-{{ dev.descuento_usd|usd }}</dd>{% endif %}
+        {% if dev.iva_usd %}<dt class="col-6 fw-normal">IVA</dt><dd class="col-6 text-end mb-1">{{ dev.iva_usd|usd }}</dd>{% endif %}
+        <dt class="col-6 fs-5">Total</dt><dd class="col-6 text-end fs-5 fw-bold mb-0 text-danger">{{ dev.total_usd|usd }}</dd>
+        {% if dev.total_bs %}<dt class="col-6 fw-normal text-muted">En bolívares</dt><dd class="col-6 text-end text-muted mb-0">Bs {{ dev.total_bs|floatformat:"2g" }}</dd>{% endif %}
+      </dl>
+    </div>
+    {% if dev.reembolsado %}
+    <div class="card card-body mb-3 small"><div class="fw-semibold mb-1"><i class="bi bi-cash me-1"></i>Reembolso</div>
+      {{ dev.reembolso_usd|usd }}{% if dev.reembolso_bs %} (Bs {{ dev.reembolso_bs|floatformat:"2g" }}){% endif %} · {{ dev.get_reembolso_metodo_display }} · {{ dev.reembolso_fecha|date:"d/m/Y" }}{% if dev.reembolso_referencia %} · Ref. {{ dev.reembolso_referencia }}{% endif %}</div>
+    {% elif puede_devolver %}
+    <form method="post" class="card card-body mb-3">{% csrf_token %}
+      <div class="fw-semibold mb-2">Registrar reembolso</div>
+      <input name="reembolso_monto" inputmode="decimal" class="form-control form-control-sm mb-2" placeholder="Monto USD (vacío = {{ dev.total_usd }})" aria-label="Monto">
+      <select name="reembolso_metodo" class="form-select form-select-sm mb-2" required aria-label="Método"><option value="">Método…</option>{% for v, n in metodos %}<option value="{{ v }}">{{ n }}</option>{% endfor %}</select>
+      <input type="date" name="reembolso_fecha" class="form-control form-control-sm mb-2" aria-label="Fecha">
+      <input name="reembolso_referencia" maxlength="80" class="form-control form-control-sm mb-2" placeholder="Referencia">
+      <button class="btn btn-outline-success btn-sm"><i class="bi bi-cash me-1"></i>Registrar reembolso</button>
+    </form>
+    {% endif %}
+    {% if ajuste %}
+    <div class="card card-body mb-3 small"><div class="fw-semibold mb-1"><i class="bi bi-cash-coin me-1"></i>Comisión</div>
+      <div class="d-flex justify-content-between"><span>Ajuste al vendedor</span><span class="fw-bold text-danger">{{ ajuste.monto_usd|usd }}</span></div>
+      <div class="text-muted">{% if ajuste.liquidacion %}Descontado en <a href="{% url 'comisiones:liquidacion' ajuste.liquidacion_id %}">{{ ajuste.liquidacion.numero }}</a>{% else %}Se descuenta en la próxima liquidación{% endif %}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

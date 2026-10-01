@@ -13,13 +13,15 @@ from apps.core.tenancy import usando_empresa
 from apps.inventario import servicios as inventario
 from apps.tasas.servicios import tasa_vigente
 
-from .models import ItemPresupuesto, Presupuesto, Reserva, redondear
+from .models import Devolucion, ItemDevolucion, ItemPresupuesto, Presupuesto, Reserva, redondear
 
 E = Presupuesto.Estado
 CIEN = Decimal('100')
 
 # Se emite cuando una venta queda validada (la Fase 5 genera la comisión aquí)
 venta_validada = Signal()
+# Se emite al registrar una devolución (comisiones crea el ajuste negativo)
+venta_devuelta = Signal()
 
 
 class ErrorVenta(Exception):
@@ -271,6 +273,147 @@ def registrar_entrega(p, entregado, fecha=None):
     p.fecha_entrega = (fecha or timezone.localdate()) if entregado else None
     p.save(update_fields=['entregado', 'fecha_entrega'])
     return p
+
+
+# ── Devoluciones ──────────────────────────────────────────────────────────────
+
+def devuelto_por_item(p):
+    """{item_id: unidades ya devueltas} de una venta."""
+    from django.db.models import Sum
+    return {r['item_id']: r['t'] for r in
+            ItemDevolucion.objects.filter(item__presupuesto=p).values('item_id').annotate(t=Sum('cantidad'))}
+
+
+def _lotes_para_devolver(item, cantidad):
+    """
+    Reparte `cantidad` entre los lotes de donde salió el ítem (empieza por el último que se tomó).
+    Ventas sin reservas (p. ej. migradas): todo al lote más reciente del producto, o None si no tiene lotes.
+    """
+    from django.db.models import Sum
+    from apps.inventario.models import Lote
+    previas = {r['lote_id']: r['t'] for r in
+               ItemDevolucion.objects.filter(item=item).values('lote_id').annotate(t=Sum('cantidad'))}
+    reparto, pendiente = [], cantidad
+    for r in Reserva.objects.filter(item=item).select_related('lote').order_by('-pk'):
+        libre = r.cantidad - previas.get(r.lote_id, 0)
+        tomar = min(libre, pendiente)
+        if tomar > 0:
+            reparto.append((r.lote, tomar))
+            pendiente -= tomar
+        if not pendiente:
+            break
+    if pendiente:
+        lote = Lote.objects.filter(producto=item.producto).order_by('-fecha_ingreso', '-pk').first()
+        reparto.append((lote, pendiente))
+    return reparto
+
+
+def _totales_devolucion(p, subtotal, completa):
+    """Montos de la devolución con el descuento, IVA y tasa de la venta. Si completa la venta, cierra al centavo."""
+    if completa:
+        from django.db.models import Sum
+        previas = Devolucion.objects.filter(presupuesto=p).aggregate(
+            s=Sum('subtotal_usd'), d=Sum('descuento_usd'), b=Sum('base_usd'), i=Sum('iva_usd'), t=Sum('total_usd'),
+            bs=Sum('total_bs'))
+        cero = Decimal('0')
+        return {'subtotal_usd': p.subtotal_usd - (previas['s'] or cero),
+                'descuento_usd': p.descuento_usd - (previas['d'] or cero),
+                'base_usd': p.base_usd - (previas['b'] or cero), 'iva_usd': p.iva_usd - (previas['i'] or cero),
+                'total_usd': p.total_usd - (previas['t'] or cero), 'total_bs': p.total_bs - (previas['bs'] or cero)}
+    descuento = redondear(subtotal * p.descuento_pct / CIEN)
+    base = subtotal - descuento
+    iva = redondear(base * p.iva_pct / CIEN)
+    total = base + iva
+    return {'subtotal_usd': subtotal, 'descuento_usd': descuento, 'base_usd': base, 'iva_usd': iva,
+            'total_usd': total, 'total_bs': redondear(total * p.tasa_bs) if p.tasa_bs else Decimal('0')}
+
+
+def _validar_reembolso(reembolso, total):
+    if not reembolso:
+        return {}
+    monto = reembolso.get('monto_usd')
+    monto = total if monto in (None, '') else Decimal(monto)
+    if monto <= 0:
+        raise ErrorVenta('El monto del reembolso debe ser mayor que cero.')
+    if monto > total:
+        raise ErrorVenta(f'El reembolso no puede superar el total devuelto ({total} USD).')
+    if not reembolso.get('metodo'):
+        raise ErrorVenta('Indica el método del reembolso.')
+    return {'reembolsado': True, 'reembolso_usd': monto, 'reembolso_metodo': reembolso['metodo'],
+            'reembolso_fecha': reembolso.get('fecha') or timezone.localdate(),
+            'reembolso_referencia': (reembolso.get('referencia') or '')[:80]}
+
+
+@transaction.atomic
+def devolver(p, usuario, lineas, motivo, fecha=None, reembolso=None):
+    """
+    Devolución total o parcial de una venta validada.
+      lineas: {item_id: (cantidad, reingresa)}  ·  reembolso: {'monto_usd', 'metodo', 'fecha', 'referencia'} o None
+    El stock vuelve al lote de donde salió (si reingresa). Si se devuelve todo, la venta queda DEVUELTA.
+    """
+    p = _bloquear(p)
+    _exigir(p, E.VALIDADA)
+    motivo = (motivo or '').strip()
+    if not motivo:
+        raise ErrorVenta('Indica el motivo de la devolución.')
+    items = {i.pk: i for i in ItemPresupuesto.objects.filter(presupuesto=p).select_related('producto')}
+    ya = devuelto_por_item(p)
+    pedidas = {}
+    for item_id, (cantidad, reingresa) in lineas.items():
+        item = items.get(int(item_id))
+        if item is None or not cantidad:
+            continue
+        if cantidad < 0:
+            raise ErrorVenta('Las cantidades no pueden ser negativas.')
+        maximo = item.cantidad - ya.get(item.pk, 0)
+        if cantidad > maximo:
+            raise ErrorVenta(f'"{item.producto.nombre}": se pueden devolver como máximo {maximo}.')
+        pedidas[item.pk] = (cantidad, bool(reingresa))
+    if not pedidas:
+        raise ErrorVenta('Indica al menos una cantidad a devolver.')
+
+    completa = all(ya.get(i.pk, 0) + pedidas.get(i.pk, (0,))[0] == i.cantidad for i in items.values())
+    subtotal = sum((redondear(cant * items[i].precio_usd) for i, (cant, _) in pedidas.items()), Decimal('0'))
+    montos = _totales_devolucion(p, subtotal, completa)
+    datos_reembolso = _validar_reembolso(reembolso, montos['total_usd'])
+
+    perfil = p.empresa.perfil
+    dev = Devolucion.objects.create(
+        numero=siguiente_numero('DV', prefijo=(perfil.prefijo_numeracion or '').upper()),
+        presupuesto=p, fecha=fecha or timezone.localdate(), motivo=motivo[:250], creada_por=usuario,
+        **montos, **datos_reembolso)
+    for item_id, (cantidad, reingresa) in pedidas.items():
+        item = items[item_id]
+        for lote, cant in _lotes_para_devolver(item, cantidad):
+            if reingresa and lote is None:
+                raise ErrorVenta(f'"{item.producto.nombre}" no tiene lotes: registra un ingreso o marca que no vuelve.')
+            ItemDevolucion.objects.create(devolucion=dev, item=item, lote=lote, cantidad=cant, reingresa=reingresa,
+                                          subtotal_usd=redondear(cant * item.precio_usd))
+            if reingresa:
+                inventario.reingresar_devolucion(lote, cant, usuario, referencia_tipo='Devolucion',
+                                                 referencia_id=dev.pk, motivo=f'Devolución {dev.numero} ({p.numero})')
+    p.devuelto_usd += montos['total_usd']
+    campos = ['devuelto_usd']
+    if completa:
+        p.estado = E.DEVUELTA
+        campos.append('estado')
+    p.save(update_fields=campos)
+    venta_devuelta.send(sender=Devolucion, devolucion=dev, usuario=usuario)
+    return dev
+
+
+@transaction.atomic
+def registrar_reembolso(dev, monto_usd, metodo, fecha=None, referencia=''):
+    """Reembolso registrado después de crear la devolución."""
+    dev = Devolucion.objects.select_for_update().get(pk=dev.pk)
+    if dev.reembolsado:
+        raise ErrorVenta('Esta devolución ya tiene su reembolso registrado.')
+    datos = _validar_reembolso({'monto_usd': monto_usd, 'metodo': metodo, 'fecha': fecha, 'referencia': referencia},
+                               dev.total_usd)
+    for campo, valor in datos.items():
+        setattr(dev, campo, valor)
+    dev.save(update_fields=list(datos))
+    return dev
 
 
 def vencer_apartados():

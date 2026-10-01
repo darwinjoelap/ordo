@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+<a href="{% url 'ventas:detalle' p.pk %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> {{ p.numero }}</a>
+<h1 class="h3 mt-2 mb-1">Devolución de {{ p.numero }}</h1>
+<div class="text-muted small mb-3">{{ p.cliente.nombre }} · venta del {{ p.fecha|date:"d/m/Y" }} por {{ p.total_usd|usd }}{% if p.devuelto_usd %} · ya devuelto {{ p.devuelto_usd|usd }}{% endif %}</div>
+
+<form method="post" id="form-devolucion">{% csrf_token %}
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card mb-3">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">¿Qué devuelve el cliente?</span>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="devolver-todo">Devolver todo</button>
+      </div>
+      <div class="table-responsive"><table class="table align-middle mb-0">
+        <thead class="table-light"><tr><th>Producto</th><th class="text-end">Vendido</th><th class="text-end" style="width:7rem">Devolver</th><th class="text-center" style="width:6rem">Vuelve al stock</th></tr></thead>
+        <tbody>
+        {% for i in items %}
+          <tr>
+            <td><div class="fw-semibold">{{ i.producto.nombre }}</div>
+              <div class="small text-muted">{{ i.producto.codigo }} · {{ i.precio_usd|usd }}{% if i.devuelto %} · ya devueltas {{ i.devuelto }}{% endif %}</div></td>
+            <td class="text-end">{{ i.cantidad|miles }} {{ i.producto.unidad.abreviatura }}</td>
+            <td>{% if i.maximo %}<input type="number" min="0" max="{{ i.maximo }}" name="cantidad_{{ i.pk }}" value="{{ i.pedido }}"
+                   class="form-control form-control-sm text-end cantidad" data-max="{{ i.maximo }}" data-precio="{{ i.precio_usd|stringformat:'s' }}"
+                   aria-label="Unidades a devolver de {{ i.producto.nombre }}">{% else %}<div class="text-end small text-muted">Devuelto</div>{% endif %}</td>
+            <td class="text-center">{% if i.maximo %}<input type="checkbox" class="form-check-input" name="reingresa_{{ i.pk }}" value="1" {% if i.reingresa %}checked{% endif %}
+                   title="Desmarca si está dañado o vencido" aria-label="{{ i.producto.nombre }} vuelve al inventario">{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+      <div class="card-footer bg-white small text-muted">Lo que vuelve al stock entra al mismo lote de donde salió. Desmarca "Vuelve al stock" si la mercancía está dañada o vencida.</div>
+    </div>
+    <div class="card card-body mb-3">
+      <div class="row g-3">
+        <div class="col-sm-8"><label class="form-label small" for="motivo">Motivo *</label><input id="motivo" name="motivo" value="{{ datos.motivo }}" maxlength="250" required class="form-control form-control-sm" placeholder="Ej.: producto con empaque dañado"></div>
+        <div class="col-sm-4"><label class="form-label small" for="fecha">Fecha</label><input id="fecha" type="date" name="fecha" value="{{ datos.fecha|date:'Y-m-d' }}" class="form-control form-control-sm"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card card-body mb-3">
+      <div class="small text-muted">Total estimado a devolver</div>
+      <div class="fs-3 fw-bold text-danger" id="total-estimado">$ 0,00</div>
+      <div class="small text-muted">Con el descuento ({{ p.descuento_pct|floatformat:"-2" }} %) e IVA ({{ p.iva_pct|floatformat:"-2" }} %) de la venta{% if p.tasa_bs %} · tasa {{ p.tasa_bs|floatformat:"2g" }} Bs/USD{% endif %}.</div>
+    </div>
+    <div class="card card-body mb-3">
+      <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="reembolso" value="1" id="reembolso" {% if datos.reembolso %}checked{% endif %}
+        data-bs-toggle="collapse" data-bs-target="#datos-reembolso"><label class="form-check-label fw-semibold" for="reembolso">Registrar reembolso al cliente</label></div>
+      <div class="collapse {% if datos.reembolso %}show{% endif %}" id="datos-reembolso">
+        <label class="form-label small" for="reembolso_monto">Monto USD (vacío = total devuelto)</label>
+        <input id="reembolso_monto" name="reembolso_monto" value="{{ datos.monto }}" inputmode="decimal" class="form-control form-control-sm mb-2">
+        <select name="reembolso_metodo" class="form-select form-select-sm mb-2" aria-label="Método del reembolso">
+          <option value="">Método…</option>{% for v, n in metodos %}<option value="{{ v }}" {% if v == datos.metodo %}selected{% endif %}>{{ n }}</option>{% endfor %}</select>
+        <input type="date" name="reembolso_fecha" value="{{ datos.fecha_reembolso }}" class="form-control form-control-sm mb-2" aria-label="Fecha del reembolso">
+        <input name="reembolso_referencia" value="{{ datos.referencia }}" maxlength="80" class="form-control form-control-sm" placeholder="Referencia">
+        <div class="small text-muted mt-2">También puedes registrarlo después desde la devolución.</div>
+      </div>
+    </div>
+    <div class="d-grid"><button class="btn btn-danger" onclick="return confirm('¿Registrar la devolución? El stock y la comisión se ajustan y no se puede deshacer.')"><i class="bi bi-arrow-return-left me-1"></i>Registrar devolución</button></div>
+    {% if previas %}<div class="small text-muted mt-3">Devoluciones anteriores: {% for d in previas %}<a href="{% url 'ventas:devolucion' d.pk %}">{{ d.numero }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+  </div>
+</div>
+</form>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+  const desc = {{ p.descuento_pct|stringformat:'s' }}, iva = {{ p.iva_pct|stringformat:'s' }};
+  const campos = document.querySelectorAll('#form-devolucion .cantidad');
+  const total = document.getElementById('total-estimado');
+  const fmt = n => '$ ' + n.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  function calcular() {
+    let sub = 0;
+    campos.forEach(c => { sub += (parseInt(c.value) || 0) * parseFloat(c.dataset.precio); });
+    const base = sub * (1 - desc / 100);
+    total.textContent = fmt(base * (1 + iva / 100));
+  }
+  campos.forEach(c => c.addEventListener('input', calcular));
+  document.getElementById('devolver-todo').addEventListener('click', () => { campos.forEach(c => { c.value = c.dataset.max; }); calcular(); });
+  calcular();
+})();
+</script>
+{% endblock %}

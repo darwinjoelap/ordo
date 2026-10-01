@@ -79,7 +79,7 @@
 - [x] Liquidación por vendedor hasta una fecha, número LQ-AAAA-00001, PDF con firmas, pago con método/referencia, anulación (si no está pagada)
 - [x] Vendedor: "Mis comisiones" por mes y sus liquidaciones; tarjeta "Mi comisión del mes" en Inicio
 - [x] Comando `generar_comisiones_faltantes` (para ventas migradas de BioLifeVentas)
-- [ ] Devoluciones / anulación de ventas validadas (no existe aún: hoy una venta validada no se revierte)
+- [x] Devoluciones total o parcial de ventas validadas (DV-AAAA-00001): ver detalle abajo
 
 ## Fase 6 — detalle
 - [x] `/manifest.webmanifest` (standalone, iconos 192/512/maskable, accesos directos Presupuesto e Inventario)
@@ -106,3 +106,15 @@
 - [x] Enlace `/<empresa>/` → login con usuario de esa empresa; queda recordada en el equipo (cookie)
 - [x] Dirección principal y `/admin/` → solo cuentas de plataforma (superusuario `darwinjoelap`)
 - [x] Migración de datos: usuario = parte del correo antes de la @; superusuarios quedan como plataforma
+
+## Devoluciones de ventas
+- [x] Desde una venta validada → "Registrar devolución" (Dueño/Administrador, permiso `ventas.devolver`)
+- [x] Total o parcial por producto; "Devolver todo"; total estimado en vivo con descuento, IVA y tasa de la venta
+- [x] Por línea: vuelve al stock (al mismo lote de donde salió, kardex DEVOLUCIÓN) o no vuelve (dañado/vencido)
+- [x] Si se devuelve todo, la venta queda DEVUELTA; los montos cierran al centavo con la venta original
+- [x] Comisión: ajuste negativo con el % congelado; nunca modifica lo liquidado o pagado, se descuenta en la
+      próxima liquidación (si el saldo queda negativo, espera nuevas comisiones)
+- [x] Reembolso opcional (monto, método, fecha, referencia), también registrable después
+- [x] PDF "Nota de devolución" con firmas; lista Comercial → Devoluciones
+- [x] Tablero y panel de pedido usan ventas netas de devoluciones
+- [x] 17 tests en SQLite y PostgreSQL

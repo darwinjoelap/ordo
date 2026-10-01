@@ -116,10 +116,16 @@ def detalle(request, pk):
     perfil = request.empresa.perfil
     comision = None
     if p.es_venta and (tiene_permiso(request, 'comisiones.liquidar') or p.vendedor_id == request.user.pk):
-        from apps.comisiones.models import Comision
+        from apps.comisiones.models import AjusteComision, Comision
         comision = Comision.objects.filter(presupuesto=p).select_related('liquidacion').first()
+        if comision:
+            comision.lista_ajustes = list(AjusteComision.objects.filter(comision=comision).select_related('devolucion'))
+            comision.neto = comision.monto_usd + sum(a.monto_usd for a in comision.lista_ajustes)
+    from .models import Devolucion
     return render(request, 'ventas/detalle.html', {
         'comision': comision,
+        'devoluciones': Devolucion.objects.filter(presupuesto=p).order_by('creada_en') if p.es_venta else [],
+        'puede_devolver': tiene_permiso(request, 'ventas.devolver'),
         'titulo': p.numero, 'p': p, 'items': items, 'perfil': perfil,
         'puede_fijar': tiene_permiso(request, 'precios.fijar'),
         'puede_validar': tiene_permiso(request, 'ventas.validar'),

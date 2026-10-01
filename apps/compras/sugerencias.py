@@ -40,7 +40,8 @@ def calcular(dias_cobertura=30, proveedor_id=None, solo_necesarios=True):
     desde = timezone.now() - timedelta(days=DIAS_HISTORIAL)
     ventas = {
         r['lote__producto']: -r['t'] for r in
-        MovimientoInventario.objects.filter(tipo=MovimientoInventario.Tipo.VENTA, fecha__gte=desde)
+        MovimientoInventario.objects.filter(tipo__in=[MovimientoInventario.Tipo.VENTA,
+                                                  MovimientoInventario.Tipo.DEVOLUCION], fecha__gte=desde)
         .values('lote__producto').annotate(t=Sum('cantidad'))
     }
     en_camino = {

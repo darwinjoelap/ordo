@@ -172,6 +172,16 @@ def descontar_apartado(lote, cantidad, usuario, *, referencia_tipo='', referenci
     return _registrar(lote, Tipo.VENTA, -cantidad, usuario, referencia_tipo, referencia_id, motivo)
 
 
+@transaction.atomic
+def reingresar_devolucion(lote, cantidad, usuario, *, referencia_tipo='Devolucion', referencia_id=None, motivo=''):
+    """Devolución de cliente: las unidades vuelven al lote (kardex DEVOLUCION, positivo)."""
+    if cantidad <= 0:
+        raise ErrorInventario('La cantidad debe ser mayor que cero.')
+    lote = _bloquear(lote)
+    Lote.objects.filter(pk=lote.pk).update(cantidad_actual=F('cantidad_actual') + cantidad)
+    return _registrar(lote, Tipo.DEVOLUCION, cantidad, usuario, referencia_tipo, referencia_id, motivo)
+
+
 def costo_promedio(producto):
     """Costo promedio ponderado del stock actual (para márgenes)."""
     lotes = Lote.objects.filter(producto=producto, cantidad_actual__gt=0)

@@ -132,3 +132,75 @@ def presupuesto_pdf(p, empresa, moneda='ambas'):
     pie = pie_empresa(empresa)
     doc.build(e, onFirstPage=pie, onLaterPages=pie)
     return buffer.getvalue()
+
+
+def devolucion_pdf(dev, empresa):
+    """Nota de devolución: lo que el cliente devuelve, con montos de la venta original (USD y Bs)."""
+    from .models import ItemDevolucion
+    p = dev.presupuesto
+    perfil = empresa.perfil
+    color = colors.HexColor(perfil.color_principal or '#053D74')
+    buffer = BytesIO()
+    doc = documento(buffer, titulo_pdf=f'Devolución {dev.numero}')
+    sub = f'N° {dev.numero}<br/>Fecha: {dev.fecha:%d/%m/%Y}<br/>Venta: {p.numero} ({p.fecha:%d/%m/%Y})'
+    e = encabezado_empresa(empresa, titulo='NOTA DE DEVOLUCIÓN', subtitulo=sub)
+    c = p.cliente
+    datos = [f'<b>Cliente:</b> {c.nombre}' + (f' · RIF/CI: {c.rif}' if c.rif else ''),
+             f'<b>Vendedor:</b> {p.vendedor.nombre_visible}', f'<b>Motivo:</b> {dev.motivo}']
+    e += [Paragraph('<br/>'.join(datos), ESTILOS['Normal']), Spacer(1, 5 * mm)]
+
+    filas = [['#', 'Código', 'Producto', 'Lote', 'Cant.', 'Precio USD', 'Subtotal USD']]
+    lineas = ItemDevolucion.todos.filter(devolucion=dev).select_related('item__producto__unidad', 'lote')
+    for n, li in enumerate(lineas, 1):
+        prod = li.item.producto
+        nombre = prod.nombre + ('' if li.reingresa else ' <i>(no vuelve al inventario)</i>')
+        filas.append([n, prod.codigo, Paragraph(nombre, ESTILO_CELDA),
+                      (li.lote.numero_lote or '-') if li.lote else '-', f'{li.cantidad} {prod.unidad.abreviatura}',
+                      usd(li.item.precio_usd), usd(li.subtotal_usd)])
+    t = Table(filas, colWidths=[8 * mm, 24 * mm, 66 * mm, 22 * mm, 18 * mm, 22 * mm, 26 * mm], repeatRows=1)
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), color), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'), ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+        ('ALIGN', (4, 0), (-1, -1), 'RIGHT'), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F3F4F6')]),
+    ]))
+    e += [t, Spacer(1, 4 * mm)]
+
+    con_bs = bool(p.tasa_bs)
+
+    def fila(etiqueta, valor, valor_bs=None):
+        f = [etiqueta, usd(valor)]
+        if con_bs:
+            f.append(bs(valor_bs if valor_bs is not None else redondear(valor * p.tasa_bs)))
+        return f
+    tot = [fila('Subtotal', dev.subtotal_usd)]
+    if dev.descuento_usd:
+        tot.append(fila(f'Descuento ({pct(p.descuento_pct)} %)', -dev.descuento_usd))
+    if dev.iva_usd:
+        tot.append(fila(f'IVA ({pct(p.iva_pct)} %)', dev.iva_usd))
+    tot.append(fila('TOTAL DEVUELTO', dev.total_usd, dev.total_bs))
+    tt = Table(tot, colWidths=[44 * mm, 30 * mm] + ([36 * mm] if con_bs else []), hAlign='RIGHT')
+    tt.setStyle(TableStyle([
+        ('ALIGN', (1, 0), (-1, -1), 'RIGHT'), ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'), ('LINEABOVE', (0, -1), (-1, -1), 1, color),
+        ('TEXTCOLOR', (0, -1), (-1, -1), color),
+    ]))
+    e.append(tt)
+    if con_bs:
+        e.append(Paragraph(f'Tasa BCV de la venta: {bs(p.tasa_bs)} por USD', ESTILOS['Italic']))
+    e.append(Spacer(1, 5 * mm))
+    if dev.reembolsado:
+        texto = (f'<b>Reembolso:</b> {usd(dev.reembolso_usd)}'
+                 + (f' ({bs(dev.reembolso_bs)})' if dev.reembolso_bs else '')
+                 + f' · {dev.get_reembolso_metodo_display()} · {dev.reembolso_fecha:%d/%m/%Y}'
+                 + (f' · Ref. {dev.reembolso_referencia}' if dev.reembolso_referencia else ''))
+    else:
+        texto = '<b>Reembolso:</b> pendiente / no aplica'
+    e += [Paragraph(texto, ESTILOS['Normal']), Spacer(1, 16 * mm)]
+    firmas = Table([['_' * 32, '_' * 32], [f'Entregado: {c.nombre}', f'Recibido: {empresa.nombre}']],
+                   colWidths=[90 * mm, 90 * mm])
+    firmas.setStyle(TableStyle([('ALIGN', (0, 0), (-1, -1), 'CENTER'), ('FONTSIZE', (0, 0), (-1, -1), 9)]))
+    e.append(KeepTogether([firmas]))
+    pie = pie_empresa(empresa)
+    doc.build(e, onFirstPage=pie, onLaterPages=pie)
+    return buffer.getvalue()

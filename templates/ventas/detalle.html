@@ -23,6 +23,8 @@
   </div>
 </div>
 
+{% if p.estado == 'DEVUELTA' %}<div class="alert alert-secondary py-2"><i class="bi bi-arrow-return-left me-1"></i>Venta devuelta por completo. No cuenta en las ventas ni en las comisiones.</div>
+{% elif p.devuelto_usd %}<div class="alert alert-light border py-2"><i class="bi bi-arrow-return-left me-1"></i>Devoluciones por {{ p.devuelto_usd|usd }} · neto de la venta <b>{{ p.neto_usd|usd }}</b>.</div>{% endif %}
 {% if p.motivo_rechazo %}<div class="alert alert-danger py-2"><i class="bi bi-x-octagon me-1"></i><b>Rechazada:</b> {{ p.motivo_rechazo }}</div>{% endif %}
 {% if p.requiere_revision %}<div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i>Hay precios fuera del rango permitido. Quien valide la venta lo verá.</div>{% endif %}
 {% if p.estado == 'APARTADO' %}<div class="alert {% if p.apartado_vencido %}alert-danger{% else %}alert-warning{% endif %} py-2"><i class="bi bi-lock me-1"></i>Stock apartado hasta el {{ p.apartado_hasta|date:"d/m/Y H:i" }}.</div>{% endif %}
@@ -123,6 +125,9 @@
         {% endif %}
       {% elif p.estado == 'VALIDADA' %}
         <div class="text-success small"><i class="bi bi-patch-check-fill me-1"></i>Validada el {{ p.validado_en|date:"d/m/Y H:i" }}{% if p.validado_por %} por {{ p.validado_por.nombre_visible }}{% endif %}.</div>
+        {% if puede_devolver %}<a href="{% url 'ventas:devolver' p.pk %}" class="btn btn-outline-danger btn-sm"><i class="bi bi-arrow-return-left me-1"></i>Registrar devolución</a>{% endif %}
+      {% elif p.estado == 'DEVUELTA' %}
+        <div class="text-muted small"><i class="bi bi-arrow-return-left me-1"></i>Validada el {{ p.validado_en|date:"d/m/Y" }} y devuelta por completo.</div>
       {% endif %}
       {% if p.estado in 'BORRADOR EMITIDO APARTADO RECHAZADA' %}
         <form method="post" action="{% url 'ventas:accion' p.pk 'cancelar' %}" class="d-grid" onsubmit="return confirm('¿Cancelar este presupuesto? Se libera el stock apartado.')">{% csrf_token %}<button class="btn btn-link btn-sm text-danger">Cancelar presupuesto</button></form>
@@ -163,7 +168,18 @@
     <div class="card card-body mb-3 small">
       <div class="fw-semibold mb-1"><i class="bi bi-cash-coin me-1"></i>Comisión</div>
       <div class="d-flex justify-content-between"><span>{{ comision.base_usd|usd }} × {{ comision.porcentaje_efectivo|floatformat:2 }} %</span><span class="fw-bold">{{ comision.monto_usd|usd }}</span></div>
+      {% for a in comision.lista_ajustes %}<div class="d-flex justify-content-between text-danger"><span>Devolución <a href="{% url 'ventas:devolucion' a.devolucion_id %}" class="text-danger">{{ a.devolucion.numero }}</a>{% if a.liquidacion_id %} · descontada{% endif %}</span><span>{{ a.monto_usd|usd }}</span></div>{% endfor %}
+      {% if comision.lista_ajustes %}<div class="d-flex justify-content-between border-top mt-1 pt-1"><span>Neto</span><span class="fw-bold">{{ comision.neto|usd }}</span></div>{% endif %}
       <div class="text-muted">{% if comision.liquidacion %}Liquidada en <a href="{% url 'comisiones:liquidacion' comision.liquidacion_id %}">{{ comision.liquidacion.numero }}</a>{% elif perfil.comision_requiere_pago and not p.pagado %}Se liquida cuando la venta esté cobrada{% else %}Disponible para liquidar{% endif %}</div>
+    </div>
+    {% endif %}
+    {% if devoluciones %}
+    <div class="card mb-3 small">
+      <div class="card-header bg-white fw-semibold"><i class="bi bi-arrow-return-left me-1"></i>Devoluciones</div>
+      <div class="list-group list-group-flush">{% for d in devoluciones %}
+        <a href="{% url 'ventas:devolucion' d.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+          <span>{{ d.numero }} <span class="text-muted">· {{ d.fecha|date:"d/m/Y" }}</span></span><span class="text-danger">-{{ d.total_usd|usd }}</span></a>
+      {% endfor %}</div>
     </div>
     {% endif %}
     {% if p.notas and not p.editable %}<div class="card card-body small"><div class="fw-semibold mb-1">Notas internas</div>{{ p.notas|linebreaksbr }}</div>{% endif %}

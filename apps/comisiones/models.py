@@ -5,6 +5,8 @@ Comisiones de vendedores.
 - Base = subtotal del ítem menos el descuento del documento, SIN IVA.
 - Se genera UNA Comision por venta al validarla (señal `venta_validada`), con el % congelado por línea.
 - Está disponible para liquidar si no está liquidada y (la empresa no exige cobro o la venta está pagada).
+- Una devolución de la venta genera un AjusteComision (negativo). Nunca se modifica lo ya liquidado:
+  el ajuste se descuenta en la próxima liquidación del vendedor.
 - Una Liquidacion agrupa comisiones disponibles de un vendedor hasta una fecha; al pagarla queda cerrada.
 """
 from django.conf import settings
@@ -111,3 +113,24 @@ class LineaComision(EmpresaModel):
     class Meta:
         base_manager_name = 'todos'
         ordering = ['pk']
+
+
+class AjusteComision(EmpresaModel):
+    """Descuento de comisión por una devolución. Se liquida junto con las comisiones del vendedor."""
+    comision = models.ForeignKey(Comision, on_delete=models.PROTECT, related_name='ajustes')
+    devolucion = models.OneToOneField('ventas.Devolucion', on_delete=models.PROTECT, related_name='ajuste_comision')
+    vendedor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='+')
+    fecha = models.DateField('Fecha de la devolución')
+    monto_usd = models.DecimalField('Ajuste (negativo)', max_digits=14, decimal_places=2)
+    liquidacion = models.ForeignKey(Liquidacion, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='ajustes')
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Ajuste de comisión'
+        verbose_name_plural = 'Ajustes de comisión'
+        ordering = ['-fecha', '-pk']
+        base_manager_name = 'todos'
+
+    def __str__(self):
+        return f'{self.devolucion.numero} · {self.monto_usd}'

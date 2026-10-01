@@ -7,9 +7,13 @@ Un Presupuesto recorre estos estados (la "venta" es el mismo documento validado)
                  ↘         ↘            ↘ RECHAZADA (con motivo; vuelve a APARTADO o se libera)
                   CANCELADO  VENCIDO (apartado sin confirmar a tiempo)
 
+  VALIDADA → (devoluciones parciales: sigue VALIDADA con `devuelto_usd`) → DEVUELTA (se devolvió todo)
+
 - APARTADO reserva stock por lote (FEFO) en `Reserva`.
 - VALIDADA descuenta el stock y es lo único que cuenta en reportes y comisiones.
 - Si la empresa no exige validación, confirmar pasa directo a VALIDADA.
+- Una Devolucion (DV-AAAA-00001) revierte unidades de una venta validada: el stock vuelve al lote
+  (si se elige), la comisión recibe un ajuste negativo y puede registrarse el reembolso.
 - Los totales se guardan en columnas (snapshot) al cambiar los ítems: reportes rápidos con Sum().
 """
 from decimal import ROUND_HALF_UP, Decimal
@@ -37,6 +41,7 @@ class Presupuesto(EmpresaModel):
         RECHAZADA = 'RECHAZADA', 'Rechazada'
         VENCIDO = 'VENCIDO', 'Apartado vencido'
         CANCELADO = 'CANCELADO', 'Cancelado'
+        DEVUELTA = 'DEVUELTA', 'Devuelta'
 
     class MetodoPago(models.TextChoices):
         TRANSFERENCIA = 'TRANSFERENCIA', 'Transferencia'
@@ -68,6 +73,7 @@ class Presupuesto(EmpresaModel):
     total_usd = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     total_bs = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     requiere_revision = models.BooleanField('Precio fuera de rango', default=False)
+    devuelto_usd = models.DecimalField('Devuelto', max_digits=14, decimal_places=2, default=0)
 
     apartado_hasta = models.DateTimeField('Apartado hasta', null=True, blank=True)
     confirmado_en = models.DateTimeField(null=True, blank=True)
@@ -110,12 +116,18 @@ class Presupuesto(EmpresaModel):
 
     @property
     def es_venta(self):
-        return self.estado == self.E.VALIDADA
+        """Fue venta validada (aunque luego se haya devuelto)."""
+        return self.estado in (self.E.VALIDADA, self.E.DEVUELTA)
+
+    @property
+    def neto_usd(self):
+        return self.total_usd - self.devuelto_usd
 
     @property
     def css_estado(self):
         return {'BORRADOR': 'secondary', 'EMITIDO': 'primary', 'APARTADO': 'warning', 'POR_VALIDAR': 'info',
-                'VALIDADA': 'success', 'RECHAZADA': 'danger', 'VENCIDO': 'dark', 'CANCELADO': 'dark'}[self.estado]
+                'VALIDADA': 'success', 'RECHAZADA': 'danger', 'VENCIDO': 'dark', 'CANCELADO': 'dark',
+                'DEVUELTA': 'secondary'}[self.estado]
 
     @property
     def apartado_vencido(self):
@@ -157,3 +169,62 @@ class Reserva(EmpresaModel):
 
     def __str__(self):
         return f'{self.item.producto.codigo} · {self.lote} · {self.cantidad}'
+
+
+class Devolucion(EmpresaModel):
+    """Devolución (total o parcial) de una venta validada. Los montos usan el precio, descuento, IVA y tasa de la venta."""
+    numero = models.CharField('Número', max_length=30)
+    presupuesto = models.ForeignKey(Presupuesto, on_delete=models.PROTECT, related_name='devoluciones')
+    fecha = models.DateField('Fecha', default=timezone.localdate)
+    motivo = models.CharField('Motivo', max_length=250)
+    creada_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='+')
+    creada_en = models.DateTimeField(auto_now_add=True)
+
+    subtotal_usd = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    descuento_usd = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    base_usd = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    iva_usd = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    total_usd = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    total_bs = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+
+    reembolsado = models.BooleanField('Reembolsado', default=False)
+    reembolso_usd = models.DecimalField('Monto reembolsado (USD)', max_digits=14, decimal_places=2, null=True,
+                                        blank=True)
+    reembolso_metodo = models.CharField('Método', max_length=15, choices=Presupuesto.MetodoPago.choices, blank=True)
+    reembolso_fecha = models.DateField('Fecha del reembolso', null=True, blank=True)
+    reembolso_referencia = models.CharField('Referencia', max_length=80, blank=True)
+
+    class Meta:
+        verbose_name = 'Devolución'
+        verbose_name_plural = 'Devoluciones'
+        ordering = ['-creada_en', '-pk']
+        base_manager_name = 'todos'
+        constraints = [models.UniqueConstraint(fields=['empresa', 'numero'], name='devolucion_numero_unico')]
+
+    def __str__(self):
+        return f'{self.numero} · {self.presupuesto.numero}'
+
+    @property
+    def reembolso_bs(self):
+        if self.reembolso_usd and self.presupuesto.tasa_bs:
+            return redondear(self.reembolso_usd * self.presupuesto.tasa_bs)
+        return None
+
+
+class ItemDevolucion(EmpresaModel):
+    """Unidades devueltas de un ítem, por lote. `reingresa` = vuelven al inventario (si no, quedan fuera: dañadas)."""
+    devolucion = models.ForeignKey(Devolucion, on_delete=models.CASCADE, related_name='items')
+    item = models.ForeignKey(ItemPresupuesto, on_delete=models.PROTECT, related_name='devoluciones')
+    lote = models.ForeignKey('inventario.Lote', on_delete=models.PROTECT, null=True, blank=True, related_name='+')
+    cantidad = models.PositiveIntegerField('Cantidad')
+    reingresa = models.BooleanField('Vuelve al inventario', default=True)
+    subtotal_usd = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+
+    class Meta:
+        verbose_name = 'Ítem devuelto'
+        verbose_name_plural = 'Ítems devueltos'
+        ordering = ['pk']
+        base_manager_name = 'todos'
+
+    def __str__(self):
+        return f'{self.item.producto} × {self.cantidad}'

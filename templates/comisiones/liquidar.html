@@ -7,14 +7,15 @@
   <div><label class="form-label small mb-1" for="hasta">Ventas validadas hasta</label><input type="date" id="hasta" name="hasta" value="{{ hasta|date:'Y-m-d' }}" class="form-control form-control-sm"></div>
   <button class="btn btn-sm btn-outline-secondary">Actualizar</button>
 </form>
-{% if comisiones %}
+{% if comisiones or ajustes %}
 <div class="card mb-3"><div class="table-responsive"><table class="table align-middle mb-0">
   <thead class="table-light"><tr><th>Fecha</th><th>Venta</th><th class="d-none d-md-table-cell">Cliente</th><th class="text-end d-none d-sm-table-cell">Base</th><th class="text-end">Comisión</th></tr></thead>
-  <tbody>{% for c in comisiones %}<tr><td class="small">{{ c.fecha|date:"d/m/Y" }}</td><td>{{ c.presupuesto.numero }}</td><td class="d-none d-md-table-cell">{{ c.presupuesto.cliente.nombre }}</td><td class="text-end d-none d-sm-table-cell">{{ c.base_usd|usd }}</td><td class="text-end">{{ c.monto_usd|usd }}</td></tr>{% endfor %}</tbody>
-  <tfoot><tr class="fw-bold"><td colspan="2">{{ comisiones|length }} venta{{ comisiones|length|pluralize }}</td><td class="d-none d-md-table-cell"></td><td class="d-none d-sm-table-cell"></td><td class="text-end">{{ total|usd }}</td></tr></tfoot>
+  <tbody>{% for c in comisiones %}<tr><td class="small">{{ c.fecha|date:"d/m/Y" }}</td><td>{{ c.presupuesto.numero }}</td><td class="d-none d-md-table-cell">{{ c.presupuesto.cliente.nombre }}</td><td class="text-end d-none d-sm-table-cell">{{ c.base_usd|usd }}</td><td class="text-end">{{ c.monto_usd|usd }}</td></tr>{% endfor %}{% for a in ajustes %}<tr><td class="small">{{ a.fecha|date:"d/m/Y" }}</td><td><a href="{% url 'ventas:devolucion' a.devolucion_id %}">{{ a.devolucion.numero }}</a><div class="small text-muted">devolución de {{ a.devolucion.presupuesto.numero }}</div></td><td class="d-none d-md-table-cell">{{ a.devolucion.presupuesto.cliente.nombre }}</td><td class="d-none d-sm-table-cell"></td><td class="text-end text-danger">{{ a.monto_usd|usd }}</td></tr>{% endfor %}</tbody>
+  <tfoot><tr class="fw-bold"><td colspan="2">{{ comisiones|length }} venta{{ comisiones|length|pluralize }}{% if ajustes %} · {{ ajustes|length }} devoluci{{ ajustes|length|pluralize:"ón,ones" }}{% endif %}</td><td class="d-none d-md-table-cell"></td><td class="d-none d-sm-table-cell"></td><td class="text-end">{{ total|usd }}</td></tr></tfoot>
 </table></div></div>
-<form method="post" class="d-flex justify-content-end">{% csrf_token %}<input type="hidden" name="hasta" value="{{ hasta|date:'Y-m-d' }}">
-  <button class="btn btn-primary"><i class="bi bi-check2-square me-1"></i>Crear liquidación por {{ total|usd }}</button></form>
+{% if total >= 0 %}<form method="post" class="d-flex justify-content-end">{% csrf_token %}<input type="hidden" name="hasta" value="{{ hasta|date:'Y-m-d' }}">
+  <button class="btn btn-primary"><i class="bi bi-check2-square me-1"></i>Crear liquidación por {{ total|usd }}</button></form>{% endif %}
+{% if total < 0 %}<div class="alert alert-warning mt-3">El saldo es negativo por devoluciones: se descontará cuando el vendedor tenga nuevas comisiones.</div>{% endif %}
 {% else %}
 <div class="card card-body text-muted">No hay comisiones disponibles hasta esa fecha.</div>
 {% endif %}

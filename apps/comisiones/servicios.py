@@ -8,7 +8,7 @@ from apps.core.secuencias import siguiente_numero
 from apps.core.tenancy import usando_empresa
 from apps.ventas.models import ItemPresupuesto, redondear
 
-from .models import Comision, LineaComision, Liquidacion, PorcentajeCategoria, PorcentajeVendedor
+from .models import AjusteComision, Comision, LineaComision, Liquidacion, PorcentajeCategoria, PorcentajeVendedor
 
 CIEN = Decimal('100')
 
@@ -58,6 +58,39 @@ def al_validar_venta(sender, presupuesto, usuario, **kwargs):
         registrar(presupuesto)
 
 
+@transaction.atomic
+def registrar_ajuste(dev):
+    """Ajuste negativo por una devolución. Usa el % congelado de cada línea. Idempotente."""
+    from apps.ventas.models import ItemDevolucion
+    existente = AjusteComision.todos.filter(devolucion=dev).first()
+    if existente:
+        return existente
+    p = dev.presupuesto
+    comision = Comision.todos.filter(presupuesto=p).first()
+    if comision is None:
+        return None
+    if p.estado == 'DEVUELTA':          # se devolvió todo: anula exactamente lo que quedaba
+        previo = AjusteComision.todos.filter(comision=comision).aggregate(t=Sum('monto_usd'))['t'] or Decimal('0')
+        monto = -(comision.monto_usd + previo)
+    else:
+        pct = dict(LineaComision.todos.filter(comision=comision).values_list('item_id', 'porcentaje'))
+        factor = 1 - p.descuento_pct / CIEN
+        monto = Decimal('0')
+        for linea in ItemDevolucion.todos.filter(devolucion=dev):
+            base = redondear(linea.cantidad * linea.item.precio_usd * factor)
+            monto += redondear(base * pct.get(linea.item_id, Decimal('0')) / CIEN)
+        monto = -monto
+    if not monto:
+        return None
+    return AjusteComision.objects.create(comision=comision, devolucion=dev, vendedor=comision.vendedor,
+                                         fecha=dev.fecha, monto_usd=monto)
+
+
+def al_devolver_venta(sender, devolucion, usuario, **kwargs):
+    with usando_empresa(devolucion.empresa):
+        registrar_ajuste(devolucion)
+
+
 # ── Consultas ─────────────────────────────────────────────────────────────────
 
 def disponibles(perfil, vendedor=None, hasta=None):
@@ -70,6 +103,24 @@ def disponibles(perfil, vendedor=None, hasta=None):
     if hasta:
         qs = qs.filter(fecha__lte=hasta)
     return qs
+
+
+def ajustes_aplicables(perfil, vendedor=None, hasta=None):
+    """
+    Ajustes negativos sin liquidar que se descuentan ahora: los de comisiones ya liquidadas
+    y los de comisiones que entran en esta misma liquidación.
+    """
+    qs = AjusteComision.objects.filter(liquidacion__isnull=True).filter(
+        Q(comision__liquidacion__isnull=False) | Q(comision__in=disponibles(perfil, vendedor, hasta)))
+    if vendedor is not None:
+        qs = qs.filter(vendedor=vendedor)
+    return qs
+
+
+def saldo_disponible(perfil, vendedor, hasta=None):
+    c = disponibles(perfil, vendedor, hasta).aggregate(t=Sum('monto_usd'))['t'] or Decimal('0')
+    a = ajustes_aplicables(perfil, vendedor, hasta).aggregate(t=Sum('monto_usd'))['t'] or Decimal('0')
+    return c + a
 
 
 def pendientes_de_cobro(perfil):
@@ -92,8 +143,12 @@ def resumen_por_vendedor(perfil, desde_mes):
         f['disponible'], f['n_disponible'] = r['t'] or 0, r['n']
     for r in pendientes_de_cobro(perfil).values('vendedor_id').annotate(t=Sum('monto_usd')):
         fila(r['vendedor_id'])['por_cobrar'] = r['t'] or 0
+    for r in ajustes_aplicables(perfil).values('vendedor_id').annotate(t=Sum('monto_usd')):
+        fila(r['vendedor_id'])['disponible'] += r['t'] or 0
     for r in Comision.objects.filter(fecha__gte=desde_mes).values('vendedor_id').annotate(t=Sum('monto_usd')):
         fila(r['vendedor_id'])['mes'] = r['t'] or 0
+    for r in AjusteComision.objects.filter(fecha__gte=desde_mes).values('vendedor_id').annotate(t=Sum('monto_usd')):
+        fila(r['vendedor_id'])['mes'] += r['t'] or 0
     usuarios = get_user_model().objects.in_bulk(list(filas))
     for f in filas.values():
         f['vendedor'] = usuarios.get(f['vendedor_id'])
@@ -106,13 +161,19 @@ def resumen_por_vendedor(perfil, desde_mes):
 def liquidar(perfil, vendedor, hasta, usuario, empresa):
     ids = list(disponibles(perfil, vendedor, hasta).values_list('pk', flat=True))
     comisiones = list(Comision.objects.select_for_update().filter(pk__in=ids, liquidacion__isnull=True))
-    if not comisiones:
+    ajustes = list(AjusteComision.objects.select_for_update().filter(
+        pk__in=list(ajustes_aplicables(perfil, vendedor, hasta).values_list('pk', flat=True))))
+    if not comisiones and not ajustes:
         raise ErrorComision('No hay comisiones disponibles para liquidar en ese período.')
+    total = sum((c.monto_usd for c in comisiones), Decimal('0')) + sum((a.monto_usd for a in ajustes), Decimal('0'))
+    if total < 0:
+        raise ErrorComision(f'El saldo del vendedor es negativo ({total} USD) por devoluciones: '
+                            'se descontará cuando tenga nuevas comisiones.')
     liq = Liquidacion.objects.create(
         numero=siguiente_numero('LQ', prefijo=(perfil.prefijo_numeracion or '').upper()),
-        vendedor=vendedor, hasta=hasta, creada_por=usuario,
-        total_usd=sum((c.monto_usd for c in comisiones), Decimal('0')))
+        vendedor=vendedor, hasta=hasta, creada_por=usuario, total_usd=total)
     Comision.objects.filter(pk__in=[c.pk for c in comisiones]).update(liquidacion=liq)
+    AjusteComision.objects.filter(pk__in=[a.pk for a in ajustes]).update(liquidacion=liq)
     return liq
 
 
@@ -136,6 +197,7 @@ def anular(liq):
     if liq.anulada:
         return liq
     Comision.objects.filter(liquidacion=liq).update(liquidacion=None)
+    AjusteComision.objects.filter(liquidacion=liq).update(liquidacion=None)
     liq.anulada = True
     liq.save(update_fields=['anulada'])
     return liq

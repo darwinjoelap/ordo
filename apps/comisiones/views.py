@@ -16,7 +16,7 @@ from apps.empresas.models import Membresia
 from apps.inventario.models import Categoria
 
 from . import servicios
-from .models import Comision, Liquidacion, PorcentajeCategoria, PorcentajeVendedor
+from .models import AjusteComision, Comision, Liquidacion, PorcentajeCategoria, PorcentajeVendedor
 from .pdf import liquidacion_pdf
 
 
@@ -77,13 +77,16 @@ def detalle_vendedor(request, vendedor_id=None):
             c.estado, c.css = 'Espera cobro', 'warning'
         else:
             c.estado, c.css = 'Disponible', 'primary'
-    total_mes = sum((c.monto_usd for c in comisiones), Decimal('0'))
+    ajustes = list(AjusteComision.objects.filter(vendedor=vendedor, fecha__gte=mes, fecha__lt=_siguiente_mes(mes))
+                   .select_related('devolucion__presupuesto__cliente', 'liquidacion').order_by('-fecha', '-pk'))
+    total_mes = (sum((c.monto_usd for c in comisiones), Decimal('0'))
+                 + sum((a.monto_usd for a in ajustes), Decimal('0')))
     base_mes = sum((c.base_usd for c in comisiones), Decimal('0'))
-    disponible = servicios.disponibles(perfil, vendedor).aggregate(t=Sum('monto_usd'))['t'] or 0
+    disponible = servicios.saldo_disponible(perfil, vendedor)
     fila = PorcentajeVendedor.objects.filter(vendedor=vendedor).first()
     return render(request, 'comisiones/vendedor.html', {
         'titulo': f'Comisiones · {vendedor.nombre_visible}', 'vendedor': vendedor,
-        'comisiones': comisiones, 'mes': mes, 'mes_anterior': (mes - timedelta(days=1)).replace(day=1),
+        'comisiones': comisiones, 'ajustes': ajustes, 'mes': mes, 'mes_anterior': (mes - timedelta(days=1)).replace(day=1),
         'mes_siguiente': _siguiente_mes(mes) if _siguiente_mes(mes) <= timezone.localdate() else None,
         'total_mes': total_mes, 'base_mes': base_mes, 'disponible': disponible,
         'porcentaje': fila.porcentaje if fila else None,
@@ -160,11 +163,15 @@ def liquidar(request, vendedor_id):
         else:
             messages.success(request, f'Liquidación {liq.numero} creada por {liq.total_usd} USD.')
             return redirect('comisiones:liquidacion', pk=liq.pk)
-    comisiones = (servicios.disponibles(perfil, vendedor, hasta)
-                  .select_related('presupuesto__cliente').order_by('fecha', 'pk'))
+    comisiones = list(servicios.disponibles(perfil, vendedor, hasta)
+                      .select_related('presupuesto__cliente').order_by('fecha', 'pk'))
+    ajustes = list(servicios.ajustes_aplicables(perfil, vendedor, hasta)
+                   .select_related('devolucion__presupuesto__cliente').order_by('fecha', 'pk'))
+    total = (sum((c.monto_usd for c in comisiones), Decimal('0'))
+             + sum((a.monto_usd for a in ajustes), Decimal('0')))
     return render(request, 'comisiones/liquidar.html', {
         'titulo': 'Liquidar comisiones', 'vendedor': vendedor, 'hasta': hasta, 'comisiones': comisiones,
-        'total': sum((c.monto_usd for c in comisiones), Decimal('0'))})
+        'ajustes': ajustes, 'total': total})
 
 
 def _liquidaciones_visibles(request):
@@ -193,8 +200,11 @@ def liquidacion(request, pk):
         except (servicios.ErrorComision, ValueError) as e:
             messages.error(request, str(e))
         return redirect('comisiones:liquidacion', pk=pk)
-    comisiones = liq.comisiones.select_related('presupuesto__cliente').order_by('fecha', 'pk')
-    return render(request, 'comisiones/liquidacion.html', {'titulo': liq.numero, 'liq': liq, 'comisiones': comisiones})
+    comisiones = Comision.objects.filter(liquidacion=liq).select_related('presupuesto__cliente').order_by('fecha', 'pk')
+    ajustes = (AjusteComision.objects.filter(liquidacion=liq)
+               .select_related('devolucion__presupuesto__cliente').order_by('fecha', 'pk'))
+    return render(request, 'comisiones/liquidacion.html', {'titulo': liq.numero, 'liq': liq, 'comisiones': comisiones,
+                                                           'ajustes': ajustes})
 
 
 @login_required

@@ -34,3 +34,7 @@
 | 2026-09-30 | Razón social y RIF controlados por la plataforma | Datos fiscales verificados por Ordo; el cliente no los altera |
 | 2026-09-30 | Superusuario = soporte de Ordo: entra a cualquier empresa con membresía virtual (no guardada) | Control total sin mezclarse con los usuarios del cliente; queda en el log `apps.plataforma` |
 | 2026-09-30 | Login por nombre de usuario, único por empresa; correo opcional | Como BioLifeVentas; cada empresa administra sus usuarios. Se entra por el enlace de la empresa; la dirección principal es solo para cuentas de plataforma |
+| 2026-10-01 | Devolución como documento propio (DV), total o parcial; la venta queda DEVUELTA solo si se devuelve todo | Trazabilidad: la venta original no se edita; caso real de devoluciones parciales |
+| 2026-10-01 | Lo devuelto vuelve al mismo lote de donde salió; el usuario marca por línea si no vuelve (dañado/vencido) | Kardex y vencimientos correctos sin pasos extra |
+| 2026-10-01 | Devolución de comisión como ajuste negativo, nunca editando liquidaciones | Lo pagado no cambia; se descuenta en la próxima liquidación |
+| 2026-10-01 | Montos de la devolución con precio, descuento, IVA y tasa de la venta; la última cierra al centavo | La suma de devoluciones nunca difiere del total de la venta |

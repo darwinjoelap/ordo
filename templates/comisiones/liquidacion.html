@@ -10,10 +10,10 @@
 </div>
 <div class="row g-3">
   <div class="col-lg-8"><div class="card">
-    {% if comisiones %}
+    {% if comisiones or ajustes %}
     <div class="table-responsive"><table class="table align-middle mb-0">
       <thead class="table-light"><tr><th>Fecha</th><th>Venta</th><th class="d-none d-md-table-cell">Cliente</th><th class="text-end d-none d-sm-table-cell">Base</th><th class="text-end">Comisión</th></tr></thead>
-      <tbody>{% for c in comisiones %}<tr><td class="small">{{ c.fecha|date:"d/m/Y" }}</td><td><a href="{% url 'ventas:detalle' c.presupuesto_id %}">{{ c.presupuesto.numero }}</a></td><td class="d-none d-md-table-cell">{{ c.presupuesto.cliente.nombre }}</td><td class="text-end d-none d-sm-table-cell">{{ c.base_usd|usd }}</td><td class="text-end">{{ c.monto_usd|usd }}</td></tr>{% endfor %}</tbody>
+      <tbody>{% for c in comisiones %}<tr><td class="small">{{ c.fecha|date:"d/m/Y" }}</td><td><a href="{% url 'ventas:detalle' c.presupuesto_id %}">{{ c.presupuesto.numero }}</a></td><td class="d-none d-md-table-cell">{{ c.presupuesto.cliente.nombre }}</td><td class="text-end d-none d-sm-table-cell">{{ c.base_usd|usd }}</td><td class="text-end">{{ c.monto_usd|usd }}</td></tr>{% endfor %}{% for a in ajustes %}<tr><td class="small">{{ a.fecha|date:"d/m/Y" }}</td><td><a href="{% url 'ventas:devolucion' a.devolucion_id %}">{{ a.devolucion.numero }}</a><div class="small text-muted">devolución de {{ a.devolucion.presupuesto.numero }}</div></td><td class="d-none d-md-table-cell">{{ a.devolucion.presupuesto.cliente.nombre }}</td><td class="d-none d-sm-table-cell"></td><td class="text-end text-danger">{{ a.monto_usd|usd }}</td></tr>{% endfor %}</tbody>
     </table></div>
     {% else %}<div class="card-body text-muted">{% if liq.anulada %}Liquidación anulada: sus comisiones volvieron a estar disponibles.{% else %}Sin comisiones.{% endif %}</div>{% endif %}
   </div></div>

@@ -17,7 +17,7 @@
   {% if mes_siguiente %}<a href="?mes={{ mes_siguiente|date:'Y-m' }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-right"></i></a>{% else %}<span style="width:2.3rem"></span>{% endif %}
 </div>
 <div class="card mb-3">
-  {% if comisiones %}
+  {% if comisiones or ajustes %}
   <div class="table-responsive"><table class="table align-middle mb-0">
     <thead class="table-light"><tr><th>Venta</th><th class="d-none d-md-table-cell">Cliente</th><th class="text-end d-none d-sm-table-cell">Base</th><th class="text-end">Comisión</th><th>Estado</th></tr></thead>
     <tbody>{% for c in comisiones %}<tr>
@@ -26,6 +26,13 @@
       <td class="text-end d-none d-sm-table-cell">{{ c.base_usd|usd }}</td>
       <td class="text-end fw-semibold">{{ c.monto_usd|usd }}</td>
       <td><span class="badge text-bg-{{ c.css }}">{{ c.estado }}</span></td>
+    </tr>{% endfor %}
+    {% for a in ajustes %}<tr>
+      <td><a href="{% url 'ventas:devolucion' a.devolucion_id %}" class="fw-semibold">{{ a.devolucion.numero }}</a><div class="small text-muted">{{ a.fecha|date:"d/m/Y" }} · devolución de {{ a.devolucion.presupuesto.numero }}</div></td>
+      <td class="d-none d-md-table-cell">{{ a.devolucion.presupuesto.cliente.nombre }}</td>
+      <td class="d-none d-sm-table-cell"></td>
+      <td class="text-end fw-semibold text-danger">{{ a.monto_usd|usd }}</td>
+      <td><span class="badge text-bg-{% if a.liquidacion_id %}success{% else %}danger{% endif %}">{% if a.liquidacion_id %}Descontado ({{ a.liquidacion.numero }}){% else %}Por descontar{% endif %}</span></td>
     </tr>{% endfor %}</tbody>
   </table></div>
   {% else %}<div class="card-body text-muted">Sin ventas validadas en este mes.</div>{% endif %}

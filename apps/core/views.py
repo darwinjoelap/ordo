@@ -13,7 +13,7 @@ def inicio(request):
         return render(request, 'core/inicio.html', ctx)
     from datetime import timedelta
 
-    from django.db.models import Count, F, Sum
+    from django.db.models import Count, F, Q, Sum
     from django.utils import timezone
 
     from apps.core.permisos import tiene_permiso
@@ -27,7 +27,9 @@ def inicio(request):
     if not tiene_permiso(request, 'presupuestos.ver_todos'):
         docs = docs.filter(vendedor=request.user)
     if tiene_permiso(request, 'presupuestos.crear'):
-        mes = docs.filter(estado=E.VALIDADA, validado_en__gte=inicio_mes).aggregate(n=Count('pk'), usd=Sum('total_usd'))
+        # Neto de devoluciones; las ventas devueltas por completo no cuentan
+        mes = docs.filter(estado__in=[E.VALIDADA, E.DEVUELTA], validado_en__gte=inicio_mes).aggregate(
+            n=Count('pk', filter=Q(estado=E.VALIDADA)), usd=Sum(F('total_usd') - F('devuelto_usd')))
         ctx.update({
             'ventas_mes': mes,
             'por_validar': docs.filter(estado=E.POR_VALIDAR).aggregate(n=Count('pk'), usd=Sum('total_usd')),
@@ -38,9 +40,10 @@ def inicio(request):
             'ultimos': docs.select_related('cliente').order_by('-actualizado_en')[:6],
         })
     if tiene_permiso(request, 'comisiones.ver_propias'):
-        from apps.comisiones.models import Comision
-        ctx['mi_comision_mes'] = Comision.objects.filter(
-            vendedor=request.user, fecha__gte=inicio_mes.date()).aggregate(t=Sum('monto_usd'))['t'] or 0
+        from apps.comisiones.models import AjusteComision, Comision
+        ctx['mi_comision_mes'] = sum(
+            (m.objects.filter(vendedor=request.user, fecha__gte=inicio_mes.date()).aggregate(t=Sum('monto_usd'))['t'] or 0
+             for m in (Comision, AjusteComision)), 0)
     if tiene_permiso(request, 'inventario.ver'):
         ctx['bajo_minimo'] = (Producto.objects.filter(activo=True, stock_minimo__gt=0).con_stock()
                               .filter(anot_stock_disponible__lte=F('stock_minimo')).count())
