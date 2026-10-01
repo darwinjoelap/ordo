@@ -91,6 +91,22 @@ class MigracionBiolifeTests(TestCase):
         self.empresa.perfil.refresh_from_db()
         self.assertTrue(self.empresa.perfil.vendedores_ven_todos_los_clientes)
 
+    def test_los_presupuestos_nuevos_siguen_el_correlativo(self):
+        from django.utils import timezone
+
+        from apps.ventas import servicios as ventas
+        self.importar()
+        self.empresa.refresh_from_db()
+        anio = str(timezone.localdate().year)
+        ultimo = max([int(b['numero'][4:]) for b in self.datos['presupuestos'] if b['numero'].startswith(anio)] or [0])
+        with usando_empresa(self.empresa):
+            cliente = Cliente.objects.first()
+            vendedor = Usuario.objects.get(username='luis')
+            p1 = ventas.crear(cliente, vendedor, self.empresa)
+            p2 = ventas.crear(cliente, vendedor, self.empresa)
+        self.assertEqual(p1.numero, f'{anio}{ultimo + 1:05d}')
+        self.assertEqual(p2.numero, f'{anio}{ultimo + 2:05d}')
+
     def test_rechaza_empresa_con_datos_salvo_vaciar(self):
         self.importar()
         with self.assertRaises(ErrorMigracion):
@@ -142,3 +158,18 @@ class PantallaMigracionTests(TestCase):
         Membresia.objects.create(usuario=dueno, empresa=self.empresa, rol='DUENO')
         self.client.force_login(dueno)
         self.assertEqual(self.client.get(self.url).status_code, 403)
+
+
+class NumeracionCorridaTests(TestCase):
+    def test_formato_corrido_sin_migracion_y_formato_por_defecto(self):
+        from django.utils import timezone
+
+        from apps.core.secuencias import siguiente_numero_presupuesto
+        empresa = Empresa.objects.create(nombre='Nueva', slug='nueva')
+        anio = timezone.localdate().year
+        with usando_empresa(empresa):
+            self.assertEqual(siguiente_numero_presupuesto(empresa.perfil), f'P-{anio}-00001')
+            empresa.perfil.formato_numero_presupuesto = 'CORRIDO'
+            empresa.perfil.save()
+            self.assertEqual(siguiente_numero_presupuesto(empresa.perfil), f'{anio}00001')
+            self.assertEqual(siguiente_numero_presupuesto(empresa.perfil), f'{anio}00002')

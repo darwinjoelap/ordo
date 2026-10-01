@@ -11,7 +11,7 @@ GRUPOS = {
     'identidad': ('Identidad', ['nombre_comercial', 'razon_social', 'rif', 'logo', 'color_principal']),
     'contacto': ('Contacto', ['direccion_fiscal', 'telefono', 'telefono_2', 'email', 'sitio_web',
                               'instagram', 'whatsapp']),
-    'documentos': ('Documentos', ['prefijo_numeracion', 'condiciones_presupuesto', 'pie_documentos',
+    'documentos': ('Documentos', ['prefijo_numeracion', 'formato_numero_presupuesto', 'condiciones_presupuesto', 'pie_documentos',
                                   'datos_bancarios', 'firma']),
     'comercial': ('Comercial', ['iva_porcentaje', 'dias_validez_presupuesto', 'dias_apartado', 'modo_precio',
                                 'margen_minimo_pct', 'margen_maximo_pct', 'requiere_validacion',

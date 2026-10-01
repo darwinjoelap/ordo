@@ -53,3 +53,4 @@
 | 2026-10-01 | Unidades iniciales de laboratorio (Vial, Mililitro, Test, Tubo, Rollo) para todas las empresas, también las existentes (migración inventario 0006) | La mayoría de productos de BioLife se miden en VIAL; la importación no falla por unidades faltantes |
 | 2026-10-01 | Migración por JSON exportado desde BioLifeVentas + importador en Ordo (pantalla de Plataforma y comando) | No se modifica BioLifeVentas; una transacción; simulación con verificación antes de guardar |
 | 2026-10-01 | Usuarios migrados con su contraseña cifrada; números de documento originales; sin comisiones históricas | Nadie cambia su forma de entrar; trazabilidad con BioLifeVentas; BioLifeVentas no tenía comisiones |
+| 2026-10-01 | Numeración de presupuestos configurable por empresa: `P-2026-00001` o `202600001` (año + correlativo); el correlativo continúa tras el mayor número existente | BioLife conserva su serie; no hay saltos ni repetidos después de migrar |

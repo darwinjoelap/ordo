@@ -135,7 +135,7 @@ class PanelMiEmpresaTests(BaseEmpresas):
             'nombre_comercial': 'Alfa Salud', 'razon_social': 'Farmacia Alfa C.A.', 'rif': 'J-12345678-9',
             'color_principal': '#11988D', 'direccion_fiscal': 'Av. Lara, Barquisimeto',
             'telefono': '0251-5550000', 'telefono_2': '', 'email': 'ventas@alfa.com', 'sitio_web': '',
-            'instagram': '', 'whatsapp': '', 'prefijo_numeracion': 'AF',
+            'instagram': '', 'whatsapp': '', 'prefijo_numeracion': 'AF', 'formato_numero_presupuesto': 'GUION',
             'condiciones_presupuesto': 'Válido 7 días.', 'pie_documentos': 'Gracias por su compra',
             'datos_bancarios': 'Banesco 0134...', 'iva_porcentaje': '16', 'dias_validez_presupuesto': '7',
             'dias_apartado': '15', 'modo_precio': 'RANGO', 'margen_minimo_pct': '10',

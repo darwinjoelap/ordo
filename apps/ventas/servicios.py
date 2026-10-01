@@ -8,7 +8,7 @@ from django.db import transaction
 from django.dispatch import Signal
 from django.utils import timezone
 
-from apps.core.secuencias import siguiente_numero
+from apps.core.secuencias import siguiente_numero, siguiente_numero_presupuesto
 from apps.core.tenancy import usando_empresa
 from apps.inventario import servicios as inventario
 from apps.tasas.servicios import tasa_vigente
@@ -79,7 +79,7 @@ def crear(cliente, vendedor, empresa):
     perfil = empresa.perfil
     hoy = timezone.localdate()
     return Presupuesto.objects.create(
-        numero=siguiente_numero('P', prefijo=perfil.prefijo_numeracion.upper()),
+        numero=siguiente_numero_presupuesto(perfil),
         cliente=cliente, vendedor=vendedor, fecha=hoy,
         valido_hasta=hoy + timedelta(days=perfil.dias_validez_presupuesto or 7),
         iva_pct=perfil.iva_porcentaje, condiciones=perfil.condiciones_presupuesto,

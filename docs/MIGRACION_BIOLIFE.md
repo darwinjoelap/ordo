@@ -17,7 +17,7 @@ Todo entra en UNA transacción: si algo falla no queda nada a medias.
 | Lotes | Igual (existencia, apartado, costo, vencimiento, fecha de ingreso) |
 | Kardex completo | Igual, con sus fechas; saldos recalculados desde la existencia actual |
 | Clientes | Igual; vendedor = el que más le vendió; "vendedores ven todos los clientes" activado |
-| Presupuestos (todos los estados) | Mismo número (202600001…). CONFIRMADO → venta VALIDADA |
+| Presupuestos (todos los estados) | Mismo número (202600001…). CONFIRMADO → venta VALIDADA. Los nuevos siguen ese correlativo |
 | Venta: pago, método, factura, N° control | En la misma venta |
 | Ítems partidos por lote | Una línea por producto + reservas por lote |
 | Órdenes de compra | BORRADOR → Borrador; CERRADA → Enviada / Parcial / Recibida según lo recibido |

@@ -140,6 +140,10 @@ class PerfilEmpresa(models.Model):
     # Documentos
     prefijo_numeracion = models.CharField('Prefijo de numeración', max_length=6, blank=True,
                                           help_text='Ej: BL → BL202600001')
+    formato_numero_presupuesto = models.CharField(
+        'Numeración de presupuestos', max_length=8, default='GUION',
+        choices=[('GUION', 'P-2026-00001 (con prefijo)'), ('CORRIDO', '202600001 (año + correlativo)')],
+        help_text='El correlativo reinicia cada año. "Año + correlativo" continúa después del último número existente.')
     condiciones_presupuesto = models.TextField(
         'Condiciones del presupuesto', blank=True,
         default='Precios sujetos a la tasa del día de emisión. Validez según fecha indicada.')

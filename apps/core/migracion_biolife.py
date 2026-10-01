@@ -442,6 +442,11 @@ class Importador:
 
     def configuracion(self):
         perfil = self.e.perfil
+        if perfil.formato_numero_presupuesto != 'CORRIDO':
+            perfil.formato_numero_presupuesto = 'CORRIDO'
+            perfil.save(update_fields=['formato_numero_presupuesto'])
+        ultimo = max((b['numero'] for b in self.d['presupuestos'] if b['numero']), default='')
+        self.avisos.append(f'Los presupuestos nuevos siguen el correlativo de BioLifeVentas (último migrado: {ultimo or "—"}).')
         if not perfil.vendedores_ven_todos_los_clientes:
             perfil.vendedores_ven_todos_los_clientes = True
             perfil.save(update_fields=['vendedores_ven_todos_los_clientes'])
