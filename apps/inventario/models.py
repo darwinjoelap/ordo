@@ -80,6 +80,7 @@ class Unidad(EmpresaModel):
 UNIDADES_INICIALES = [
     ('Unidad', 'UN'), ('Caja', 'CAJA'), ('Kit', 'KIT'), ('Paquete', 'PAQ'),
     ('Frasco', 'FCO'), ('Kilogramo', 'KG'), ('Litro', 'L'), ('Metro', 'M'),
+    ('Vial', 'VIAL'), ('Mililitro', 'ML'), ('Test', 'TEST'), ('Tubo', 'TUBO'), ('Rollo', 'ROLLO'),
 ]
 
 

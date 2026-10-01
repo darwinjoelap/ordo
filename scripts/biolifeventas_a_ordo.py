@@ -36,10 +36,10 @@ COLUMNAS = ['codigo', 'nombre', 'categoria', 'subcategoria', 'marca', 'unidad', 
             'precio_venta_usd', 'stock_minimo', 'dias_por_unidad', 'maneja_lote', 'maneja_vencimiento',
             'descripcion', 'activo', 'existencia_inicial', 'numero_lote', 'fecha_vencimiento']
 
-# Unidades de BioLifeVentas → abreviatura en Ordo
+# Unidades de BioLifeVentas → abreviatura en Ordo (todas existen en Ordo desde inventario 0006; la mayoría es VIAL)
 UNIDADES = {'UN': 'UN', 'CAJA': 'CAJA', 'KIT': 'KIT', 'FRASCO': 'FCO',
             'VIAL': 'VIAL', 'ML': 'ML', 'TEST': 'TEST', 'TUBO': 'TUBO', 'ROLLO': 'ROLLO'}
-UNIDADES_ORDO_INICIALES = {'UN', 'CAJA', 'KIT', 'PAQ', 'FCO', 'KG', 'L', 'M'}
+UNIDADES_ORDO_INICIALES = {'UN', 'CAJA', 'KIT', 'PAQ', 'FCO', 'KG', 'L', 'M', 'VIAL', 'ML', 'TEST', 'TUBO', 'ROLLO'}
 
 si_no = lambda b: 'SI' if b else 'NO'  # noqa: E731
 salida = os.environ.get('ORDO_SALIDA', 'productos_biolife_para_ordo.xlsx')

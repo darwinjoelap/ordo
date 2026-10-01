@@ -50,3 +50,4 @@
 | 2026-10-01 | Cada empresa puede cargar su propia tasa del día (TasaEmpresa); se usa la más reciente entre la global y la propia, y la propia gana el mismo día | El tenant no depende de la plataforma si el BCV falla, y un error suyo no afecta a otras empresas |
 | 2026-10-01 | Consumo diario = ventas de 90 días ÷ días de historial (desde la 1.ª venta, entre 30 y 90); sin factor guardado por cron | Siempre al día; un producto nuevo no se subestima ni una semana de ventas lo dispara |
 | 2026-10-01 | Al migrar, «días por unidad» se calcula con las ventas reales de BioLifeVentas, no se copia su factor | Su cron guarda días de stock en ese campo (error de BioLifeVentas) |
+| 2026-10-01 | Unidades iniciales de laboratorio (Vial, Mililitro, Test, Tubo, Rollo) para todas las empresas, también las existentes (migración inventario 0006) | La mayoría de productos de BioLife se miden en VIAL; la importación no falla por unidades faltantes |
