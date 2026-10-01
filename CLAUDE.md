@@ -44,6 +44,7 @@ python manage.py runserver
   de estados y emite `venta_validada`; `pdf.py` presupuesto en USD/Bs
 - `apps/ventas` devoluciones — `servicios.devolver()` (emite `venta_devuelta`), `views_devoluciones.py`; comisiones
   crea `AjusteComision` negativo que se liquida con `liquidar()`
+- `apps/ventas/reportes.py` — reporte de facturación (PDF/Excel) y analítica (`calcular()`); `pdf.lotes_por_item()`
 - `apps/comisiones` — % por vendedor/categoría, Comision (1 por venta validada, vía señal), Liquidacion; `servicios.py`
 - `apps/core/management/commands/tareas_programadas.py` — cron diario (vence apartados + tasa BCV)
 - `apps/compras` — órdenes de compra, recepción (`servicios.py`), panel de pedido (`sugerencias.py`), PDF

@@ -118,3 +118,14 @@
 - [x] PDF "Nota de devolución" con firmas; lista Comercial → Devoluciones
 - [x] Tablero y panel de pedido usan ventas netas de devoluciones
 - [x] 17 tests en SQLite y PostgreSQL
+
+## Paridad con BioLifeVentas — bloque A (ver docs/PARIDAD_BIOLIFEVENTAS.md)
+- [x] Facturación por venta: N° de factura (no se repite), N° de control, fecha; corregir o quitar (permiso `ventas.facturar`)
+- [x] Reporte de facturación: por fecha de venta o de factura, facturadas/sin facturar, pagadas, vendedor; PDF y Excel
+- [x] PDF del presupuesto con formato BioLifeVentas: columnas Lote y F. Venc. con todos los lotes en la misma fila,
+      marca, "SIN STOCK: faltan N"; en presupuestos sin apartar el reparto es FEFO referencial
+- [x] El apartado FEFO ya no toma lotes vencidos
+- [x] Reportes de ventas: vendido sin IVA, n.º de ventas, ticket, utilidad y margen (solo gestión), por mes,
+      productos, clientes, vendedores, categorías y presupuestos por estado; filtros; el vendedor ve solo lo suyo
+- [x] Lista de ventas filtrada por fechas con total neto de devoluciones
+- [x] 17 tests en SQLite y PostgreSQL (201 en total)

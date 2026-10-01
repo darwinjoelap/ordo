@@ -22,10 +22,12 @@
   <div class="col-sm-4 col-md-3"><select name="vendedor" class="form-select form-select-sm"><option value="">Todos los vendedores</option>
     {% for v in vendedores %}<option value="{{ v.pk }}" {% if f.vendedor == v.pk|stringformat:"s" %}selected{% endif %}>{{ v.nombre_visible }}</option>{% endfor %}</select></div>
   {% endif %}
+  <div class="col-6 col-sm-3 col-md-2"><label class="form-label small mb-0" for="desde">{% if f.estado == 'ventas' %}Validada desde{% else %}Desde{% endif %}</label><input type="date" id="desde" name="desde" value="{{ f.desde|date:'Y-m-d' }}" class="form-control form-control-sm"></div>
+  <div class="col-6 col-sm-3 col-md-2"><label class="form-label small mb-0" for="hasta">Hasta</label><input type="date" id="hasta" name="hasta" value="{{ f.hasta|date:'Y-m-d' }}" class="form-control form-control-sm"></div>
   <div class="col-auto"><button class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Filtrar</button></div>
 </form>
 {% if pagina.object_list %}
-<div class="small text-muted mb-2">{{ totales.n|miles }} documento{{ totales.n|pluralize }} · {{ totales.usd|default:0|usd }}</div>
+<div class="small text-muted mb-2">{{ totales.n|miles }} documento{{ totales.n|pluralize }} · {{ totales.usd|default:0|usd }}{% if totales.devuelto %} · devuelto {{ totales.devuelto|usd }} · neto <b>{{ totales.neto|usd }}</b>{% endif %}{% if f.desde or f.hasta %} · {{ f.desde|date:"d/m/Y"|default:"…" }} al {{ f.hasta|date:"d/m/Y"|default:"hoy" }}{% endif %}</div>
 <div class="card"><div class="table-responsive">
   <table class="table table-hover align-middle mb-0 ordo-tabla">
     <thead class="table-light"><tr><th>Número</th><th>Cliente</th><th class="d-none d-md-table-cell">Fecha</th>{% if 'presupuestos.ver_todos' in permisos %}<th class="d-none d-lg-table-cell">Vendedor</th>{% endif %}<th>Estado</th><th class="text-end">Total</th></tr></thead>

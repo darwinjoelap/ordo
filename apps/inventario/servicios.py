@@ -13,6 +13,7 @@ from decimal import Decimal
 
 from django.db import transaction
 from django.db.models import F
+from django.utils import timezone
 
 from .models import Lote, MovimientoInventario, Producto
 
@@ -123,7 +124,7 @@ def ajustar(lote, tipo, cantidad, usuario, motivo):
 @transaction.atomic
 def apartar_fefo(producto, cantidad, usuario, *, referencia_tipo='', referencia_id=None, motivo=''):
     """
-    Aparta `cantidad` tomando primero los lotes que vencen antes (FEFO; sin fecha al final).
+    Aparta `cantidad` tomando primero los lotes que vencen antes (FEFO; sin fecha al final; nunca vencidos).
     Devuelve la lista de Reserva(lote, cantidad). Todo o nada.
     """
     if cantidad <= 0:
@@ -131,11 +132,13 @@ def apartar_fefo(producto, cantidad, usuario, *, referencia_tipo='', referencia_
     lotes = list(
         Lote.objects.select_for_update()
         .filter(producto=producto, cantidad_actual__gt=F('cantidad_apartada'))
+        .exclude(fecha_vencimiento__lt=timezone.localdate())          # nunca se aparta un lote vencido
         .order_by(F('fecha_vencimiento').asc(nulls_last=True), 'fecha_ingreso', 'pk')
     )
     disponible = sum(l.cantidad_disponible for l in lotes)
     if disponible < cantidad:
-        raise StockInsuficiente(f'"{producto.nombre}": se piden {cantidad}, hay {disponible} disponibles.')
+        raise StockInsuficiente(f'"{producto.nombre}": se piden {cantidad}, hay {disponible} disponibles '
+                                '(sin contar lotes vencidos).')
 
     reservas, pendiente = [], cantidad
     for lote in lotes:

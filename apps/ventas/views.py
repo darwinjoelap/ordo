@@ -21,6 +21,13 @@ from .pdf import presupuesto_pdf
 E = Presupuesto.Estado
 
 
+def _fecha_o_none(texto):
+    try:
+        return date.fromisoformat(texto) if texto else None
+    except ValueError:
+        return None
+
+
 def visibles(request):
     qs = Presupuesto.objects.select_related('cliente', 'vendedor')
     if not tiene_permiso(request, 'presupuestos.ver_todos'):
@@ -37,7 +44,14 @@ def _presupuesto(request, pk):
 def lista(request):
     g = request.GET
     estado, q, vendedor = g.get('estado', ''), g.get('q', '').strip(), g.get('vendedor', '')
+    desde, hasta = _fecha_o_none(g.get('desde')), _fecha_o_none(g.get('hasta'))
     qs = visibles(request)
+    # Ventas: por fecha de validación; el resto, por fecha del documento
+    campo_fecha = 'validado_en__date' if estado == 'ventas' else 'fecha'
+    if desde:
+        qs = qs.filter(**{f'{campo_fecha}__gte': desde})
+    if hasta:
+        qs = qs.filter(**{f'{campo_fecha}__lte': hasta})
     if estado == 'ventas':
         qs = qs.filter(estado=E.VALIDADA)
     elif estado == 'abiertos':
@@ -48,7 +62,8 @@ def lista(request):
         qs = qs.filter(Q(numero__icontains=q) | Q(cliente__nombre__icontains=q) | Q(cliente__rif__icontains=q))
     if vendedor and tiene_permiso(request, 'presupuestos.ver_todos'):
         qs = qs.filter(vendedor_id=vendedor)
-    totales = qs.aggregate(n=Count('pk'), usd=Sum('total_usd'))
+    totales = qs.aggregate(n=Count('pk'), usd=Sum('total_usd'), devuelto=Sum('devuelto_usd'))
+    totales['neto'] = (totales['usd'] or 0) - (totales['devuelto'] or 0)
     pagina = Paginator(qs.order_by('-creado_en', '-pk'), 30).get_page(g.get('page'))
     params = g.copy()
     params.pop('page', None)
@@ -57,7 +72,7 @@ def lista(request):
         if tiene_permiso(request, 'presupuestos.ver_todos') else []
     return render(request, 'ventas/lista.html', {
         'titulo': 'Presupuestos y ventas', 'pagina': pagina, 'querystring': params.urlencode(),
-        'f': {'estado': estado, 'q': q, 'vendedor': vendedor}, 'estados': E.choices, 'totales': totales,
+        'f': {'estado': estado, 'q': q, 'vendedor': vendedor, 'desde': desde, 'hasta': hasta}, 'estados': E.choices, 'totales': totales,
         'vendedores': vendedores,
     })
 
@@ -126,6 +141,7 @@ def detalle(request, pk):
         'comision': comision,
         'devoluciones': Devolucion.objects.filter(presupuesto=p).order_by('creada_en') if p.es_venta else [],
         'puede_devolver': tiene_permiso(request, 'ventas.devolver'),
+        'puede_facturar': tiene_permiso(request, 'ventas.facturar'),
         'titulo': p.numero, 'p': p, 'items': items, 'perfil': perfil,
         'puede_fijar': tiene_permiso(request, 'precios.fijar'),
         'puede_validar': tiene_permiso(request, 'ventas.validar'),
@@ -259,3 +275,21 @@ def pdf(request, pk):
     r = HttpResponse(contenido, content_type='application/pdf')
     r['Content-Disposition'] = f'inline; filename="{p.numero}.pdf"'
     return r
+
+
+@login_required
+@requiere('ventas.facturar')
+@require_POST
+def facturacion(request, pk):
+    p = _presupuesto(request, pk)
+    try:
+        fecha = request.POST.get('fecha_facturacion') or None
+        servicios.registrar_facturacion(p, request.POST.get('facturado') == '1', request.POST.get('numero_factura', ''),
+                                        request.POST.get('numero_control', ''),
+                                        date.fromisoformat(fecha) if fecha else None)
+        messages.success(request, 'Datos de facturación guardados.')
+    except ValueError:
+        messages.error(request, 'Fecha inválida.')
+    except servicios.ErrorVenta as e:
+        messages.error(request, str(e))
+    return redirect('ventas:detalle', pk=pk)

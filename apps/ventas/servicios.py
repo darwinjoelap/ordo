@@ -13,7 +13,7 @@ from apps.core.tenancy import usando_empresa
 from apps.inventario import servicios as inventario
 from apps.tasas.servicios import tasa_vigente
 
-from .models import Devolucion, ItemDevolucion, ItemPresupuesto, Presupuesto, Reserva, redondear
+from .models import Devolucion, ItemDevolucion, ItemPresupuesto, Presupuesto, Reserva, desglose_bs, redondear
 
 E = Presupuesto.Estado
 CIEN = Decimal('100')
@@ -137,7 +137,8 @@ def recalcular_totales(p):
     iva = redondear(base * p.iva_pct / CIEN)
     total = base + iva
     p.subtotal_usd, p.descuento_usd, p.base_usd, p.iva_usd, p.total_usd = subtotal, descuento, base, iva, total
-    p.total_bs = redondear(total * p.tasa_bs) if p.tasa_bs else Decimal('0')
+    bs = desglose_bs(p, items)
+    p.total_bs = bs['total'] if bs else Decimal('0')
     p.requiere_revision = any(i.fuera_de_rango for i in items)
     p.save(update_fields=['subtotal_usd', 'descuento_usd', 'base_usd', 'iva_usd', 'total_usd', 'total_bs',
                           'requiere_revision', 'actualizado_en'])
@@ -272,6 +273,27 @@ def registrar_entrega(p, entregado, fecha=None):
     p.entregado = entregado
     p.fecha_entrega = (fecha or timezone.localdate()) if entregado else None
     p.save(update_fields=['entregado', 'fecha_entrega'])
+    return p
+
+
+@transaction.atomic
+def registrar_facturacion(p, facturado, numero_factura='', numero_control='', fecha=None):
+    """Datos de la factura fiscal de una venta validada (o devuelta, para consulta y corrección)."""
+    p = _bloquear(p)
+    _exigir(p, E.VALIDADA, E.DEVUELTA)
+    numero_factura, numero_control = (numero_factura or '').strip()[:50], (numero_control or '').strip()[:50]
+    if facturado:
+        if not numero_factura:
+            raise ErrorVenta('Indica el número de factura.')
+        repetida = (Presupuesto.objects.filter(facturado=True, numero_factura__iexact=numero_factura)
+                    .exclude(pk=p.pk).first())
+        if repetida:
+            raise ErrorVenta(f'La factura {numero_factura} ya está registrada en la venta {repetida.numero}.')
+        p.facturado, p.numero_factura, p.numero_control = True, numero_factura, numero_control
+        p.fecha_facturacion = fecha or timezone.localdate()
+    else:
+        p.facturado, p.numero_factura, p.numero_control, p.fecha_facturacion = False, '', '', None
+    p.save(update_fields=['facturado', 'numero_factura', 'numero_control', 'fecha_facturacion'])
     return p
 
 

@@ -247,3 +247,9 @@ code { color: var(--ordo-gris-600); }
   font-size: .85rem;
 }
 .ordo-instalada .ordo-solo-navegador { display: none; }
+
+/* Reportes: barras horizontales (una serie, un tono; el valor va en texto al lado) */
+.ordo-barra-pista { background: var(--ordo-gris-200); border-radius: 0 4px 4px 0; height: 10px; }
+.ordo-barra { background: var(--ordo-azul-700); border-radius: 0 4px 4px 0; height: 10px; min-width: 2px; }
+.ordo-barra-otros { background: var(--ordo-gris-600); }
+.ordo-fila-barra:hover .ordo-barra { background: var(--ordo-azul-900); }

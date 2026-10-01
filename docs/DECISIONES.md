@@ -38,3 +38,9 @@
 | 2026-10-01 | Lo devuelto vuelve al mismo lote de donde salió; el usuario marca por línea si no vuelve (dañado/vencido) | Kardex y vencimientos correctos sin pasos extra |
 | 2026-10-01 | Devolución de comisión como ajuste negativo, nunca editando liquidaciones | Lo pagado no cambia; se descuenta en la próxima liquidación |
 | 2026-10-01 | Montos de la devolución con precio, descuento, IVA y tasa de la venta; la última cierra al centavo | La suma de devoluciones nunca difiere del total de la venta |
+| 2026-10-01 | La factura fiscal se emite fuera de Ordo; Ordo guarda N° factura/control/fecha y no permite repetir el número | Igual que BioLifeVentas; base para el libro de ventas |
+| 2026-10-01 | Lotes en el PDF dentro de la misma fila del producto, una línea por lote | Pedido de BioLife: un renglón por producto aunque salga de varios lotes |
+| 2026-10-01 | Un lote vencido nunca se aparta ni se ofrece en el PDF | FEFO tomaba primero el vencido (vence antes) |
+| 2026-10-01 | Analítica en montos sin IVA, después del descuento y neta de devoluciones; por fecha de validación | Lo que realmente ingresa; coherente con comisiones |
+| 2026-10-01 | PDF del presupuesto con el formato de BioLifeVentas (caja de cliente, columnas Lote y F. Venc., total de unidades); varios lotes en la misma celda con su cantidad entre paréntesis | Preferencia de BioLife; un renglón por producto |
+| 2026-10-01 | Montos en Bs: precio unitario en Bs redondeado primero y totales desde esos precios (`desglose_bs`) | Igual que BioLifeVentas: la tabla y los totales en Bs cuadran al céntimo |

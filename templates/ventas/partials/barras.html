@@ -1,0 +1,16 @@
+{% load ordo %}{# filas: [{nombre, monto, ancho, pct?, unidades, n_ventas, otros?}] #}
+{% if filas %}
+<ul class="list-unstyled mb-0">
+{% for x in filas %}
+  <li class="ordo-fila-barra py-1" title="{{ x.nombre }}: {{ x.monto|usd }}{% if mostrar_unidades %} · {{ x.unidades|miles }} unid.{% endif %} · {{ x.n_ventas }} venta{{ x.n_ventas|pluralize }}">
+    <div class="d-flex justify-content-between small gap-2">
+      <span class="text-truncate">{{ x.nombre }}</span>
+      <span class="text-nowrap fw-semibold">{{ x.monto|usd }}{% if x.pct %} <span class="text-muted fw-normal">· {{ x.pct }} %</span>{% endif %}</span>
+    </div>
+    <div class="ordo-barra-pista"><div class="ordo-barra{% if x.otros %} ordo-barra-otros{% endif %}" style="width: {{ x.ancho|stringformat:'.1f' }}%"></div></div>
+    {% if mostrar_unidades %}<div class="small text-muted">{{ x.unidades|miles }} unid. · {{ x.n_ventas }} venta{{ x.n_ventas|pluralize }}</div>
+    {% elif mostrar_ventas %}<div class="small text-muted">{{ x.n_ventas }} venta{{ x.n_ventas|pluralize }}</div>{% endif %}
+  </li>
+{% endfor %}
+</ul>
+{% else %}<div class="text-muted small">Sin datos en el período.</div>{% endif %}

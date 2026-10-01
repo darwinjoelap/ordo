@@ -164,6 +164,26 @@
     </div>
     {% endif %}
 
+    {% if p.es_venta %}
+    <div class="card card-body mb-3 small">
+      <div class="fw-semibold mb-2"><i class="bi bi-receipt me-1"></i>Facturación</div>
+      {% if p.facturado %}
+        <div class="text-success mb-2">Factura <b>{{ p.numero_factura }}</b>{% if p.numero_control %} · Control {{ p.numero_control }}{% endif %} · {{ p.fecha_facturacion|date:"d/m/Y" }}</div>
+      {% else %}<div class="text-warning-emphasis mb-2">Sin facturar</div>{% endif %}
+      {% if puede_facturar %}
+      <form method="post" action="{% url 'ventas:facturacion' p.pk %}">{% csrf_token %}
+        <input type="hidden" name="facturado" value="1">
+        <div class="row g-2">
+          <div class="col-6"><input name="numero_factura" value="{{ p.numero_factura }}" maxlength="50" class="form-control form-control-sm" placeholder="N° factura" aria-label="Número de factura" required></div>
+          <div class="col-6"><input name="numero_control" value="{{ p.numero_control }}" maxlength="50" class="form-control form-control-sm" placeholder="N° control" aria-label="Número de control"></div>
+          <div class="col-7"><input type="date" name="fecha_facturacion" value="{{ p.fecha_facturacion|date:'Y-m-d' }}" class="form-control form-control-sm" aria-label="Fecha de facturación"></div>
+          <div class="col-5 d-grid"><button class="btn btn-sm btn-outline-primary">{% if p.facturado %}Corregir{% else %}Guardar{% endif %}</button></div>
+        </div>
+      </form>
+      {% if p.facturado %}<form method="post" action="{% url 'ventas:facturacion' p.pk %}" class="mt-2" onsubmit="return confirm('¿Quitar los datos de facturación?')">{% csrf_token %}<input type="hidden" name="facturado" value="0"><button class="btn btn-link btn-sm p-0 text-danger">Marcar como no facturada</button></form>{% endif %}
+      {% endif %}
+    </div>
+    {% endif %}
     {% if comision %}
     <div class="card card-body mb-3 small">
       <div class="fw-semibold mb-1"><i class="bi bi-cash-coin me-1"></i>Comisión</div>

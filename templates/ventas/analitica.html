@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div><h1 class="h3 mb-0">Reportes de ventas</h1>
+    <div class="small text-muted">{% if ve_todo %}Toda la empresa{% else %}Tus ventas{% endif %} · {{ f.desde|date:"d/m/Y" }} al {{ f.hasta|date:"d/m/Y" }}</div></div>
+  {% if 'reportes.ver' in permisos %}<a href="{% url 'ventas:reporte_facturacion' %}?desde={{ f.desde|date:'Y-m-d' }}&hasta={{ f.hasta|date:'Y-m-d' }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-receipt me-1"></i>Facturación</a>{% endif %}
+</div>
+
+<form method="get" class="card card-body mb-3">
+  <div class="row g-2 align-items-end">
+    <div class="col-6 col-md-2"><label class="form-label small mb-1" for="desde">Desde</label><input type="date" id="desde" name="desde" value="{{ f.desde|date:'Y-m-d' }}" class="form-control form-control-sm"></div>
+    <div class="col-6 col-md-2"><label class="form-label small mb-1" for="hasta">Hasta</label><input type="date" id="hasta" name="hasta" value="{{ f.hasta|date:'Y-m-d' }}" class="form-control form-control-sm"></div>
+    {% if ve_todo %}<div class="col-6 col-md-2"><label class="form-label small mb-1" for="vendedor">Vendedor</label><select id="vendedor" name="vendedor" class="form-select form-select-sm">
+      <option value="">Todos</option>{% for v in vendedores %}<option value="{{ v.pk }}" {% if f.vendedor == v.pk|stringformat:"s" %}selected{% endif %}>{{ v.nombre_visible }}</option>{% endfor %}</select></div>{% endif %}
+    <div class="col-6 col-md-2"><label class="form-label small mb-1" for="cliente">Cliente</label><select id="cliente" name="cliente" class="form-select form-select-sm">
+      <option value="">Todos</option>{% for c in clientes %}<option value="{{ c.pk }}" {% if f.cliente == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
+    <div class="col-6 col-md-2"><label class="form-label small mb-1" for="categoria">Categoría</label><select id="categoria" name="categoria" class="form-select form-select-sm">
+      <option value="">Todas</option>{% for c in categorias %}<option value="{{ c.pk }}" {% if f.categoria == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
+    <div class="col-6 col-md-2"><label class="form-label small mb-1" for="producto">Producto</label><select id="producto" name="producto" class="form-select form-select-sm">
+      <option value="">Todos</option>{% for p in productos %}<option value="{{ p.pk }}" {% if f.producto == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.nombre }}</option>{% endfor %}</select></div>
+    <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div class="d-flex gap-1 flex-wrap small" id="atajos">
+        <button type="button" class="btn btn-link btn-sm p-0 me-2" data-rango="mes">Este mes</button>
+        <button type="button" class="btn btn-link btn-sm p-0 me-2" data-rango="anterior">Mes anterior</button>
+        <button type="button" class="btn btn-link btn-sm p-0 me-2" data-rango="90">Últimos 90 días</button>
+        <button type="button" class="btn btn-link btn-sm p-0" data-rango="anio">Este año</button>
+      </div>
+      <button class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Aplicar</button>
+    </div>
+  </div>
+</form>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card card-body h-100"><div class="small text-muted">Vendido (sin IVA)</div><div class="fs-4 fw-bold text-success">{{ r.vendido|usd }}</div>
+    <div class="small text-muted">{% if con_iva is not None %}Con IVA {{ con_iva|usd }}{% else %}De los productos filtrados{% endif %}</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-body h-100"><div class="small text-muted">Ventas</div><div class="fs-4 fw-bold">{{ r.n_ventas|miles }}</div><div class="small text-muted">{{ r.unidades|miles }} unidades</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-body h-100"><div class="small text-muted">Ticket promedio</div><div class="fs-4 fw-bold">{{ r.ticket|usd }}</div><div class="small text-muted">sin IVA por venta</div></div></div>
+  {% if ve_costos %}
+  <div class="col-6 col-lg-3"><div class="card card-body h-100"><div class="small text-muted">Utilidad bruta</div><div class="fs-4 fw-bold {% if r.utilidad < 0 %}text-danger{% endif %}">{{ r.utilidad|usd }}</div><div class="small text-muted">Margen {{ r.margen }} % · costo {{ r.costo|usd }}</div></div></div>
+  {% else %}
+  <div class="col-6 col-lg-3"><div class="card card-body h-100"><div class="small text-muted">Producto más vendido</div><div class="fw-bold text-truncate">{{ top_productos.0.nombre|default:"—" }}</div><div class="small text-muted">{% if top_productos %}{{ top_productos.0.monto|usd }}{% endif %}</div></div></div>
+  {% endif %}
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header bg-white fw-semibold">Ventas por mes <span class="small text-muted fw-normal">(sin IVA)</span></div>
+    <div class="card-body">{% include 'ventas/partials/barras.html' with filas=meses mostrar_ventas=True %}</div></div></div>
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header bg-white fw-semibold">Productos más vendidos</div>
+    <div class="card-body">{% include 'ventas/partials/barras.html' with filas=top_productos mostrar_unidades=True %}</div></div></div>
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header bg-white fw-semibold">Mejores clientes</div>
+    <div class="card-body">{% include 'ventas/partials/barras.html' with filas=top_clientes mostrar_ventas=True %}</div></div></div>
+  {% if ve_todo %}
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header bg-white fw-semibold">Por vendedor</div>
+    <div class="card-body">{% include 'ventas/partials/barras.html' with filas=por_vendedor mostrar_ventas=True %}</div></div></div>
+  {% endif %}
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header bg-white fw-semibold">Por categoría</div>
+    <div class="card-body">{% include 'ventas/partials/barras.html' with filas=por_categoria mostrar_unidades=True %}</div></div></div>
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header bg-white fw-semibold d-flex justify-content-between"><span>Presupuestos del período</span>{% if conversion is not None %}<span class="small text-muted fw-normal">{{ conversion }} % terminó en venta</span>{% endif %}</div>
+    <div class="card-body">
+      {% if estados %}<ul class="list-unstyled mb-0">{% for x in estados %}
+        <li class="ordo-fila-barra py-1" title="{{ x.nombre }}: {{ x.unidades }} ({{ x.pct }} %)">
+          <div class="d-flex justify-content-between small"><span><span class="badge text-bg-{{ x.css }} me-1">&nbsp;</span>{{ x.nombre }}</span><span class="fw-semibold">{{ x.unidades }} <span class="text-muted fw-normal">· {{ x.pct }} %</span></span></div>
+          <div class="ordo-barra-pista"><div class="ordo-barra" style="width: {{ x.ancho|stringformat:'.1f' }}%"></div></div></li>
+      {% endfor %}</ul>{% else %}<div class="text-muted small">Sin presupuestos en el período.</div>{% endif %}
+    </div></div></div>
+</div>
+<p class="small text-muted mt-3 mb-0">Montos sin IVA, después del descuento y netos de devoluciones; se cuentan por fecha de validación.{% if ve_costos %} La utilidad usa el costo de referencia guardado en cada línea al vender.{% endif %}</p>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+  const d = document.getElementById('desde'), h = document.getElementById('hasta');
+  const iso = x => x.toISOString().slice(0, 10);
+  document.querySelectorAll('#atajos [data-rango]').forEach(b => b.addEventListener('click', () => {
+    const hoy = new Date(); hoy.setMinutes(hoy.getMinutes() - hoy.getTimezoneOffset());
+    let ini = new Date(hoy), fin = new Date(hoy);
+    if (b.dataset.rango === 'mes') ini.setDate(1);
+    if (b.dataset.rango === 'anterior') { ini = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1); fin = new Date(hoy.getFullYear(), hoy.getMonth(), 0);
+      ini.setMinutes(ini.getMinutes() - ini.getTimezoneOffset()); fin.setMinutes(fin.getMinutes() - fin.getTimezoneOffset()); }
+    if (b.dataset.rango === '90') ini.setDate(ini.getDate() - 90);
+    if (b.dataset.rango === 'anio') { ini = new Date(hoy.getFullYear(), 0, 1); ini.setMinutes(ini.getMinutes() - ini.getTimezoneOffset()); }
+    d.value = iso(ini); h.value = iso(fin); b.closest('form').submit();
+  }));
+})();
+</script>
+{% endblock %}

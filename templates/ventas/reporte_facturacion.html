@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div><h1 class="h3 mb-0">Reporte de facturación</h1>
+    <div class="small text-muted">Ventas validadas, netas de devoluciones · <a href="{% url 'ventas:reportes' %}">Ver analítica</a></div></div>
+  <div class="d-flex gap-2">
+    <a href="?{{ querystring }}&formato=pdf" target="_blank" class="btn btn-outline-secondary btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+    <a href="?{{ querystring }}&formato=excel" class="btn btn-outline-success btn-sm"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+  </div>
+</div>
+<form method="get" class="card card-body mb-3">
+  <div class="row g-2 align-items-end">
+    <div class="col-6 col-md-2"><label class="form-label small mb-1" for="desde">Desde</label><input type="date" id="desde" name="desde" value="{{ f.desde|date:'Y-m-d' }}" class="form-control form-control-sm"></div>
+    <div class="col-6 col-md-2"><label class="form-label small mb-1" for="hasta">Hasta</label><input type="date" id="hasta" name="hasta" value="{{ f.hasta|date:'Y-m-d' }}" class="form-control form-control-sm"></div>
+    <div class="col-6 col-md-2"><label class="form-label small mb-1" for="por">Fecha de</label><select id="por" name="por" class="form-select form-select-sm">
+      <option value="venta" {% if f.por != 'factura' %}selected{% endif %}>Venta</option><option value="factura" {% if f.por == 'factura' %}selected{% endif %}>Factura</option></select></div>
+    <div class="col-6 col-md-2"><label class="form-label small mb-1" for="factura">Factura</label><select id="factura" name="factura" class="form-select form-select-sm">
+      <option value="">Todas</option><option value="si" {% if f.factura == 'si' %}selected{% endif %}>Facturadas</option><option value="no" {% if f.factura == 'no' %}selected{% endif %}>Sin facturar</option></select></div>
+    <div class="col-6 col-md-2"><label class="form-label small mb-1" for="pago">Pago</label><select id="pago" name="pago" class="form-select form-select-sm">
+      <option value="">Todas</option><option value="si" {% if f.pago == 'si' %}selected{% endif %}>Pagadas</option><option value="no" {% if f.pago == 'no' %}selected{% endif %}>No pagadas</option></select></div>
+    <div class="col-6 col-md-2"><label class="form-label small mb-1" for="vendedor">Vendedor</label><select id="vendedor" name="vendedor" class="form-select form-select-sm">
+      <option value="">Todos</option>{% for v in vendedores %}<option value="{{ v.pk }}" {% if f.vendedor == v.pk|stringformat:"s" %}selected{% endif %}>{{ v.nombre_visible }}</option>{% endfor %}</select></div>
+    <div class="col-12 d-flex justify-content-end"><button class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Aplicar</button></div>
+  </div>
+</form>
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card card-body h-100"><div class="small text-muted">Total del período</div><div class="fs-4 fw-bold">{{ t.neto|default:0|usd }}</div><div class="small text-muted">{{ t.n }} venta{{ t.n|pluralize }}</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-body h-100"><div class="small text-muted">Facturadas</div><div class="fs-4 fw-bold text-success">{{ t.fact|default:0|usd }}</div><div class="small text-muted">{{ t.n_fact }} venta{{ t.n_fact|pluralize }}</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-body h-100"><div class="small text-muted">Sin facturar</div><div class="fs-4 fw-bold {% if t.n_sin %}text-warning-emphasis{% endif %}">{{ t.sin|default:0|usd }}</div><div class="small text-muted">{{ t.n_sin }} venta{{ t.n_sin|pluralize }}</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-body h-100"><div class="small text-muted">Pagadas</div><div class="fs-4 fw-bold">{{ t.pag|default:0|usd }}</div><div class="small text-muted">{{ t.n_pag }} venta{{ t.n_pag|pluralize }}</div></div></div>
+</div>
+<div class="card">
+  {% if ventas %}
+  <div class="table-responsive"><table class="table table-hover align-middle mb-0 small">
+    <thead class="table-light"><tr><th>Fecha</th><th>Venta</th><th>Cliente</th><th>Factura</th><th class="d-none d-md-table-cell">Control</th><th class="d-none d-md-table-cell">F. factura</th><th class="text-end">Neto</th><th class="text-center">Pagada</th></tr></thead>
+    <tbody>{% for p in ventas %}<tr onclick="location.href='{% url 'ventas:detalle' p.pk %}'" role="button">
+      <td class="text-nowrap">{{ p.validado_en|date:"d/m/Y" }}</td>
+      <td class="text-nowrap fw-semibold">{{ p.numero }}{% if p.estado == 'DEVUELTA' %} <span class="badge text-bg-secondary">Devuelta</span>{% endif %}</td>
+      <td>{{ p.cliente.nombre }}{% if p.cliente.rif %}<div class="text-muted">{{ p.cliente.rif }}</div>{% endif %}</td>
+      <td>{% if p.facturado %}{{ p.numero_factura }}{% else %}<span class="badge text-bg-warning">Sin facturar</span>{% endif %}</td>
+      <td class="d-none d-md-table-cell">{{ p.numero_control|default:"—" }}</td>
+      <td class="d-none d-md-table-cell">{{ p.fecha_facturacion|date:"d/m/Y"|default:"—" }}</td>
+      <td class="text-end text-nowrap">{{ p.neto_usd|usd }}</td>
+      <td class="text-center">{% if p.pagado %}<i class="bi bi-check-circle-fill text-success" title="Pagada"></i><span class="visually-hidden">Sí</span>{% else %}<span class="text-muted">No</span>{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% if t.n > 500 %}<div class="card-footer small text-muted">Se muestran 500 de {{ t.n }}. El PDF y el Excel incluyen todas.</div>{% endif %}
+  {% else %}<div class="card-body text-muted">No hay ventas con esos filtros.</div>{% endif %}
+</div>
+<p class="small text-muted mt-2">Montos en USD con IVA, netos de devoluciones. Los datos de la factura se cargan en cada venta → Facturación.</p>
+{% endblock %}

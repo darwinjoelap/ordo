@@ -31,6 +31,22 @@ def redondear(valor):
     return Decimal(valor).quantize(D2, rounding=ROUND_HALF_UP)
 
 
+def desglose_bs(p, items):
+    """
+    Montos en Bs como se facturan (igual que BioLifeVentas): el precio unitario en Bs se redondea primero y
+    los subtotales, descuento, IVA y total salen de esos precios. Así la tabla del PDF y los totales cuadran.
+    """
+    if not p.tasa_bs:
+        return None
+    lineas = {i.pk: redondear(redondear(i.precio_usd * p.tasa_bs) * i.cantidad) for i in items}
+    subtotal = sum(lineas.values(), Decimal('0'))
+    descuento = redondear(subtotal * p.descuento_pct / 100)
+    base = subtotal - descuento
+    iva = redondear(base * p.iva_pct / 100)
+    return {'lineas': lineas, 'subtotal': subtotal, 'descuento': descuento, 'base': base, 'iva': iva,
+            'total': base + iva}
+
+
 class Presupuesto(EmpresaModel):
     class Estado(models.TextChoices):
         BORRADOR = 'BORRADOR', 'Borrador'
@@ -88,6 +104,12 @@ class Presupuesto(EmpresaModel):
     entregado = models.BooleanField('Entregado', default=False)
     fecha_entrega = models.DateField('Fecha de entrega', null=True, blank=True)
 
+    # Facturación fiscal (la factura se emite fuera de Ordo; aquí se registran sus datos)
+    facturado = models.BooleanField('Facturado', default=False)
+    numero_factura = models.CharField('N° de factura', max_length=50, blank=True)
+    numero_control = models.CharField('N° de control', max_length=50, blank=True)
+    fecha_facturacion = models.DateField('Fecha de facturación', null=True, blank=True)
+
     notas = models.TextField('Notas internas', blank=True)
     condiciones = models.TextField('Condiciones (PDF)', blank=True)
     creado_en = models.DateTimeField(auto_now_add=True)
@@ -102,6 +124,7 @@ class Presupuesto(EmpresaModel):
         indexes = [
             models.Index(fields=['empresa', 'estado', 'validado_en'], name='venta_estado_fecha'),
             models.Index(fields=['empresa', 'vendedor', 'estado'], name='venta_vendedor_estado'),
+            models.Index(fields=['empresa', 'facturado'], name='venta_facturado'),
         ]
 
     def __str__(self):

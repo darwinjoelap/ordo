@@ -29,6 +29,7 @@ PERMISOS = {
     'precios.fijar': GESTION,
     'ventas.validar': GESTION,
     'ventas.devolver': GESTION,
+    'ventas.facturar': GESTION,
     'reportes.ver': GESTION,
     # Comisiones (Fase 5)
     'comisiones.ver_propias': {Rol.VENDEDOR} | GESTION,
