@@ -105,3 +105,19 @@ class NombreArchivoPdfTests(Base):
         r2 = self.client.get(url)
         self.assertEqual(r2['Content-Disposition'], esperado)
         self.assertNotEqual(r.content, r2.content)
+
+
+class OrdenAlfabeticoTests(Base):
+    def test_productos_del_presupuesto_en_orden_alfabetico(self):
+        with self.empresa_ctx():
+            p = ventas.crear(self.cliente, self.vendedor, self.empresa)
+            ventas.agregar_item(p, self.prod, 1, None, self.perfil, True)       # Glucosa (se agrega primero)
+            ventas.agregar_item(p, self.equipo, 1, None, self.perfil, True)     # Centrífuga
+        self.client.force_login(self.vendedor)
+        html = self.client.get(reverse('ventas:detalle', args=[p.pk])).content.decode()
+        tabla = html[html.index('ordo-items'):]
+        self.assertLess(tabla.index('Centrífuga'), tabla.index('Glucosa'))
+        from apps.ventas import pdf as modulo
+        with mock.patch.object(modulo, 'desglose_bs', wraps=modulo.desglose_bs) as espia:
+            self.assertTrue(self.client.get(reverse('ventas:pdf', args=[p.pk])).content.startswith(b'%PDF'))
+            self.assertEqual([i.producto.nombre for i in espia.call_args.args[1]], ['Centrífuga', 'Glucosa'])

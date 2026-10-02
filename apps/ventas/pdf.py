@@ -10,6 +10,8 @@ from reportlab.platypus import HRFlowable, Image, KeepTogether, Paragraph, Space
 from apps.core.pdf import ESTILO_CELDA, ESTILOS, documento, encabezado_empresa, pie_empresa
 from apps.core.templatetags.ordo import usd
 
+from django.db.models.functions import Lower
+
 from .models import ItemPresupuesto, desglose_bs, redondear
 
 
@@ -180,7 +182,8 @@ def presupuesto_pdf(p, empresa, moneda='ambas', tasa_referencial=False):
         cab += [Paragraph('P. Unit USD', blanco_d), Paragraph('Subtotal USD', blanco_d)]
         anchos = [20, 56, 26, 20, 14, 24, 26]
     filas = [cab]
-    items = list(ItemPresupuesto.todos.filter(presupuesto=p).select_related('producto__unidad', 'producto__marca'))
+    items = list(ItemPresupuesto.todos.filter(presupuesto=p).select_related('producto__unidad', 'producto__marca')
+                 .order_by(Lower('producto__nombre'), 'pk'))
     lotes = lotes_por_item(p, items)
     montos_bs = desglose_bs(p, items)
     for i in items:

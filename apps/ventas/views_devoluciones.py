@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
+from django.db.models.functions import Lower
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -36,7 +37,8 @@ def devolver(request, pk):
         messages.error(request, 'Solo se pueden devolver ventas validadas.')
         return redirect('ventas:detalle', pk=pk)
     ya = servicios.devuelto_por_item(p)
-    items = list(ItemPresupuesto.objects.filter(presupuesto=p).select_related('producto__unidad'))
+    items = list(ItemPresupuesto.objects.filter(presupuesto=p).select_related('producto__unidad')
+                 .order_by(Lower('producto__nombre'), 'pk'))
     for i in items:
         i.devuelto = ya.get(i.pk, 0)
         i.maximo = i.cantidad - i.devuelto

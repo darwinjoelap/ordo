@@ -43,7 +43,7 @@
 
 <div class="row g-3">
   <div class="col-lg-7">
-    <div class="card"><div class="card-header bg-white fw-semibold">Actividad reciente</div>
+    <div class="card"><div class="card-header ordo-card-titulo"><i class="bi bi-clock-history me-1"></i>Actividad reciente</div>
       {% if ultimos %}
       <div class="list-group list-group-flush">
         {% for p in ultimos %}<a href="{% url 'ventas:detalle' p.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-2">
@@ -54,7 +54,7 @@
     </div>
   </div>
   <div class="col-lg-5">
-    <div class="card"><div class="card-header bg-white fw-semibold"><i class="bi bi-alarm me-1"></i>Apartados por vencer (48 h)</div>
+    <div class="card"><div class="card-header ordo-card-titulo"><i class="bi bi-alarm me-1"></i>Apartados por vencer (48 h)</div>
       {% if por_vencer %}
       <div class="list-group list-group-flush">
         {% for p in por_vencer %}<a href="{% url 'ventas:detalle' p.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between"><span>{{ p.numero }} · <span class="small">{{ p.cliente.nombre }}</span></span><span class="small {% if p.apartado_vencido %}text-danger{% else %}text-muted{% endif %}">{{ p.apartado_hasta|date:"d/m H:i" }}</span></a>{% endfor %}
