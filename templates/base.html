@@ -80,55 +80,7 @@
 
   <!-- Menú lateral: escritorio -->
   <nav class="ordo-sidebar d-none d-lg-block" aria-label="Menú principal">
-    <a href="{{ url_inicio }}" class="nav-link {% if request.path == url_inicio %}active{% endif %}">
-      <i class="bi bi-house"></i> Inicio
-    </a>
-    {% if user.is_superuser %}
-      <a href="{% url 'plataforma:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'plataforma' %}active{% endif %}"><i class="bi bi-buildings"></i> Plataforma</a>
-    {% endif %}
-    {% if empresa %}
-    <div class="nav-seccion">Comercial</div>
-    {% if 'presupuestos.crear' in permisos %}
-      <a href="{% url 'ventas:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'ventas' and request.resolver_match.url_name not in 'por_validar devoluciones devolucion reportes reporte_facturacion reporte_apartados' %}active{% endif %}"><i class="bi bi-file-earmark-text"></i> Presupuestos</a>
-    {% endif %}
-    {% if 'ventas.validar' in permisos %}
-      <a href="{% url 'ventas:por_validar' %}" class="nav-link {% if request.resolver_match.url_name == 'por_validar' %}active{% endif %}"><i class="bi bi-bag-check"></i> Por validar</a>
-    {% endif %}
-    {% if 'ventas.devolver' in permisos %}
-      <a href="{% url 'ventas:devoluciones' %}" class="nav-link {% if request.resolver_match.url_name == 'devoluciones' or request.resolver_match.url_name == 'devolucion' %}active{% endif %}"><i class="bi bi-arrow-return-left"></i> Devoluciones</a>
-    {% endif %}
-    {% if 'presupuestos.crear' in permisos %}
-      <a href="{% url 'ventas:reportes' %}" class="nav-link {% if request.resolver_match.url_name in 'reportes reporte_facturacion reporte_apartados' %}active{% endif %}"><i class="bi bi-bar-chart-line"></i> Reportes</a>
-    {% endif %}
-    {% if 'clientes.gestionar' in permisos %}
-      <a href="{% url 'clientes:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'clientes' %}active{% endif %}"><i class="bi bi-people"></i> Clientes</a>
-    {% endif %}
-    {% if 'comisiones.ver_propias' in permisos %}
-      <a href="{% url 'comisiones:inicio' %}" class="nav-link {% if request.resolver_match.app_name == 'comisiones' %}active{% endif %}"><i class="bi bi-cash-coin"></i> Comisiones</a>
-    {% endif %}
-    <div class="nav-seccion">Operación</div>
-    {% if 'inventario.ver' in permisos %}
-      <a href="{% url 'inventario:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'inventario' %}active{% endif %}"><i class="bi bi-box-seam"></i> Inventario</a>
-    {% endif %}
-    {% if 'compras.gestionar' in permisos %}
-      <a href="{% url 'compras:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'compras' %}active{% endif %}"><i class="bi bi-truck"></i> Compras</a>
-    {% endif %}
-    {% if 'proveedores.gestionar' in permisos %}
-      <a href="{% url 'proveedores:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'proveedores' %}active{% endif %}"><i class="bi bi-building"></i> Proveedores</a>
-    {% endif %}
-    {% if 'empresa.configurar' in permisos %}
-      {% url 'empresas:mi_empresa' as url_mi_empresa %}
-      <div class="nav-seccion">Empresa</div>
-      <a href="{{ url_mi_empresa }}" class="nav-link {% if request.path == url_mi_empresa %}active{% endif %}"><i class="bi bi-gear"></i> Mi empresa</a>
-    {% endif %}
-    {% if 'usuarios.gestionar' in permisos %}
-      {% if 'empresa.configurar' not in permisos %}<div class="nav-seccion">Empresa</div>{% endif %}
-      <a href="{% url 'empresas:equipo' %}" class="nav-link {% if request.resolver_match.url_name == 'equipo' %}active{% endif %}"><i class="bi bi-person-badge"></i> Equipo</a>
-    {% endif %}
-    {% if 'tasa.cargar' in permisos %}
-      <a href="{% url 'empresas:tasa' %}" class="nav-link {% if request.resolver_match.url_name == 'tasa' %}active{% endif %}"><i class="bi bi-currency-exchange"></i> Tasa del día</a>
-    {% endif %}
-    {% endif %}
+    {% include '_menu.html' %}
     <div class="mt-4 px-3 small text-muted">Ordo · {{ ORDO_VERSION }}</div>
   </nav>
 
@@ -158,8 +110,19 @@
     {% if 'presupuestos.crear' in permisos %}<a href="{% url 'ventas:nuevo' %}" class="{% if request.resolver_match.url_name == 'nuevo' %}active{% endif %}"><i class="bi bi-plus-circle"></i>Presupuesto</a>
     <a href="{% url 'ventas:lista' %}" class="{% if request.resolver_match.app_name == 'ventas' and request.resolver_match.url_name != 'nuevo' %}active{% endif %}"><i class="bi bi-file-earmark-text"></i>Ventas</a>{% endif %}
     {% if 'inventario.ver' in permisos %}<a href="{% url 'inventario:lista' %}" class="{% if request.resolver_match.app_name == 'inventario' %}active{% endif %}"><i class="bi bi-box-seam"></i>Inventario</a>{% endif %}
-    {% if 'comisiones.ver_propias' in permisos %}<a href="{% url 'comisiones:inicio' %}" class="{% if request.resolver_match.app_name == 'comisiones' %}active{% endif %}"><i class="bi bi-cash-coin"></i>Comisiones</a>{% endif %}
+    {% if empresa or user.is_superuser %}<a href="#ordo-mas" data-bs-toggle="offcanvas" role="button" aria-controls="ordo-mas" class="{% if request.resolver_match.app_name in 'compras clientes proveedores comisiones plataforma' %}active{% endif %}"><i class="bi bi-list"></i>Más</a>{% endif %}
   </nav>
+
+  <!-- Panel «Más»: el menú completo en móvil (Compras, Clientes, Proveedores, Reportes…) -->
+  <div class="offcanvas offcanvas-bottom d-lg-none" tabindex="-1" id="ordo-mas" aria-labelledby="ordo-mas-titulo" style="height:auto;max-height:85vh">
+    <div class="offcanvas-header pb-0">
+      <h2 class="offcanvas-title h6" id="ordo-mas-titulo">Menú</h2>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Cerrar"></button>
+    </div>
+    <div class="offcanvas-body pt-2">
+      <nav class="ordo-menu-movil" aria-label="Menú completo">{% include '_menu.html' %}</nav>
+    </div>
+  </div>
 {% endblock %}
 
   <!-- Aviso de instalación (PWA) -->

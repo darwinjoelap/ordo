@@ -109,7 +109,8 @@ body {
   border-right: 1px solid var(--ordo-gris-200);
   overflow-y: auto;
 }
-.ordo-sidebar .nav-link {
+.ordo-sidebar .nav-link,
+.ordo-menu-movil .nav-link {
   display: flex;
   align-items: center;
   gap: .75rem;
@@ -119,11 +120,16 @@ body {
   color: var(--ordo-gris-600);
   font-weight: 500;
 }
-.ordo-sidebar .nav-link i { font-size: 1.15rem; }
-.ordo-sidebar .nav-link:hover { background: var(--ordo-fondo); color: var(--ordo-azul-900); }
-.ordo-sidebar .nav-link.active { background: rgba(5, 61, 116, .08); color: var(--ordo-azul-900); }
-.ordo-sidebar .nav-link.disabled { opacity: .45; pointer-events: none; }
-.ordo-sidebar .nav-seccion {
+.ordo-sidebar .nav-link i,
+.ordo-menu-movil .nav-link i { font-size: 1.15rem; }
+.ordo-sidebar .nav-link:hover,
+.ordo-menu-movil .nav-link:hover { background: var(--ordo-fondo); color: var(--ordo-azul-900); }
+.ordo-sidebar .nav-link.active,
+.ordo-menu-movil .nav-link.active { background: rgba(5, 61, 116, .08); color: var(--ordo-azul-900); }
+.ordo-sidebar .nav-link.disabled,
+.ordo-menu-movil .nav-link.disabled { opacity: .45; pointer-events: none; }
+.ordo-sidebar .nav-seccion,
+.ordo-menu-movil .nav-seccion {
   font-size: .72rem;
   text-transform: uppercase;
   letter-spacing: .06em;
@@ -253,3 +259,7 @@ code { color: var(--ordo-gris-600); }
 .ordo-barra { background: var(--ordo-azul-700); border-radius: 0 4px 4px 0; height: 10px; min-width: 2px; }
 .ordo-barra-otros { background: var(--ordo-gris-600); }
 .ordo-fila-barra:hover .ordo-barra { background: var(--ordo-azul-900); }
+
+/* Panel «Más» (menú completo en móvil) */
+#ordo-mas { z-index: 1080; border-radius: 1rem 1rem 0 0; }
+#ordo-mas .offcanvas-body { padding-bottom: calc(env(safe-area-inset-bottom) + 1rem); }

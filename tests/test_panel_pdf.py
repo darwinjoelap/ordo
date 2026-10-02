@@ -139,3 +139,14 @@ class RecepcionConFaltantesTests(ComprasBase):
         r = self.client.post(self.url, {f'cantidad_{self.i1.pk}': 0, f'cantidad_{self.i2.pk}': 0})
         self.assertContains(r, 'Indica al menos una cantidad')
         self.assertEqual(self.estado(), 'ENVIADA')
+
+
+class MenuMovilTests(ComprasBase):
+    def test_menu_mas_da_acceso_a_compras_en_movil(self):
+        html = self.client.get(reverse('core:inicio')).content.decode()
+        panel = html[html.index('id="ordo-mas"'):]
+        for nombre in ('compras:lista', 'clientes:lista', 'proveedores:lista', 'comisiones:inicio', 'ventas:reportes'):
+            self.assertIn(f'href="{reverse(nombre)}"', panel, nombre)
+        self.client.force_login(self.vendedor)          # el vendedor no ve Compras tampoco en el panel
+        html = self.client.get(reverse('core:inicio')).content.decode()
+        self.assertNotIn(f'href="{reverse("compras:lista")}"', html[html.index('id="ordo-mas"'):])
