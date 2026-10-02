@@ -23,30 +23,51 @@ def orden_compra_pdf(orden, empresa, mostrar_costos=True):
         datos_prov.append(contacto)
     e += [Paragraph('<br/>'.join(datos_prov), ESTILOS['Normal']), Spacer(1, 5 * mm)]
 
+    # Productos clasificados por categoría › subcategoría (alfabético), con total de unidades por clasificación
+    def clasificacion(i):
+        pr = i.producto
+        return f'{pr.categoria.nombre} › {pr.subcategoria.nombre}' if pr.subcategoria_id else pr.categoria.nombre
+
+    items = sorted(orden.items.select_related('producto__unidad', 'producto__categoria', 'producto__subcategoria'),
+                   key=lambda i: (i.producto.categoria.nombre.lower(),
+                                  i.producto.subcategoria.nombre.lower() if i.producto.subcategoria_id else '',
+                                  i.producto.nombre.lower()))
+    columnas = 7 if mostrar_costos else 5
     encabezados = ['#', 'Código', 'Producto', 'Unidad', 'Cantidad'] + (['Costo unit.', 'Subtotal'] if mostrar_costos else [])
     filas = [encabezados]
-    items = list(orden.items.select_related('producto__unidad'))
-    for n, i in enumerate(items, 1):
+    gris = colors.HexColor('#E5E7EB')
+    estilo = [
+        ('BACKGROUND', (0, 0), (-1, 0), color), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'), ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+        ('ALIGN', (4, 1), (-1, -1), 'RIGHT'), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LINEBELOW', (0, 0), (-1, -1), 0.25, colors.HexColor('#D1D5DB')),
+    ]
+    actual, n, unidades = None, 0, 0
+    for i in items:
+        clas = clasificacion(i)
+        if clas != actual:
+            actual = clas
+            total_clas = sum(x.cantidad_pedida for x in items if clasificacion(x) == clas)
+            f = len(filas)
+            filas.append([Paragraph(f'<b>{clas}</b>', ESTILO_CELDA), '', '', 'Total', total_clas] + [''] * (columnas - 5))
+            estilo += [('SPAN', (0, f), (2, f)), ('BACKGROUND', (0, f), (-1, f), gris),
+                       ('FONTNAME', (3, f), (4, f), 'Helvetica-Bold')]
+        n += 1
+        unidades += i.cantidad_pedida
         fila = [n, i.producto.codigo, Paragraph(i.producto.nombre, ESTILO_CELDA), i.producto.unidad.abreviatura,
                 i.cantidad_pedida]
         if mostrar_costos:
             fila += [usd(i.costo_unitario_usd), usd(i.subtotal_usd)]
         filas.append(fila)
-    if mostrar_costos:
-        filas.append([''] * 5 + ['TOTAL', usd(orden.total_usd())])
+    f = len(filas)
+    filas.append([f'TOTAL · {n} productos', '', '', 'Unidades', unidades]
+                 + (['TOTAL', usd(orden.total_usd())] if mostrar_costos else []))
+    estilo += [('SPAN', (0, f), (2, f)), ('FONTNAME', (0, f), (-1, f), 'Helvetica-Bold'),
+               ('LINEABOVE', (0, f), (-1, f), 1, color)]
     anchos = [8 * mm, 24 * mm, 70 * mm, 16 * mm, 18 * mm] + ([24 * mm, 26 * mm] if mostrar_costos else [])
     if not mostrar_costos:
         anchos[2] = 120 * mm
     tabla = Table(filas, colWidths=anchos, repeatRows=1)
-    estilo = [
-        ('BACKGROUND', (0, 0), (-1, 0), color), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'), ('FONTSIZE', (0, 0), (-1, -1), 8.5),
-        ('ALIGN', (4, 1), (-1, -1), 'RIGHT'), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ROWBACKGROUNDS', (0, 1), (-1, len(items)), [colors.white, colors.HexColor('#F3F4F6')]),
-        ('LINEBELOW', (0, 0), (-1, len(items)), 0.25, colors.HexColor('#D1D5DB')),
-    ]
-    if mostrar_costos:
-        estilo += [('FONTNAME', (-2, -1), (-1, -1), 'Helvetica-Bold'), ('LINEABOVE', (-2, -1), (-1, -1), 1, color)]
     tabla.setStyle(TableStyle(estilo))
     e += [tabla, Spacer(1, 6 * mm)]
     if orden.notas:

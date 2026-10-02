@@ -150,3 +150,28 @@ class MenuMovilTests(ComprasBase):
         self.client.force_login(self.vendedor)          # el vendedor no ve Compras tampoco en el panel
         html = self.client.get(reverse('core:inicio')).content.decode()
         self.assertNotIn(f'href="{reverse("compras:lista")}"', html[html.index('id="ordo-mas"'):])
+
+
+class OrdenCompraPdfClasificadaTests(ClasificacionTests):
+    def test_pdf_de_la_orden_va_por_clasificacion(self):
+        with self.en_empresa():
+            orden = compras.crear_orden(self.prov, self.dueno, [(self.p1, 5, Decimal('10')), (self.p3, 2, Decimal('1')),
+                                                                (self.p4, 4, Decimal('1')), (self.p2, 1, Decimal('3'))])
+        capturadas = []
+        from apps.compras import pdf as modulo
+        original = modulo.Table
+
+        def espia(filas, **kw):
+            capturadas.append(filas)
+            return original(filas, **kw)
+        with mock.patch.object(modulo, 'Table', side_effect=espia):
+            for q in ('', '?costos=0'):
+                r = self.client.get(reverse('compras:pdf', args=[orden.pk]) + q)
+                self.assertTrue(r.content.startswith(b'%PDF'))
+        filas = max(capturadas, key=len)                  # la tabla de productos (la otra es el encabezado)
+        texto = [(getattr(f[0], 'text', f[0]), f[4]) for f in filas[1:]]
+        grupos = [(t, c) for t, c in texto if isinstance(t, str) and '<b>' in t]
+        self.assertEqual(grupos, [('<b>Analizadores</b>', 2), ('<b>R › Hematología</b>', 1), ('<b>R › Química</b>', 9)])
+        self.assertEqual(filas[-1][4], 12)                # total de unidades
+        r = self.client.get(reverse('compras:detalle', args=[orden.pk])).content.decode()
+        self.assertLess(r.index('Tres'), r.index('Dos'))  # el detalle también: Analizadores antes que R

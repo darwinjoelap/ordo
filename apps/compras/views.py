@@ -56,7 +56,8 @@ def _orden(pk):
 @requiere('compras.gestionar')
 def detalle(request, pk):
     orden = _orden(pk)
-    items = list(orden.items.select_related('producto__unidad'))
+    items = list(orden.items.select_related('producto__unidad').order_by(
+        'producto__categoria__nombre', 'producto__subcategoria__nombre', 'producto__nombre'))
     return render(request, 'compras/detalle.html', {
         'titulo': orden.numero, 'orden': orden, 'items': items,
         'total': sum((i.subtotal_usd for i in items), Decimal('0')),
