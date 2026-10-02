@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST
 from apps.core.permisos import PERMISOS, requiere, tiene_permiso
 from apps.empresas.models import Membresia
 from apps.inventario.models import Categoria
+from apps.core.pdf import nombre_corto, respuesta_pdf
 
 from . import servicios
 from .models import AjusteComision, Comision, Liquidacion, PorcentajeCategoria, PorcentajeVendedor
@@ -211,6 +212,5 @@ def liquidacion(request, pk):
 @requiere('comisiones.ver_propias')
 def liquidacion_pdf_vista(request, pk):
     liq = get_object_or_404(_liquidaciones_visibles(request), pk=pk)
-    r = HttpResponse(liquidacion_pdf(liq, request.empresa), content_type='application/pdf')
-    r['Content-Disposition'] = f'inline; filename="{liq.numero}.pdf"'
-    return r
+    return respuesta_pdf(liquidacion_pdf(liq, request.empresa), liq.numero,
+                         nombre_corto(liq.vendedor.nombre_visible), liq.hasta)

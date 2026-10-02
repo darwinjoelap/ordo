@@ -11,6 +11,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from apps.core.permisos import requiere, tiene_permiso
+from apps.core.pdf import nombre_corto, respuesta_pdf
 
 from . import servicios
 from .models import Devolucion, ItemDevolucion, ItemPresupuesto, Presupuesto
@@ -123,6 +124,5 @@ def lista(request):
 @requiere('presupuestos.crear')
 def pdf(request, pk):
     dev = get_object_or_404(_devoluciones_visibles(request), pk=pk)
-    r = HttpResponse(devolucion_pdf(dev, request.empresa), content_type='application/pdf')
-    r['Content-Disposition'] = f'inline; filename="{dev.numero}.pdf"'
-    return r
+    return respuesta_pdf(devolucion_pdf(dev, request.empresa), dev.numero,
+                         nombre_corto(dev.presupuesto.cliente.nombre), dev.fecha)

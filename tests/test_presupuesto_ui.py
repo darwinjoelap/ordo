@@ -74,3 +74,34 @@ class PresupuestoPantallaTests(Base):
         self.assertNotContains(r, 'IVA (')
         self.assertNotContains(r, 'Exento')
         self.assertContains(r, 'requestSubmit')               # el interruptor guarda al tocarlo
+
+
+class NombreArchivoPdfTests(Base):
+    def test_nombre_corto_y_archivo(self):
+        from datetime import date
+
+        from apps.core.pdf import nombre_archivo, nombre_corto
+        self.assertEqual(nombre_corto('Laboratorio Clínico La Esperanza, C.A.'), 'Laboratorio-Clinico-Esperanza')
+        self.assertEqual(nombre_corto('Distribuidora Farmacéutica Internacional de Occidente'),
+                         'Distribuidora-Farmaceutica')
+        self.assertEqual(nombre_corto('Clínica Sol'), 'Clinica-Sol')
+        self.assertEqual(nombre_archivo('202600343', 'Clinica-Sol', date(2026, 10, 2)),
+                         '202600343_Clinica-Sol_2026-10-02.pdf')
+        self.assertEqual(nombre_archivo('P-2026-00001', '', date(2026, 1, 5)), 'P-2026-00001_2026-01-05.pdf')
+
+    def test_presupuesto_numero_cliente_fecha_y_sin_cache(self):
+        with self.empresa_ctx():
+            p = ventas.crear(self.cliente, self.vendedor, self.empresa)
+            ventas.agregar_item(p, self.prod, 1, None, self.perfil, True)
+        self.client.force_login(self.vendedor)
+        url = reverse('ventas:pdf', args=[p.pk])
+        r = self.client.get(url)
+        esperado = f'inline; filename="{p.numero}_Clinica-Sol_{p.fecha:%Y-%m-%d}.pdf"'
+        self.assertEqual(r['Content-Disposition'], esperado)
+        self.assertIn('no-store', r['Cache-Control'])
+        # Tras modificar el presupuesto: mismo nombre de archivo (reemplaza al anterior), contenido nuevo
+        with self.empresa_ctx():
+            ventas.agregar_item(p, self.equipo, 1, None, self.perfil, True)
+        r2 = self.client.get(url)
+        self.assertEqual(r2['Content-Disposition'], esperado)
+        self.assertNotEqual(r.content, r2.content)

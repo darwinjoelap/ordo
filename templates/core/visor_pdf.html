@@ -31,7 +31,7 @@
   document.getElementById('visor-menos').addEventListener('click', () => aplicarZoom(-50));
 
   try {
-    const resp = await fetch(cont.dataset.url, { credentials: 'same-origin' });
+    const resp = await fetch(cont.dataset.url, { credentials: 'same-origin', cache: 'no-store' });
     if (!resp.ok || !(resp.headers.get('Content-Type') || '').includes('pdf')) throw new Error('respuesta');
     const m = /filename="?([^";]+)"?/.exec(resp.headers.get('Content-Disposition') || '');
     const nombre = m ? m[1] : 'documento.pdf';

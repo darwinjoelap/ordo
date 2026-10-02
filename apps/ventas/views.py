@@ -13,6 +13,7 @@ from django.views.decorators.http import require_POST
 from apps.clientes.permisos import clientes_visibles
 from apps.core.permisos import requiere, tiene_permiso
 from apps.inventario.models import Producto
+from apps.core.pdf import nombre_corto, respuesta_pdf
 
 from . import servicios
 from .models import ItemPresupuesto, Presupuesto, Reserva, desglose_bs
@@ -310,9 +311,7 @@ def pdf(request, pk):
     referencial = _tasa_referencial(request, p)
     contenido = presupuesto_pdf(p, request.empresa, moneda=request.GET.get('moneda', 'ambas'),
                                 tasa_referencial=referencial)
-    r = HttpResponse(contenido, content_type='application/pdf')
-    r['Content-Disposition'] = f'inline; filename="{p.numero}.pdf"'
-    return r
+    return respuesta_pdf(contenido, p.numero, nombre_corto(p.cliente.nombre), p.fecha)
 
 
 @login_required

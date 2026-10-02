@@ -8,6 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
 from apps.core.permisos import requiere, tiene_permiso
+from apps.core.pdf import nombre_corto, respuesta_pdf
 
 from . import servicios
 from .forms import (AjusteForm, CategoriaForm, IngresoForm, MarcaForm, ProductoForm, SubcategoriaForm,
@@ -252,8 +253,9 @@ def lista_precios(request):
         contenido = lista_precios_pdf(productos, request.empresa,
                                       mostrar_existencia=bool(request.GET.get('mostrar_existencia')),
                                       tasa=tasa_vigente(request.empresa) if request.GET.get('en_bs') else None)
-        r = HttpResponse(contenido, content_type='application/pdf')
-        r['Content-Disposition'] = 'inline; filename="lista-de-precios.pdf"'
-        return r
+        from django.utils import timezone
+        return respuesta_pdf(contenido, 'Lista-de-precios', nombre_corto(request.empresa.perfil.nombre_comercial
+                                                                         or request.empresa.nombre),
+                             timezone.localdate())
     return render(request, 'inventario/lista_precios.html', {'titulo': 'Lista de precios',
                                                              'categorias': Categoria.objects.all()})

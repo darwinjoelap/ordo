@@ -90,3 +90,47 @@ def pie_empresa(empresa):
 def documento(buffer, titulo_pdf='Documento'):
     return SimpleDocTemplate(buffer, pagesize=letter, title=titulo_pdf,
                              leftMargin=15 * mm, rightMargin=15 * mm, topMargin=14 * mm, bottomMargin=20 * mm)
+
+
+# ── Nombre del archivo y respuesta HTTP ───────────────────────────────────────
+_SOBRAN = {'ca', 'c.a', 'c.a.', 'sa', 's.a', 's.a.', 'srl', 's.r.l', 's.r.l.', 'rl', 'r.l', 'r.l.', 'fp', 'f.p', 'f.p.',
+           'de', 'del', 'la', 'las', 'el', 'los', 'y', 'e'}
+
+
+def nombre_corto(nombre, palabras=3, largo=30):
+    """«Laboratorio Clínico La Esperanza, C.A.» → «Laboratorio-Clinico-Esperanza» (sin acentos ni símbolos)."""
+    import unicodedata
+    texto = unicodedata.normalize('NFKD', nombre or '').encode('ascii', 'ignore').decode()
+    partes = [x for x in texto.replace(',', ' ').split() if x.lower() not in _SOBRAN]
+    limpias = [''.join(c for c in x if c.isalnum()) for x in partes]
+    salida = ''
+    for x in [x for x in limpias if x][:palabras]:          # palabras completas mientras quepan
+        if salida and len(salida) + 1 + len(x) > largo:
+            break
+        salida = f'{salida}-{x}' if salida else x[:largo]
+    return salida
+
+
+def nombre_archivo(*partes, extension='pdf'):
+    """Une las partes con «_» (número, destino corto, fecha): 202600343_Clinica-Sol_2026-10-02.pdf"""
+    from datetime import date, datetime
+    limpias = []
+    for x in partes:
+        if isinstance(x, (date, datetime)):
+            x = x.strftime('%Y-%m-%d')
+        x = ''.join(c for c in str(x or '') if c.isalnum() or c in '-.').strip('-.')
+        if x:
+            limpias.append(x)
+    return '_'.join(limpias) + f'.{extension}'
+
+
+def respuesta_pdf(contenido, *partes):
+    """
+    PDF en línea con nombre «número_destino_fecha.pdf». El nombre es estable para un mismo documento y el
+    contenido nunca se guarda en caché: cada vez que se abre, comparte o descarga sale la versión actual.
+    """
+    from django.http import HttpResponse
+    r = HttpResponse(contenido, content_type='application/pdf')
+    r['Content-Disposition'] = f'inline; filename="{nombre_archivo(*partes)}"'
+    r['Cache-Control'] = 'no-store, max-age=0'
+    return r

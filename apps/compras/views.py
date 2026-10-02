@@ -12,6 +12,7 @@ from django.views.decorators.http import require_POST
 from apps.core.permisos import requiere
 from apps.inventario.models import Producto
 from apps.proveedores.models import Proveedor
+from apps.core.pdf import nombre_corto, respuesta_pdf
 
 from . import servicios, sugerencias
 from .forms import ItemForm, OrdenForm
@@ -183,9 +184,7 @@ def recibir(request, pk):
 def pdf(request, pk):
     orden = _orden(pk)
     contenido = orden_compra_pdf(orden, request.empresa, mostrar_costos=request.GET.get('costos', '1') == '1')
-    r = HttpResponse(contenido, content_type='application/pdf')
-    r['Content-Disposition'] = f'inline; filename="{orden.numero}.pdf"'
-    return r
+    return respuesta_pdf(contenido, orden.numero, nombre_corto(orden.proveedor.nombre), orden.fecha)
 
 
 # ── Panel de pedido ───────────────────────────────────────────────────────────
@@ -251,9 +250,9 @@ def panel_pedido_pdf_vista(request):
                 textos.append(f'{etiqueta}: {obj.nombre}')
     contenido = panel_pedido_pdf(request.empresa, sugerencias.por_clasificacion(grupos, cantidades), dias,
                                  ' · '.join(textos))
-    r = HttpResponse(contenido, content_type='application/pdf')
-    r['Content-Disposition'] = 'inline; filename="pedido.pdf"'
-    return r
+    from django.utils import timezone
+    return respuesta_pdf(contenido, 'Pedido', nombre_corto(request.empresa.perfil.nombre_comercial
+                                                           or request.empresa.nombre), timezone.localdate())
 
 
 @login_required
