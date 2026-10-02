@@ -39,7 +39,9 @@ class SinIvaTests(Base):
         self.client.post(reverse('ventas:actualizar', args=[p.pk]), {'iva_enviado': '1', 'sin_iva': '1'})
         p.refresh_from_db()
         self.assertEqual(p.iva_usd, Decimal('0'))
-        self.assertContains(self.client.get(reverse('ventas:detalle', args=[p.pk])), 'Exento')
+        r = self.client.get(reverse('ventas:detalle', args=[p.pk]))
+        self.assertNotContains(r, 'Exento')          # sin IVA: la fila del IVA desaparece
+        self.assertNotContains(r, 'IVA (')
         self.assertTrue(self.client.get(reverse('ventas:pdf', args=[p.pk])).content.startswith(b'%PDF'))
         self.client.post(reverse('ventas:actualizar', args=[p.pk]), {'iva_enviado': '1'})   # desmarcado
         p.refresh_from_db()

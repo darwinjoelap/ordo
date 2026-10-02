@@ -263,3 +263,26 @@ code { color: var(--ordo-gris-600); }
 /* Panel «Más» (menú completo en móvil) */
 #ordo-mas { z-index: 1080; border-radius: 1rem 1rem 0 0; }
 #ordo-mas .offcanvas-body { padding-bottom: calc(env(safe-area-inset-bottom) + 1rem); }
+
+/* Títulos de tarjeta con el color de la marca (presupuesto) */
+.ordo-card-titulo { background: var(--ordo-azul-900); color: #fff; font-weight: 600; }
+/* Resultados de búsqueda de productos: los controles aparecen al elegir uno */
+.js-resultado .ordo-solo-elegido { display: none; }
+.js-resultado.ordo-elegido .ordo-solo-elegido { display: block; }
+.js-resultado.ordo-elegido { cursor: default; border-color: var(--bs-success); background: rgba(25, 135, 84, .05); }
+.js-resultado:not(.ordo-elegido):hover { background: var(--ordo-fondo); }
+
+/* Líneas del presupuesto: en teléfono cada producto es un bloque (nombre arriba; cantidad, precio, subtotal y papelera abajo) */
+@media (max-width: 575.98px) {
+  .ordo-items thead { display: none; }
+  .ordo-items tbody tr {
+    display: grid; grid-template-columns: 4.5rem 6rem 1fr auto; gap: .35rem .6rem; align-items: end;
+    padding: .7rem .85rem; border-bottom: 1px solid var(--bs-border-color);
+  }
+  .ordo-items tbody td { padding: 0; border: 0; background: transparent; box-shadow: none; }
+  .ordo-items tbody td:first-child { grid-column: 1 / -1; }
+  .ordo-items tbody td[data-etq]::before {
+    content: attr(data-etq); display: block; font-size: .7rem; color: var(--ordo-gris-600); text-align: inherit;
+  }
+  .ordo-items tbody td[data-etq]:not(.text-end) { text-align: left; }
+}

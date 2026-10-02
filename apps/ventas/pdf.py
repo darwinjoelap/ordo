@@ -124,7 +124,7 @@ def _celdas_lote(producto, info):
     return Paragraph('<br/>'.join(numeros), E_LOTE), Paragraph('<br/>'.join(fechas), E_LOTE)
 
 
-def presupuesto_pdf(p, empresa, moneda='ambas'):
+def presupuesto_pdf(p, empresa, moneda='ambas', tasa_referencial=False):
     """
     Presupuesto / nota de venta (formato BioLifeVentas). moneda: 'usd' | 'bs' | 'ambas'. Sin tasa, siempre USD.
     Lote y F. Venc. muestran todos los lotes del producto en su misma fila.
@@ -143,7 +143,7 @@ def presupuesto_pdf(p, empresa, moneda='ambas'):
         der.append(f'Válido hasta: {p.valido_hasta:%d/%m/%Y}')
     der.append(f'Vendedor: {p.vendedor.nombre_visible}')
     if moneda != 'usd':
-        der.append(f'Tasa: Bs {p.tasa_bs:.4f}/USD'.replace('.', ','))
+        der.append(f'Tasa: Bs {p.tasa_bs:.4f}/USD'.replace('.', ',') + (' (referencial)' if tasa_referencial else ''))
     e = encabezado_empresa(empresa, titulo=titulo, subtitulo='<br/>'.join(der))
 
     # ── Cliente ───────────────────────────────────────────────────────────────
@@ -225,8 +225,6 @@ def presupuesto_pdf(p, empresa, moneda='ambas'):
         tot.append(fila_total('Subtotal con descuento:', p.base_usd, 'base'))
     if p.iva_usd:
         tot.append(fila_total(f'IVA ({pct(p.iva_pct)} %):', p.iva_usd, 'iva'))
-    elif not p.iva_pct:
-        tot.append(['IVA:', 'Exento'] + (['Exento'] if moneda == 'ambas' else []))
     if moneda == 'usd':
         tot.append(['TOTAL USD:', usd(p.total_usd)])
     elif moneda == 'bs':

@@ -10,7 +10,7 @@
       <a href="{% url 'clientes:detalle' p.cliente_id %}">{{ p.cliente.nombre }}</a>{% if p.cliente.rif %} · {{ p.cliente.rif }}{% endif %}
       · {{ p.fecha|date:"d/m/Y" }}{% if p.editable %} · válido hasta {{ p.valido_hasta|date:"d/m/Y" }}{% endif %}
       · Vendedor: {{ p.vendedor.nombre_visible }}
-      {% if p.tasa_bs %} · Tasa {{ p.tasa_bs|floatformat:"2g" }} Bs/USD{% endif %}
+      {% if p.tasa_bs %} · Tasa {{ p.tasa_bs|floatformat:"2g" }} Bs/USD{% if tasa_referencial %} (de hoy, referencial){% endif %}{% endif %}
     </div>
   </div>
   <div class="dropdown">
@@ -28,13 +28,14 @@
 {% if p.motivo_rechazo %}<div class="alert alert-danger py-2"><i class="bi bi-x-octagon me-1"></i><b>Rechazada:</b> {{ p.motivo_rechazo }}</div>{% endif %}
 {% if p.requiere_revision %}<div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i>Hay precios fuera del rango permitido. Quien valide la venta lo verá.</div>{% endif %}
 {% if p.estado == 'APARTADO' %}<div class="alert {% if p.apartado_vencido %}alert-danger{% else %}alert-warning{% endif %} py-2"><i class="bi bi-lock me-1"></i>Stock apartado hasta el {{ p.apartado_hasta|date:"d/m/Y H:i" }}.</div>{% endif %}
-{% if p.editable and not p.tasa_bs %}<div class="alert alert-light border py-2 small"><i class="bi bi-info-circle me-1"></i>La tasa BCV se congela al <b>emitir</b>.</div>{% endif %}
+{% if p.editable and tasa_referencial %}<div class="alert alert-light border py-2 small"><i class="bi bi-info-circle me-1"></i>Los montos en Bs usan la tasa de hoy. La tasa se congela al <b>emitir</b>.</div>
+{% elif p.editable and not p.tasa_bs %}<div class="alert alert-warning py-2 small"><i class="bi bi-exclamation-triangle me-1"></i>No hay tasa cargada: el presupuesto sale solo en USD.</div>{% endif %}
 
 <div class="row g-3">
   <div class="col-lg-8">
     {% if p.editable %}
     <div class="card mb-3">
-      <div class="card-header bg-white fw-semibold">Agregar productos</div>
+      <div class="card-header ordo-card-titulo"><i class="bi bi-search me-1"></i>Agregar producto</div>
       <div class="card-body">
         <input type="search" name="q" class="form-control" placeholder="Nombre o código (mínimo 2 letras)" autocomplete="off"
                hx-get="{% url 'ventas:buscar_productos' p.pk %}" hx-trigger="input changed delay:300ms, search" hx-target="#resultados-productos">
@@ -45,28 +46,30 @@
 
     <form method="post" action="{% url 'ventas:actualizar' p.pk %}">
       {% csrf_token %}
+      <button type="submit" class="d-none" tabindex="-1" aria-hidden="true"></button>{# Enter en un campo guarda; no dispara la papelera #}
       <div class="card mb-3">
-        <div class="card-header bg-white fw-semibold">Productos ({{ items|length }})</div>
+        <div class="card-header ordo-card-titulo"><i class="bi bi-box-seam me-1"></i>Productos ({{ items|length }})</div>
         {% if items %}
-        <div class="table-responsive"><table class="table align-middle mb-0">
-          <thead class="table-light"><tr><th>Producto</th><th class="text-end" style="width:6rem">Cant.</th><th class="text-end" style="width:8rem">Precio</th><th class="text-end d-none d-sm-table-cell">Subtotal</th>{% if p.editable %}<th class="text-center" style="width:3rem"></th>{% endif %}</tr></thead>
+        <div class="table-responsive"><table class="table align-middle mb-0 ordo-items">
+          <thead class="table-light"><tr><th>Producto</th><th class="text-end" style="width:6rem">Cant.</th><th class="text-end" style="width:8rem">Precio</th><th class="text-end">Subtotal</th>{% if p.editable %}<th style="width:3rem"><span class="visually-hidden">Quitar</span></th>{% endif %}</tr></thead>
           <tbody>
           {% for i in items %}
             <tr class="{% if i.fuera_de_rango %}table-warning{% endif %}">
               <td>
                 <div class="fw-semibold">{{ i.producto.nombre }}</div>
                 <div class="small text-muted">{{ i.producto.codigo }}{% if i.precio_usd != i.precio_base_usd %} · lista {{ i.precio_base_usd|usd }}{% endif %}{% if i.fuera_de_rango %} · <span class="text-warning-emphasis">fuera de rango</span>{% endif %}</div>
+                {% if i.disponible is not None %}{% if i.disponible <= 0 %}<div class="small text-danger fw-bold"><i class="bi bi-exclamation-circle me-1"></i>SIN STOCK</div>{% elif i.disponible < i.cantidad %}<div class="small text-danger fw-semibold"><i class="bi bi-exclamation-circle me-1"></i>Solo hay {{ i.disponible|miles }} disponibles</div>{% endif %}{% endif %}
                 {% for r in i.lista_reservas %}<div class="small text-muted"><i class="bi bi-lock"></i> Lote {{ r.lote.numero_lote|default:r.lote.pk }}{% if r.lote.fecha_vencimiento %} (vence {{ r.lote.fecha_vencimiento|date:"d/m/Y" }}){% endif %}: {{ r.cantidad }}</div>{% endfor %}
               </td>
               {% if p.editable %}
-                <td><input type="number" min="1" name="cantidad_{{ i.pk }}" value="{{ i.cantidad }}" class="form-control form-control-sm text-end"></td>
-                <td>{% if precio_editable %}<input type="text" inputmode="decimal" name="precio_{{ i.pk }}" value="{{ i.precio_usd }}" class="form-control form-control-sm text-end">{% else %}<div class="text-end">{{ i.precio_usd|usd }}</div>{% endif %}</td>
+                <td data-etq="Cantidad"><input type="number" min="1" name="cantidad_{{ i.pk }}" value="{{ i.cantidad }}" class="form-control form-control-sm text-end"></td>
+                <td data-etq="Precio USD">{% if precio_editable %}<input type="text" inputmode="decimal" name="precio_{{ i.pk }}" value="{{ i.precio_usd }}" class="form-control form-control-sm text-end">{% else %}<div class="text-end">{{ i.precio_usd|usd }}</div>{% endif %}</td>
               {% else %}
-                <td class="text-end">{{ i.cantidad|miles }} {{ i.producto.unidad.abreviatura }}</td>
-                <td class="text-end text-nowrap">{{ i.precio_usd|usd }}</td>
+                <td class="text-end" data-etq="Cantidad">{{ i.cantidad|miles }} {{ i.producto.unidad.abreviatura }}</td>
+                <td class="text-end text-nowrap" data-etq="Precio USD">{{ i.precio_usd|usd }}</td>
               {% endif %}
-              <td class="text-end text-nowrap d-none d-sm-table-cell">{{ i.subtotal_usd|usd }}</td>
-              {% if p.editable %}<td class="text-center"><input type="checkbox" class="form-check-input" name="quitar_{{ i.pk }}" value="1" title="Quitar" aria-label="Quitar {{ i.producto.nombre }}"></td>{% endif %}
+              <td class="text-end text-nowrap" data-etq="Subtotal"><div class="fw-semibold">{{ i.subtotal_usd|usd }}</div>{% if i.subtotal_bs is not None %}<div class="small text-muted">Bs {{ i.subtotal_bs|floatformat:"2g" }}</div>{% endif %}</td>
+              {% if p.editable %}<td class="text-center"><button type="submit" name="quitar_{{ i.pk }}" value="1" class="btn btn-sm btn-outline-danger" title="Quitar" aria-label="Quitar {{ i.producto.nombre }}" onclick="return confirm('¿Quitar {{ i.producto.nombre|escapejs }} del presupuesto?')"><i class="bi bi-trash"></i></button></td>{% endif %}
             </tr>
           {% endfor %}
           </tbody>
@@ -81,8 +84,8 @@
         <div class="row g-3">
           {% if precio_editable %}<div class="col-sm-4"><label class="form-label small" for="descuento">Descuento (%)</label><input id="descuento" type="text" inputmode="decimal" name="descuento_pct" value="{{ p.descuento_pct|floatformat:'-2' }}" class="form-control form-control-sm"></div>{% endif %}
           {% if precio_editable %}<div class="col-sm-8 d-flex align-items-end"><input type="hidden" name="iva_enviado" value="1">
-            <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="sin_iva" value="1" id="sin_iva" {% if not p.iva_pct %}checked{% endif %}>
-            <label class="form-check-label small" for="sin_iva">Venta sin IVA (exenta)</label></div></div>{% endif %}
+            <div class="form-check form-switch mb-1"><input class="form-check-input" type="checkbox" role="switch" name="sin_iva" value="1" id="sin_iva" {% if not p.iva_pct %}checked{% endif %} onchange="this.form.requestSubmit()">
+            <label class="form-check-label small" for="sin_iva">Sin IVA</label></div></div>{% endif %}
           <div class="col-12"><label class="form-label small" for="condiciones">Condiciones (salen en el PDF)</label><textarea id="condiciones" name="condiciones" rows="2" class="form-control form-control-sm">{{ p.condiciones }}</textarea></div>
           <div class="col-12"><label class="form-label small" for="notas">Notas internas</label><textarea id="notas" name="notas" rows="2" class="form-control form-control-sm">{{ p.notas }}</textarea></div>
         </div>
@@ -95,13 +98,16 @@
   <div class="col-lg-4">
     <div class="card mb-3">
       <div class="card-body">
-        <dl class="row mb-0 small">
-          <dt class="col-6 fw-normal">Subtotal</dt><dd class="col-6 text-end mb-1">{{ p.subtotal_usd|usd }}</dd>
-          {% if p.descuento_usd %}<dt class="col-6 fw-normal">Descuento ({{ p.descuento_pct|floatformat:"-2" }} %)</dt><dd class="col-6 text-end mb-1">-{{ p.descuento_usd|usd }}</dd>{% endif %}
-          {% if p.iva_usd %}<dt class="col-6 fw-normal">IVA ({{ p.iva_pct|floatformat:"-2" }} %)</dt><dd class="col-6 text-end mb-1">{{ p.iva_usd|usd }}</dd>{% elif not p.iva_pct %}<dt class="col-6 fw-normal">IVA</dt><dd class="col-6 text-end mb-1">Exento</dd>{% endif %}
-          <dt class="col-6 fs-5">Total</dt><dd class="col-6 text-end fs-5 fw-bold mb-0">{{ p.total_usd|usd }}</dd>
-          {% if p.total_bs %}<dt class="col-6 fw-normal text-muted">En bolívares</dt><dd class="col-6 text-end text-muted mb-0">Bs {{ p.total_bs|floatformat:"2g" }}</dd>{% endif %}
-        </dl>
+        <table class="table table-sm table-borderless mb-0 small ordo-totales">
+          {% if montos_bs %}<thead><tr class="text-muted"><th></th><th class="text-end fw-normal">USD</th><th class="text-end fw-normal">Bs</th></tr></thead>{% endif %}
+          <tbody>
+          <tr><td>Subtotal</td><td class="text-end">{{ p.subtotal_usd|usd }}</td>{% if montos_bs %}<td class="text-end">{{ montos_bs.subtotal|floatformat:"2g" }}</td>{% endif %}</tr>
+          {% if p.descuento_usd %}<tr><td>Descuento ({{ p.descuento_pct|floatformat:"-2" }} %)</td><td class="text-end">-{{ p.descuento_usd|usd }}</td>{% if montos_bs %}<td class="text-end">-{{ montos_bs.descuento|floatformat:"2g" }}</td>{% endif %}</tr>{% endif %}
+          {% if p.iva_usd %}<tr><td>IVA ({{ p.iva_pct|floatformat:"-2" }} %)</td><td class="text-end">{{ p.iva_usd|usd }}</td>{% if montos_bs %}<td class="text-end">{{ montos_bs.iva|floatformat:"2g" }}</td>{% endif %}</tr>{% endif %}
+          <tr class="border-top fw-bold fs-6"><td>Total</td><td class="text-end text-nowrap">{{ p.total_usd|usd }}</td>{% if montos_bs %}<td class="text-end text-nowrap">{{ montos_bs.total|floatformat:"2g" }}</td>{% endif %}</tr>
+          </tbody>
+        </table>
+        {% if tasa_referencial %}<div class="small text-muted mt-1">Bs a la tasa de hoy (referencial).</div>{% endif %}
       </div>
     </div>
 
@@ -208,4 +214,36 @@
     {% if p.notas and not p.editable %}<div class="card card-body small"><div class="fw-semibold mb-1">Notas internas</div>{{ p.notas|linebreaksbr }}</div>{% endif %}
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Buscar productos: al tocar un resultado queda solo ese, con cantidad, precio y «+ Agregar»
+  (function () {
+    var zona = document.getElementById('resultados-productos');
+    if (!zona) return;
+    function elegir(fila) {
+      if (fila.classList.contains('ordo-elegido')) return;
+      zona.querySelectorAll('.js-resultado').forEach(function (f) { f.classList.toggle('d-none', f !== fila); });
+      fila.classList.add('ordo-elegido');
+      var ayuda = zona.querySelector('.js-ayuda-busqueda'); if (ayuda) ayuda.classList.add('d-none');
+      var cantidad = fila.querySelector('[name=cantidad]'); cantidad.focus(); cantidad.select();
+    }
+    zona.addEventListener('click', function (e) {
+      var fila = e.target.closest('.js-resultado');
+      if (!fila) return;
+      if (e.target.closest('.js-cambiar')) {
+        if (zona.querySelectorAll('.js-resultado').length < 2) return;
+        fila.classList.remove('ordo-elegido');
+        zona.querySelectorAll('.js-resultado').forEach(function (f) { f.classList.remove('d-none'); });
+        var ayuda = zona.querySelector('.js-ayuda-busqueda'); if (ayuda) ayuda.classList.remove('d-none');
+        return;
+      }
+      elegir(fila);
+    });
+    zona.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && e.target.classList.contains('js-resultado') && !e.target.classList.contains('ordo-elegido')) { e.preventDefault(); elegir(e.target); }
+    });
+  })();
+</script>
 {% endblock %}

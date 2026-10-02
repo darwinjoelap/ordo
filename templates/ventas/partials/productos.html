@@ -1,21 +1,27 @@
 {% load ordo %}
 {% if filas %}
-<div class="list-group">
+{% if filas|length > 1 %}<div class="small text-muted mb-1 js-ayuda-busqueda">Toca el producto que quieres agregar.</div>{% endif %}
+<div class="list-group js-resultados">
   {% for pr, minimo, maximo in filas %}
-  <form method="post" action="{% url 'ventas:agregar_item' p.pk %}" class="list-group-item">
+  <form method="post" action="{% url 'ventas:agregar_item' p.pk %}" class="list-group-item js-resultado {% if filas|length == 1 %}ordo-elegido{% endif %}" role="button" tabindex="0">
     {% csrf_token %}<input type="hidden" name="producto" value="{{ pr.pk }}">
-    <div class="d-flex justify-content-between gap-2 flex-wrap">
+    <div class="d-flex justify-content-between gap-2">
       <div class="min-w-0">
         <div class="fw-semibold">{{ pr.nombre }}</div>
-        <div class="small text-muted">{{ pr.codigo }} · Disponible: <span class="{% if pr.stock_disponible <= 0 %}text-danger fw-semibold{% endif %}">{{ pr.stock_disponible|miles }} {{ pr.unidad.abreviatura }}</span> · Lista {{ pr.precio_venta_usd|usd }}</div>
+        <div class="small text-muted">{{ pr.codigo }} · {% if pr.stock_disponible <= 0 %}<span class="text-danger fw-bold">SIN STOCK</span>{% else %}Disponible: {{ pr.stock_disponible|miles }} {{ pr.unidad.abreviatura }}{% endif %} · Lista {{ pr.precio_venta_usd|usd }}</div>
         {% if minimo or maximo %}<div class="small text-muted">Rango permitido: {{ minimo|usd|default:"—" }} a {% if maximo %}{{ maximo|usd }}{% else %}sin máximo{% endif %}</div>{% endif %}
       </div>
-      <div class="d-flex gap-1 align-items-center">
-        <input type="number" name="cantidad" value="1" min="1" class="form-control form-control-sm" style="width:5rem" aria-label="Cantidad">
+      <button type="button" class="btn-close js-cambiar ordo-solo-elegido" aria-label="Elegir otro producto" title="Elegir otro producto"></button>
+    </div>
+    <div class="ordo-solo-elegido mt-2">
+      <div class="d-flex gap-2 align-items-end flex-wrap">
+        <div><label class="form-label small mb-0">Cantidad</label>
+          <input type="number" name="cantidad" value="1" min="1" class="form-control" style="width:6rem"></div>
         {% if modo != 'FIJO' or puede_fijar %}
-        <input type="text" inputmode="decimal" name="precio" value="{{ pr.precio_venta_usd }}" class="form-control form-control-sm" style="width:6.5rem" aria-label="Precio USD">
+        <div><label class="form-label small mb-0">Precio USD</label>
+          <input type="text" inputmode="decimal" name="precio" value="{{ pr.precio_venta_usd }}" class="form-control" style="width:8rem"></div>
         {% endif %}
-        <button class="btn btn-sm btn-primary" title="Agregar"><i class="bi bi-plus-lg"></i></button>
+        <button class="btn btn-success flex-grow-1"><i class="bi bi-plus-lg me-1"></i>Agregar</button>
       </div>
     </div>
   </form>

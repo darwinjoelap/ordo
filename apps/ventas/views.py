@@ -15,7 +15,7 @@ from apps.core.permisos import requiere, tiene_permiso
 from apps.inventario.models import Producto
 
 from . import servicios
-from .models import ItemPresupuesto, Presupuesto, Reserva
+from .models import ItemPresupuesto, Presupuesto, Reserva, desglose_bs
 from .pdf import presupuesto_pdf
 
 E = Presupuesto.Estado
@@ -123,11 +123,35 @@ def buscar_productos(request, pk):
         'modo': perfil.modo_precio})
 
 
+def _tasa_referencial(request, p):
+    """
+    Un borrador aún no tiene tasa (se congela al emitir). Para mostrar montos en Bs se le pone EN MEMORIA
+    (no se guarda) la tasa vigente. Devuelve True si la tasa que queda en `p` es referencial.
+    """
+    if p.tasa_bs:
+        return False
+    from apps.tasas.servicios import tasa_vigente
+    tasa = tasa_vigente(request.empresa)
+    if not tasa:
+        return False
+    p.tasa_bs = tasa.bs_por_usd
+    return True
+
+
 @login_required
 @requiere('presupuestos.crear')
 def detalle(request, pk):
     p = _presupuesto(request, pk)
     items = list(ItemPresupuesto.objects.filter(presupuesto=p).select_related('producto__unidad'))
+    tasa_referencial = _tasa_referencial(request, p)
+    montos_bs = desglose_bs(p, items)
+    stock = {}
+    if p.editable:      # aviso «Sin stock» mientras se arma el presupuesto (apartado ya tiene su reserva)
+        stock = {pr.pk: pr.stock_disponible for pr in
+                 Producto.objects.filter(pk__in=[i.producto_id for i in items]).con_stock()}
+    for i in items:
+        i.subtotal_bs = montos_bs['lineas'][i.pk] if montos_bs else None
+        i.disponible = stock.get(i.producto_id)
     reservas = {}
     for r in Reserva.objects.filter(item__presupuesto=p).select_related('lote'):
         reservas.setdefault(r.item_id, []).append(r)
@@ -148,6 +172,7 @@ def detalle(request, pk):
         'puede_devolver': tiene_permiso(request, 'ventas.devolver'),
         'puede_facturar': tiene_permiso(request, 'ventas.facturar'),
         'titulo': p.numero, 'p': p, 'items': items, 'perfil': perfil,
+        'montos_bs': montos_bs, 'tasa_referencial': tasa_referencial,
         'puede_fijar': tiene_permiso(request, 'precios.fijar'),
         'puede_validar': tiene_permiso(request, 'ventas.validar'),
         'precio_editable': perfil.modo_precio != 'FIJO' or tiene_permiso(request, 'precios.fijar'),
@@ -167,6 +192,9 @@ def agregar_item(request, pk):
         precio = Decimal(precio) if precio is not None else None
         item = servicios.agregar_item(p, producto, cantidad, precio, request.empresa.perfil,
                                       tiene_permiso(request, 'precios.fijar'))
+        disponible = Producto.objects.filter(pk=producto.pk).con_stock().first().stock_disponible
+        if disponible < item.cantidad:
+            messages.warning(request, f'{producto.nombre}: sin stock suficiente (disponible: {max(disponible, 0)}).')
         if item.fuera_de_rango:
             messages.warning(request, f'{producto.nombre}: precio fuera del rango permitido. La venta quedará marcada para revisión.')
         else:
@@ -279,7 +307,9 @@ def por_validar(request):
 @requiere('presupuestos.crear')
 def pdf(request, pk):
     p = _presupuesto(request, pk)
-    contenido = presupuesto_pdf(p, request.empresa, moneda=request.GET.get('moneda', 'ambas'))
+    referencial = _tasa_referencial(request, p)
+    contenido = presupuesto_pdf(p, request.empresa, moneda=request.GET.get('moneda', 'ambas'),
+                                tasa_referencial=referencial)
     r = HttpResponse(contenido, content_type='application/pdf')
     r['Content-Disposition'] = f'inline; filename="{p.numero}.pdf"'
     return r
