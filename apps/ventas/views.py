@@ -175,7 +175,7 @@ def detalle(request, pk):
         'puede_devolver': tiene_permiso(request, 'ventas.devolver'),
         'puede_facturar': tiene_permiso(request, 'ventas.facturar'),
         'titulo': p.numero, 'p': p, 'items': items, 'perfil': perfil,
-        'montos_bs': montos_bs, 'tasa_referencial': tasa_referencial,
+        'montos_bs': montos_bs, 'total_unidades': sum(i.cantidad for i in items), 'tasa_referencial': tasa_referencial,
         'puede_fijar': tiene_permiso(request, 'precios.fijar'),
         'puede_validar': tiene_permiso(request, 'ventas.validar'),
         'precio_editable': perfil.modo_precio != 'FIJO' or tiene_permiso(request, 'precios.fijar'),

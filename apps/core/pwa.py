@@ -4,7 +4,8 @@ PWA: manifest, service worker y página sin conexión.
 El service worker:
 - precarga estáticos (CSS/JS/iconos) y la página /offline/;
 - estáticos: primero caché (tienen hash en el nombre gracias a WhiteNoise);
-- páginas: SIEMPRE red; si no hay conexión muestra /offline/.
+- páginas: SIEMPRE red; si no hay conexión muestra /offline/;
+- excepción: Consulta rápida (apps/core/consulta.py) guarda su pantalla y sus datos para verlos sin conexión.
   No guarda HTML de la app en caché: los datos son por empresa y por usuario.
 """
 import json
@@ -24,6 +25,7 @@ PRECARGA = [
     'vendor/bootstrap/bootstrap.bundle.min.js',
     'vendor/htmx/htmx.min.js',
     'js/pwa.js',
+    'js/consulta.js',
     'img/marca/ordo-simbolo-web.png',
     'img/marca/ordo-logo-horizontal-web.png',
     'img/marca/pwa/icon-192.png',
@@ -80,6 +82,7 @@ SW_JS = r"""// Ordo service worker · versión __VERSION__
 const CACHE = 'ordo-__VERSION__';
 const PRECARGA = __PRECARGA__;
 const STATIC = '__STATIC__';
+const CONSULTA = 'consulta-ordo';   // no empieza por "ordo-": sobrevive a los despliegues
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECARGA)).then(() => self.skipWaiting()));
@@ -106,6 +109,23 @@ self.addEventListener('fetch', (e) => {
         if (resp.ok) { const copia = resp.clone(); caches.open(CACHE).then((c) => c.put(req, copia)); }
         return resp;
       }))
+    );
+    return;
+  }
+
+  // Consulta rápida (pantalla y datos): primero red y se guarda la última respuesta; sin conexión, lo guardado.
+  // Si la sesión terminó (redirige al login o 401/403) se borra lo guardado en este dispositivo.
+  if (url.pathname === '/consulta/' || url.pathname === '/consulta/datos.json') {
+    e.respondWith(
+      fetch(req).then((resp) => {
+        if (resp.ok && !resp.redirected) {
+          const copia = resp.clone(); caches.open(CONSULTA).then((c) => c.put(url.pathname, copia));
+        } else if (resp.redirected || resp.status === 401 || resp.status === 403) {
+          caches.delete(CONSULTA);
+        }
+        return resp;
+      }).catch(() => caches.open(CONSULTA).then((c) => c.match(url.pathname))
+        .then((r) => r || (req.mode === 'navigate' ? caches.match('/offline/') : Response.error())))
     );
     return;
   }

@@ -165,3 +165,10 @@
 - [x] Visor de PDF dentro de la app (`/visor/?u=`, pdf.js en static/vendor/pdfjs): en la PWA instalada los enlaces
       `data-pdf` abren ahí, y "atrás" vuelve a la pantalla anterior en vez de cerrar la app. Compartir / Descargar
 - [x] Recepción de órdenes con productos que no llegaron: verificado con pruebas (tests/test_panel_pdf.py)
+
+## Consulta sin conexión (03/10/2026)
+- [x] «Consulta rápida» (`/consulta/`): productos (precio USD/Bs, existencia, SIN STOCK) y clientes de la cartera, con buscador
+- [x] Sin conexión muestra lo último guardado en el dispositivo, con fecha y aviso; se refresca sola cada 10 min al usar Ordo con internet
+- [x] Se borra al cerrar sesión o si la sesión venció. La pantalla «Sin conexión» lleva a la consulta
+- [ ] NO incluido (decidido): crear presupuestos sin conexión (correlativo, lotes y apartados se deciden en el servidor)
+- [x] Presupuesto: muestra productos y total de unidades

@@ -28,6 +28,7 @@
     {% endif %}
     <div class="nav-seccion">Operación</div>
     {% if 'inventario.ver' in permisos %}
+      <a href="{% url 'core:consulta' %}" class="nav-link"><i class="bi bi-search"></i> Consulta rápida</a>
       <a href="{% url 'inventario:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'inventario' %}active{% endif %}"><i class="bi bi-box-seam"></i> Inventario</a>
     {% endif %}
     {% if 'compras.gestionar' in permisos %}

@@ -33,6 +33,29 @@
     });
   }
 
+  // Consulta sin conexión: mientras se usa Ordo con internet se refrescan, en segundo plano, la pantalla y los
+  // datos de «Consulta rápida» (el service worker guarda la última respuesta). Como mucho cada 10 minutos.
+  window.addEventListener('load', function () {
+    if (!document.body.dataset.ordoConsulta || !navigator.onLine || !('serviceWorker' in navigator)) return;
+    if (location.pathname.indexOf('/consulta/') === 0) return;
+    try {
+      const ultima = parseInt(sessionStorage.getItem('ordo.consulta.t') || '0', 10);
+      if (Date.now() - ultima < 10 * 60 * 1000) return;
+      sessionStorage.setItem('ordo.consulta.t', String(Date.now()));
+    } catch (e) {}
+    navigator.serviceWorker.ready.then(function () {
+      fetch('/consulta/', { credentials: 'same-origin' }).catch(function () {});
+      fetch('/consulta/datos.json', { credentials: 'same-origin' }).catch(function () {});
+    });
+  });
+  // Al cerrar sesión se borra lo guardado para la consulta sin conexión en este dispositivo
+  document.addEventListener('submit', function (e) {
+    if (e.target.matches && e.target.matches('form[action$="/cuenta/salir/"]') && window.caches) {
+      caches.delete('consulta-ordo');
+      try { sessionStorage.removeItem('ordo.consulta.t'); } catch (x) {}
+    }
+  });
+
   function descartadoReciente() {
     try {
       const t = parseInt(localStorage.getItem(CLAVE) || '0', 10);

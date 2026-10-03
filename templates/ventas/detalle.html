@@ -48,7 +48,7 @@
       {% csrf_token %}
       <button type="submit" class="d-none" tabindex="-1" aria-hidden="true"></button>{# Enter en un campo guarda; no dispara la papelera #}
       <div class="card mb-3">
-        <div class="card-header ordo-card-titulo"><i class="bi bi-box-seam me-1"></i>Productos ({{ items|length }})</div>
+        <div class="card-header ordo-card-titulo"><i class="bi bi-box-seam me-1"></i>Productos ({{ items|length }}){% if items %} <span class="fw-normal">· {{ total_unidades|miles }} unidad{{ total_unidades|pluralize:'es' }}</span>{% endif %}</div>
         {% if items %}
         <div class="table-responsive"><table class="table align-middle mb-0 ordo-items">
           <thead class="table-light"><tr><th>Producto</th><th class="text-end" style="width:6rem">Cant.</th><th class="text-end" style="width:8rem">Precio</th><th class="text-end">Subtotal</th>{% if p.editable %}<th style="width:3rem"><span class="visually-hidden">Quitar</span></th>{% endif %}</tr></thead>
@@ -101,6 +101,7 @@
         <table class="table table-sm table-borderless mb-0 small ordo-totales">
           {% if montos_bs %}<thead><tr class="text-muted"><th></th><th class="text-end fw-normal">USD</th><th class="text-end fw-normal">Bs</th></tr></thead>{% endif %}
           <tbody>
+          <tr class="text-muted"><td>Productos / unidades</td><td class="text-end"{% if montos_bs %} colspan="2"{% endif %}>{{ items|length }} / {{ total_unidades|miles }}</td></tr>
           <tr><td>Subtotal</td><td class="text-end">{{ p.subtotal_usd|usd }}</td>{% if montos_bs %}<td class="text-end">{{ montos_bs.subtotal|floatformat:"2g" }}</td>{% endif %}</tr>
           {% if p.descuento_usd %}<tr><td>Descuento ({{ p.descuento_pct|floatformat:"-2" }} %)</td><td class="text-end">-{{ p.descuento_usd|usd }}</td>{% if montos_bs %}<td class="text-end">-{{ montos_bs.descuento|floatformat:"2g" }}</td>{% endif %}</tr>{% endif %}
           {% if p.iva_usd %}<tr><td>IVA ({{ p.iva_pct|floatformat:"-2" }} %)</td><td class="text-end">{{ p.iva_usd|usd }}</td>{% if montos_bs %}<td class="text-end">{{ montos_bs.iva|floatformat:"2g" }}</td>{% endif %}</tr>{% endif %}

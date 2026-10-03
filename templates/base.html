@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="{% static 'css/ordo.css' %}">
   {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body{% if empresa and 'inventario.ver' in permisos %} data-ordo-consulta="1"{% endif %}>
 {% block cuerpo %}
   {% url 'core:inicio' as url_inicio %}
 
