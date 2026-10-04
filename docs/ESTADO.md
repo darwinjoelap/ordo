@@ -180,3 +180,9 @@
 - [x] Migración `ventas 0004_numero_al_guardar` (número opcional; único solo cuando no está vacío)
 - [x] Venta confirmada/validada = «Por cobrar» hasta registrar el pago (ya era así; ahora se ve en lista y detalle, con pruebas)
 - [x] Pago con banco emisor, referencia y monto recibido (USD o Bs) opcionales; muestra «Faltan/Sobran» si difiere (migración `ventas 0005_datos_del_pago`)
+
+## Estado «Por pagar» (con validar ventas activo)
+- [x] Confirmar sin pago → `POR_PAGAR`; a `POR_VALIDAR` entra SOLO con pago registrado (`registrar_pago` mueve entre ambos); entregar no cambia la bandeja
+- [x] `validar` rechaza ventas sin pago; `desconfirmar` devuelve una «Por pagar» a Apartado
+- [x] «Por cobrar» del inicio y filtro «Por pagar» = `POR_PAGAR` + validadas sin pago. Migración `ventas 0006_estado_por_pagar` (mueve las «Por validar» sin pago)
+- [x] Se guarda quién registró el pago y cuándo (migración `ventas 0007_pago_registrado_por`)

@@ -14,7 +14,7 @@
   <div class="col-6 col-lg-3"><a href="{% url 'ventas:lista' %}?estado=ventas" class="card card-body h-100 text-decoration-none">
     <div class="small text-muted">Ventas validadas del mes</div><div class="fs-4 fw-bold text-success">{{ ventas_mes.usd|default:0|usd }}</div><div class="small text-muted">{{ ventas_mes.n }} venta{{ ventas_mes.n|pluralize }}</div></a></div>
   <div class="col-6 col-lg-3"><a href="{% if 'ventas.validar' in permisos %}{% url 'ventas:por_validar' %}{% else %}{% url 'ventas:lista' %}?estado=POR_VALIDAR{% endif %}" class="card card-body h-100 text-decoration-none">
-    <div class="small text-muted">Por validar</div><div class="fs-4 fw-bold {% if por_validar.n %}text-info{% endif %}">{{ por_validar.n }}</div><div class="small text-muted">{{ por_validar.usd|default:0|usd }} · aún no cuentan como venta ni por cobrar</div></a></div>
+    <div class="small text-muted">Por validar</div><div class="fs-4 fw-bold {% if por_validar.n %}text-info{% endif %}">{{ por_validar.n }}</div><div class="small text-muted">{{ por_validar.usd|default:0|usd }} · pagadas, esperan validación</div></a></div>
   <div class="col-6 col-lg-3"><a href="{% url 'ventas:lista' %}?estado=APARTADO" class="card card-body h-100 text-decoration-none">
     <div class="small text-muted">Apartados</div><div class="fs-4 fw-bold {% if apartados %}text-warning{% endif %}">{{ apartados }}</div><div class="small text-muted">{{ abiertos }} presupuesto{{ abiertos|pluralize }} abierto{{ abiertos|pluralize }}</div></a></div>
   {% if 'presupuestos.ver_todos' not in permisos and mi_comision_mes is not None %}
@@ -27,7 +27,7 @@
 </div>
 
 <div class="row g-3 mb-4">
-  <div class="col-6 col-lg-3"><a href="{% url 'ventas:lista' %}?estado=ventas&pendiente=pago" class="card card-body h-100 text-decoration-none">
+  <div class="col-6 col-lg-3"><a href="{% url 'ventas:lista' %}?estado=por_cobrar" class="card card-body h-100 text-decoration-none">
     <div class="small text-muted">Por cobrar</div><div class="fs-4 fw-bold {% if por_cobrar.n %}text-warning-emphasis{% endif %}">{{ por_cobrar.usd|default:0|usd }}</div><div class="small text-muted">{{ por_cobrar.n }} venta{{ por_cobrar.n|pluralize }} sin pago</div></a></div>
   <div class="col-6 col-lg-3"><a href="{% url 'ventas:lista' %}?estado=ventas&pendiente=entrega" class="card card-body h-100 text-decoration-none">
     <div class="small text-muted">Por entregar</div><div class="fs-4 fw-bold {% if por_entregar %}text-warning-emphasis{% endif %}">{{ por_entregar }}</div><div class="small text-muted">venta{{ por_entregar|pluralize }} validada{{ por_entregar|pluralize }}</div></a></div>

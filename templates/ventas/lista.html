@@ -12,6 +12,7 @@
   <a href="?" class="btn btn-sm {% if not f.estado %}btn-dark{% else %}btn-outline-secondary{% endif %}">Todos</a>
   <a href="?estado=abiertos" class="btn btn-sm {% if f.estado == 'abiertos' %}btn-dark{% else %}btn-outline-secondary{% endif %}">Abiertos</a>
   <a href="?estado=ventas" class="btn btn-sm {% if f.estado == 'ventas' %}btn-success{% else %}btn-outline-success{% endif %}">Ventas validadas</a>
+  <a href="?estado=por_cobrar" class="btn btn-sm {% if f.estado == 'por_cobrar' %}btn-danger{% else %}btn-outline-danger{% endif %}">Por pagar</a>
   <a href="?estado=POR_VALIDAR" class="btn btn-sm {% if f.estado == 'POR_VALIDAR' %}btn-dark{% else %}btn-outline-secondary{% endif %}">Por validar</a>
   <a href="?estado=APARTADO" class="btn btn-sm {% if f.estado == 'APARTADO' %}btn-dark{% else %}btn-outline-secondary{% endif %}">Apartados</a>
 </div>

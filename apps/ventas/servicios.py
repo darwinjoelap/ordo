@@ -255,18 +255,40 @@ def confirmar(p, usuario, empresa):
     if p.estado in (E.BORRADOR, E.EMITIDO):
         p = apartar(p, usuario, empresa)
     _exigir(p, E.APARTADO)
-    p.estado, p.confirmado_en, p.motivo_rechazo = E.POR_VALIDAR, timezone.now(), ''
-    p.save(update_fields=['estado', 'confirmado_en', 'motivo_rechazo'])
+    p.confirmado_en, p.motivo_rechazo = timezone.now(), ''
     if not empresa.perfil.requiere_validacion:
-        p = validar(p, usuario)
+        # Sin validación: la venta cuenta de una vez y queda por cobrar hasta registrar el pago
+        p.estado = E.POR_VALIDAR
+        p.save(update_fields=['estado', 'confirmado_en', 'motivo_rechazo'])
+        return validar(p, usuario, exigir_pago=False)
+    # Con validación: a la cola de «Por validar» entra SOLO con el pago registrado; si no, queda «Por pagar»
+    p.estado = E.POR_VALIDAR if p.pagado else E.POR_PAGAR
+    p.save(update_fields=['estado', 'confirmado_en', 'motivo_rechazo'])
     return p
 
 
 @transaction.atomic
-def validar(p, usuario):
-    """Administrador: la venta cuenta. Sale del stock lo apartado."""
+def desconfirmar(p, usuario, empresa):
+    """Una venta «Por pagar» que no se va a cobrar vuelve a Apartado (desde ahí se puede liberar o cancelar)."""
     p = _bloquear(p)
+    _exigir(p, E.POR_PAGAR)
+    if p.entregado:
+        raise ErrorVenta('Ya está marcada como entregada: desmarca la entrega antes de devolverla a apartado.')
+    p.estado = E.APARTADO
+    p.apartado_hasta = timezone.now() + timedelta(days=empresa.perfil.dias_apartado or 15)
+    p.save(update_fields=['estado', 'apartado_hasta'])
+    return p
+
+
+@transaction.atomic
+def validar(p, usuario, exigir_pago=True):
+    """Administrador: la venta cuenta. Sale del stock lo apartado. Solo se valida una venta con pago registrado."""
+    p = _bloquear(p)
+    if p.estado == E.POR_PAGAR:
+        raise ErrorVenta('Esta venta está por pagar: registra el pago antes de validarla.')
     _exigir(p, E.POR_VALIDAR)
+    if exigir_pago and not p.pagado:
+        raise ErrorVenta('Registra el pago antes de validar la venta.')
     for r in Reserva.objects.filter(item__presupuesto=p).select_related('lote'):
         inventario.descontar_apartado(r.lote, r.cantidad, usuario, referencia_tipo='Venta', referencia_id=p.pk,
                                       motivo=f'Venta {p.numero}')
@@ -307,13 +329,13 @@ def cancelar(p, usuario):
 
 
 @transaction.atomic
-def registrar_pago(p, pagado, metodo='', fecha=None, banco='', referencia='', monto=None, moneda=''):
+def registrar_pago(p, pagado, metodo='', fecha=None, banco='', referencia='', monto=None, moneda='', usuario=None):
     """
     Marca la venta como pagada (o no). banco, referencia y monto recibido son opcionales: sirven para dejar
     constancia del pago; el monto puede diferir del total y la diferencia queda a la vista.
     """
     p = _bloquear(p)
-    _exigir(p, E.POR_VALIDAR, E.VALIDADA)
+    _exigir(p, E.POR_PAGAR, E.POR_VALIDAR, E.VALIDADA)
     if pagado and monto is not None:
         if monto <= 0:
             raise ErrorVenta('El monto recibido debe ser mayor que cero.')
@@ -326,14 +348,24 @@ def registrar_pago(p, pagado, metodo='', fecha=None, banco='', referencia='', mo
     p.referencia_pago = (referencia or '').strip()[:40] if pagado else ''
     p.monto_pago = redondear(monto) if pagado and monto is not None else None
     p.moneda_pago = moneda if pagado and monto is not None else ''
+    p.pago_registrado_por = usuario if pagado else None
+    p.pago_registrado_en = timezone.now() if pagado else None
+    # El pago mueve la venta entre bandejas: pagada → «Por validar»; se quita el pago → vuelve a «Por pagar»
+    if p.estado == E.POR_PAGAR and pagado:
+        p.estado = E.POR_VALIDAR
+    elif p.estado == E.POR_VALIDAR and not pagado:
+        p.estado = E.POR_PAGAR
     p.save(update_fields=['pagado', 'metodo_pago', 'fecha_pago', 'banco_pago', 'referencia_pago', 'monto_pago',
-                          'moneda_pago'])
+                          'moneda_pago', 'estado', 'pago_registrado_por', 'pago_registrado_en'])
+    # Si la empresa ya no exige validación, una venta que quedó «Por pagar» se valida sola al cobrarla
+    if p.estado == E.POR_VALIDAR and usuario is not None and not p.empresa.perfil.requiere_validacion:
+        p = validar(p, usuario)
     return p
 
 
 @transaction.atomic
 def registrar_entrega(p, entregado, fecha=None):
-    _exigir(p, E.APARTADO, E.POR_VALIDAR, E.VALIDADA)
+    _exigir(p, E.APARTADO, E.POR_PAGAR, E.POR_VALIDAR, E.VALIDADA)     # entregar no cambia la bandeja
     p.entregado = entregado
     p.fecha_entrega = (fecha or timezone.localdate()) if entregado else None
     p.save(update_fields=['entregado', 'fecha_entrega'])

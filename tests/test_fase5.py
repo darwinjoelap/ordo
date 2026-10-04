@@ -80,9 +80,10 @@ class CalculoTests(Base):
         self.perfil.requiere_validacion = True
         self.perfil.save()
         p = self.venta([(self.prod, 1)])
-        self.assertEqual(p.estado, Presupuesto.Estado.POR_VALIDAR)
+        self.assertEqual(p.estado, Presupuesto.Estado.POR_PAGAR)
         self.assertFalse(Comision.todos.exists())
         with self.empresa_ctx():
+            p = ventas.registrar_pago(p, True, 'ZELLE')
             p = ventas.validar(p, self.dueno)
             comisiones.registrar(p)
         self.assertEqual(Comision.todos.count(), 1)

@@ -64,7 +64,9 @@ def lista(request):
     if estado == 'ventas':
         qs = qs.filter(estado=E.VALIDADA)
     elif estado == 'abiertos':
-        qs = qs.filter(estado__in=[E.BORRADOR, E.EMITIDO, E.APARTADO, E.POR_VALIDAR])
+        qs = qs.filter(estado__in=[E.BORRADOR, E.EMITIDO, E.APARTADO, E.POR_PAGAR, E.POR_VALIDAR])
+    elif estado == 'por_cobrar':        # confirmadas sin pago + ventas validadas sin pago
+        qs = qs.filter(Q(estado=E.POR_PAGAR) | Q(estado=E.VALIDADA, pagado=False))
     elif estado:
         qs = qs.filter(estado=estado)
     if q:
@@ -265,6 +267,8 @@ ACCIONES = {
     'apartar': ('presupuestos.crear', lambda r, p: servicios.apartar(p, r.user, r.empresa), 'Stock apartado.'),
     'desapartar': ('presupuestos.crear', lambda r, p: servicios.desapartar(p, r.user), 'Stock liberado.'),
     'confirmar': ('presupuestos.crear', lambda r, p: servicios.confirmar(p, r.user, r.empresa), None),
+    'desconfirmar': ('presupuestos.crear', lambda r, p: servicios.desconfirmar(p, r.user, r.empresa),
+                     'La venta volvió a apartado.'),
     'cancelar': ('presupuestos.crear', lambda r, p: servicios.cancelar(p, r.user), 'Presupuesto cancelado.'),
     'validar': ('ventas.validar', lambda r, p: servicios.validar(p, r.user), 'Venta validada.'),
     'rechazar': ('ventas.validar', lambda r, p: servicios.rechazar(
@@ -289,8 +293,9 @@ def accion(request, pk, nombre):
         messages.error(request, str(e))
     else:
         if nombre == 'confirmar':
-            mensaje = ('Venta confirmada y validada.' if p.estado == E.VALIDADA
-                       else 'Venta confirmada. Queda pendiente de validación.')
+            mensaje = {E.VALIDADA: 'Venta confirmada y validada.',
+                       E.POR_PAGAR: 'Venta confirmada. Queda POR PAGAR: registra el pago para enviarla a validación.',
+                       }.get(p.estado, 'Venta confirmada. Queda pendiente de validación.')
         messages.success(request, mensaje)
     destino = request.POST.get('volver')
     return redirect(destino if destino == '/ventas/por-validar/' else f'/ventas/{pk}/')
@@ -331,7 +336,7 @@ def pago_entrega(request, pk):
                                      banco=request.POST.get('banco_pago', ''),
                                      referencia=request.POST.get('referencia_pago', ''),
                                      monto=Decimal(monto) if monto else None,
-                                     moneda=request.POST.get('moneda_pago', ''))
+                                     moneda=request.POST.get('moneda_pago', ''), usuario=request.user)
         if 'entregado' in request.POST:
             servicios.registrar_entrega(p, request.POST.get('entregado') == '1')
         messages.success(request, 'Actualizado.')
@@ -345,7 +350,7 @@ def pago_entrega(request, pk):
 @login_required
 @requiere('ventas.validar')
 def por_validar(request):
-    ventas = (Presupuesto.objects.filter(estado=E.POR_VALIDAR).select_related('cliente', 'vendedor')
+    ventas = (Presupuesto.objects.filter(estado=E.POR_VALIDAR).select_related('cliente', 'vendedor', 'pago_registrado_por')
               .order_by('confirmado_en'))
     return render(request, 'ventas/por_validar.html', {'titulo': 'Ventas por validar', 'ventas': ventas})
 

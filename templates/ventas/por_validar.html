@@ -10,7 +10,7 @@
   <div class="card card-body">
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
       <div>
-        <a href="{% url 'ventas:detalle' p.pk %}" class="fw-semibold">{{ p.numero }}</a>
+        <a href="{% url 'ventas:detalle' p.pk %}" class="fw-semibold">{{ p.numero }}</a>{% if p.pago_registrado_por %} <span class="small text-muted">· pago registrado por {{ p.pago_registrado_por.nombre_visible }}</span>{% endif %}
         {% if p.requiere_revision %}<span class="badge text-bg-warning ms-1">Precio fuera de rango</span>{% endif %}
         <div class="small">{{ p.cliente.nombre }}</div>
         <div class="small text-muted">{{ p.vendedor.nombre_visible }} · confirmada {{ p.confirmado_en|date:"d/m/Y H:i" }}{% if p.pagado %} · <span class="text-success">pagada ({{ p.get_metodo_pago_display }})</span>{% endif %}</div>

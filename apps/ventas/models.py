@@ -3,7 +3,8 @@ Presupuestos y ventas.
 
 Un Presupuesto recorre estos estados (la "venta" es el mismo documento validado):
 
-  BORRADOR → EMITIDO → APARTADO → POR_VALIDAR → VALIDADA
+  BORRADOR → EMITIDO → APARTADO → [POR_PAGAR →] POR_VALIDAR → VALIDADA
+  (POR_PAGAR solo con «validar ventas» activo: confirmada sin pago registrado; a POR_VALIDAR entra SOLO pagada)
                  ↘         ↘            ↘ RECHAZADA (con motivo; vuelve a APARTADO o se libera)
                   CANCELADO  VENCIDO (apartado sin confirmar a tiempo)
 
@@ -52,6 +53,7 @@ class Presupuesto(EmpresaModel):
         BORRADOR = 'BORRADOR', 'Borrador'
         EMITIDO = 'EMITIDO', 'Emitido'
         APARTADO = 'APARTADO', 'Apartado'
+        POR_PAGAR = 'POR_PAGAR', 'Por pagar'
         POR_VALIDAR = 'POR_VALIDAR', 'Por validar'
         VALIDADA = 'VALIDADA', 'Venta validada'
         RECHAZADA = 'RECHAZADA', 'Rechazada'
@@ -108,6 +110,9 @@ class Presupuesto(EmpresaModel):
     monto_pago = models.DecimalField('Monto recibido', max_digits=18, decimal_places=2, null=True, blank=True)
     moneda_pago = models.CharField('Moneda del pago', max_length=3, blank=True,
                                    choices=[('USD', 'USD'), ('BS', 'Bs')])
+    pago_registrado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+                                            related_name='+', verbose_name='Pago registrado por')
+    pago_registrado_en = models.DateTimeField('Pago registrado el', null=True, blank=True)
     entregado = models.BooleanField('Entregado', default=False)
     fecha_entrega = models.DateField('Fecha de entrega', null=True, blank=True)
 
@@ -169,7 +174,8 @@ class Presupuesto(EmpresaModel):
 
     @property
     def css_estado(self):
-        return {'BORRADOR': 'secondary', 'EMITIDO': 'primary', 'APARTADO': 'warning', 'POR_VALIDAR': 'info',
+        return {'BORRADOR': 'secondary', 'EMITIDO': 'primary', 'APARTADO': 'warning', 'POR_PAGAR': 'danger',
+                'POR_VALIDAR': 'info',
                 'VALIDADA': 'success', 'RECHAZADA': 'danger', 'VENCIDO': 'dark', 'CANCELADO': 'dark',
                 'DEVUELTA': 'secondary'}[self.estado]
 

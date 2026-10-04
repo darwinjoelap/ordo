@@ -88,7 +88,7 @@ class StockYMontosTests(BaseDev):
         self.perfil.requiere_validacion = True
         self.perfil.save()
         p = self.venta([(self.prod, 1)])
-        self.assertEqual(p.estado, E.POR_VALIDAR)
+        self.assertEqual(p.estado, E.POR_PAGAR)
         with self.assertRaises(ventas.ErrorVenta):
             self.devolver(p, 1)
 

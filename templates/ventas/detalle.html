@@ -124,6 +124,9 @@
       {% elif p.estado == 'APARTADO' %}
         <form method="post" action="{% url 'ventas:accion' p.pk 'confirmar' %}" class="d-grid">{% csrf_token %}<button class="btn btn-success"><i class="bi bi-bag-check me-1"></i>Confirmar venta</button></form>
         <form method="post" action="{% url 'ventas:accion' p.pk 'desapartar' %}" class="d-grid">{% csrf_token %}<button class="btn btn-outline-secondary"><i class="bi bi-unlock me-1"></i>Liberar stock (volver a editar)</button></form>
+      {% elif p.estado == 'POR_PAGAR' %}
+        <div class="alert alert-danger py-2 small mb-0"><i class="bi bi-cash me-1"></i><b>Por pagar.</b> Registra el pago (abajo) para enviarla a validación. Marcarla como entregada no la envía.</div>
+        <form method="post" action="{% url 'ventas:accion' p.pk 'desconfirmar' %}" class="d-grid" onsubmit="return confirm('¿Devolver esta venta a apartado? Podrás liberarla o cancelarla desde ahí.')">{% csrf_token %}<button class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-counterclockwise me-1"></i>No se va a cobrar: volver a apartado</button></form>
       {% elif p.estado == 'POR_VALIDAR' %}
         {% if puede_validar %}
           <form method="post" action="{% url 'ventas:accion' p.pk 'validar' %}" class="d-grid">{% csrf_token %}<button class="btn btn-success"><i class="bi bi-patch-check me-1"></i>Validar venta</button></form>
@@ -132,7 +135,7 @@
             <div class="form-check small mb-2"><input class="form-check-input" type="checkbox" name="liberar" value="1" id="liberar"><label class="form-check-label" for="liberar">Liberar el stock (si no, vuelve a apartado para corregir)</label></div>
             <button class="btn btn-outline-danger btn-sm w-100"><i class="bi bi-x-circle me-1"></i>Rechazar</button></form>
         {% else %}
-          <div class="text-muted small"><i class="bi bi-hourglass-split me-1"></i>Esperando validación del administrador.</div>
+          <div class="text-muted small"><i class="bi bi-hourglass-split me-1"></i>Pago registrado. Esperando validación del administrador.</div>
         {% endif %}
       {% elif p.estado == 'VALIDADA' %}
         <div class="text-success small"><i class="bi bi-patch-check-fill me-1"></i>Validada el {{ p.validado_en|date:"d/m/Y H:i" }}{% if p.validado_por %} por {{ p.validado_por.nombre_visible }}{% endif %}.</div>
@@ -147,13 +150,14 @@
       {% endif %}
     </div>
 
-    {% if p.estado == 'POR_VALIDAR' or p.estado == 'VALIDADA' or p.estado == 'APARTADO' %}
+    {% if p.estado == 'POR_PAGAR' or p.estado == 'POR_VALIDAR' or p.estado == 'VALIDADA' or p.estado == 'APARTADO' %}
     <div class="card card-body mb-3">
       <div class="fw-semibold mb-2">Pago y entrega</div>
       {% if p.estado != 'APARTADO' %}
       <form method="post" action="{% url 'ventas:pago_entrega' p.pk %}" class="mb-3">{% csrf_token %}
         {% if p.pagado %}
           <div class="small mb-2 text-success"><i class="bi bi-cash me-1"></i>Pagado {{ p.fecha_pago|date:"d/m/Y" }} · {{ p.get_metodo_pago_display }}</div>
+          {% if p.pago_registrado_por %}<div class="small text-muted mb-2">Registrado por <b>{{ p.pago_registrado_por.nombre_visible }}</b> el {{ p.pago_registrado_en|date:"d/m/Y H:i" }}</div>{% endif %}
           {% if p.banco_pago or p.referencia_pago or p.monto_pago %}<div class="small text-muted mb-2">
             {% if p.banco_pago %}<div>Banco emisor: {{ p.banco_pago }}</div>{% endif %}
             {% if p.referencia_pago %}<div>Referencia: {{ p.referencia_pago }}</div>{% endif %}
