@@ -209,6 +209,23 @@ def emitir(p):
 
 
 @transaction.atomic
+def actualizar_tasa(p):
+    """
+    Presupuesto emitido hace días que el cliente confirma ahora: pone la tasa vigente y recalcula los Bs.
+    No cambia el número, la fecha ni los precios en USD.
+    """
+    p = _bloquear(p)
+    _exigir(p, E.EMITIDO)
+    tasa = tasa_vigente(p.empresa)
+    if not tasa:
+        raise ErrorVenta('No hay tasa cargada para actualizar.')
+    p.tasa_bs = tasa.bs_por_usd
+    p.save(update_fields=['tasa_bs'])
+    recalcular_totales(p)
+    return p
+
+
+@transaction.atomic
 def apartar(p, usuario, empresa):
     """Reserva el stock de todos los ítems (FEFO). Todo o nada."""
     p = _bloquear(p)

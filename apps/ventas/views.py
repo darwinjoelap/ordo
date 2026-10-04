@@ -101,12 +101,14 @@ def nuevo(request):
         cliente = get_object_or_404(clientes_visibles(request).filter(activo=True),
                                     pk=request.POST.get('cliente') or request.GET.get('cliente'))
         if request.method == 'POST':
-            # Si ya dejó un borrador vacío y sin número para este cliente, se continúa ese en vez de crear otro
-            p = (Presupuesto.objects.filter(estado=E.BORRADOR, numero='', cliente=cliente, vendedor=request.user,
-                                            items__isnull=True).first()
-                 or servicios.crear(cliente, request.user, request.empresa))
+            # Siempre uno NUEVO y en blanco: a un cliente se le hacen varios presupuestos y nunca se abre uno
+            # anterior por defecto. Los que tiene abiertos se listan abajo para elegir uno a propósito.
+            p = servicios.crear(cliente, request.user, request.empresa)
             return redirect('ventas:detalle', pk=p.pk)
-        return render(request, 'ventas/nuevo.html', {'titulo': 'Nuevo presupuesto', 'cliente': cliente})
+        abiertos = (visibles(request).filter(cliente=cliente, estado__in=[E.BORRADOR, E.EMITIDO])
+                    .annotate(n_items=Count('items')).order_by('-creado_en', '-pk')[:30])
+        return render(request, 'ventas/nuevo.html', {'titulo': 'Nuevo presupuesto', 'cliente': cliente,
+                                                     'abiertos': abiertos})
     return render(request, 'ventas/nuevo.html', {'titulo': 'Nuevo presupuesto'})
 
 
@@ -264,6 +266,8 @@ def actualizar(request, pk):
 
 ACCIONES = {
     'emitir': ('presupuestos.crear', lambda r, p: servicios.emitir(p), 'Presupuesto emitido.'),
+    'actualizar_tasa': ('presupuestos.crear', lambda r, p: servicios.actualizar_tasa(p),
+                        'Tasa actualizada a la de hoy. Los montos en Bs se recalcularon.'),
     'apartar': ('presupuestos.crear', lambda r, p: servicios.apartar(p, r.user, r.empresa), 'Stock apartado.'),
     'desapartar': ('presupuestos.crear', lambda r, p: servicios.desapartar(p, r.user), 'Stock liberado.'),
     'confirmar': ('presupuestos.crear', lambda r, p: servicios.confirmar(p, r.user, r.empresa), None),

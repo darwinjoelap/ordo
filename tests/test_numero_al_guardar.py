@@ -99,11 +99,41 @@ class NumeroAlGuardarTests(Base):
         self.assertNotContains(self.client.get(reverse('ventas:detalle', args=[p.pk])), 'Eliminar borrador')
         self.assertContains(self.client.get(reverse('ventas:detalle', args=[p.pk])), 'Cancelar presupuesto')
 
-    def test_nuevo_reutiliza_el_borrador_vacio_del_mismo_cliente(self):
+    def test_nuevo_siempre_crea_uno_en_blanco_y_lista_los_abiertos(self):
         url = reverse('ventas:nuevo')
-        self.client.post(url, {'cliente': self.cliente.pk})
-        self.client.post(url, {'cliente': self.cliente.pk})
-        self.assertEqual(Presupuesto.todos.filter(cliente=self.cliente).count(), 1)
+        viejo = self.borrador()
+        self.client.post(reverse('ventas:actualizar', args=[viejo.pk]), {'guardar': '1'})
+        r1 = self.client.post(url, {'cliente': self.cliente.pk})
+        r2 = self.client.post(url, {'cliente': self.cliente.pk})
+        self.assertNotEqual(r1.url, r2.url)                                    # nunca reabre uno anterior
+        self.assertNotIn(reverse('ventas:detalle', args=[viejo.pk]), (r1.url, r2.url))
+        self.assertEqual(Presupuesto.todos.filter(cliente=self.cliente).count(), 3)
+        r = self.client.get(url, {'cliente': self.cliente.pk})                 # elegir cliente: no carga ninguno
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Crear presupuesto nuevo')
+        self.assertContains(r, self.numero(viejo))                             # pero ofrece los abiertos
+        self.assertEqual(len(r.context['abiertos']), 3)
+
+    def test_actualizar_tasa_de_un_presupuesto_emitido_hace_dias(self):
+        from django.core.cache import cache
+
+        from apps.tasas.models import TasaCambio
+        from .test_fase5 import HOY
+        TasaCambio.objects.all().delete()
+        TasaCambio.objects.create(fecha=HOY - timedelta(days=3), bs_por_usd=Decimal('100'))
+        cache.clear()
+        p = self.borrador()
+        self.client.post(reverse('ventas:accion', args=[p.pk, 'emitir']))
+        n = self.numero(p)
+        TasaCambio.objects.create(fecha=HOY, bs_por_usd=Decimal('120'))
+        cache.clear()
+        r = self.client.get(reverse('ventas:detalle', args=[p.pk]))
+        self.assertContains(r, 'Actualizar a la tasa de hoy')
+        self.client.post(reverse('ventas:accion', args=[p.pk, 'actualizar_tasa']))
+        p = Presupuesto.todos.get(pk=p.pk)
+        self.assertEqual((p.tasa_bs, p.numero, p.estado), (Decimal('120'), n, 'EMITIDO'))
+        self.assertEqual(p.total_bs, (p.total_usd * 120).quantize(Decimal('0.01')))
+        self.assertNotContains(self.client.get(reverse('ventas:detalle', args=[p.pk])), 'Actualizar a la tasa de hoy')
 
     def test_cron_limpia_borradores_vacios_viejos(self):
         viejo, reciente, con_producto = self.borrador(False), self.borrador(False), self.borrador()

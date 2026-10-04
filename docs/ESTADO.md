@@ -186,3 +186,4 @@
 - [x] `validar` rechaza ventas sin pago; `desconfirmar` devuelve una «Por pagar» a Apartado
 - [x] «Por cobrar» del inicio y filtro «Por pagar» = `POR_PAGAR` + validadas sin pago. Migración `ventas 0006_estado_por_pagar` (mueve las «Por validar» sin pago)
 - [x] Se guarda quién registró el pago y cuándo (migración `ventas 0007_pago_registrado_por`)
+- [x] «Nuevo presupuesto» siempre crea uno en blanco y lista los abiertos del cliente para elegir; botón «Actualizar a la tasa de hoy» en presupuestos emitidos (`servicios.actualizar_tasa`)

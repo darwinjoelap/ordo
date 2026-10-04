@@ -28,6 +28,10 @@
 {% if p.motivo_rechazo %}<div class="alert alert-danger py-2"><i class="bi bi-x-octagon me-1"></i><b>Rechazada:</b> {{ p.motivo_rechazo }}</div>{% endif %}
 {% if p.requiere_revision %}<div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i>Hay precios fuera del rango permitido. Quien valide la venta lo verá.</div>{% endif %}
 {% if p.estado == 'APARTADO' %}<div class="alert {% if p.apartado_vencido %}alert-danger{% else %}alert-warning{% endif %} py-2"><i class="bi bi-lock me-1"></i>Stock apartado hasta el {{ p.apartado_hasta|date:"d/m/Y H:i" }}.</div>{% endif %}
+{% if p.estado == 'EMITIDO' and tasa and p.tasa_bs and tasa.bs_por_usd != p.tasa_bs %}<div class="alert alert-warning py-2 d-flex justify-content-between align-items-center gap-2 flex-wrap">
+  <span class="small"><i class="bi bi-currency-exchange me-1"></i>Este presupuesto tiene la tasa <b>{{ p.tasa_bs|floatformat:"2g" }}</b>. La de hoy es <b>{{ tasa.bs_por_usd|floatformat:"2g" }}</b>.</span>
+  <form method="post" action="{% url 'ventas:accion' p.pk 'actualizar_tasa' %}">{% csrf_token %}<button class="btn btn-sm btn-warning"><i class="bi bi-arrow-repeat me-1"></i>Actualizar a la tasa de hoy</button></form>
+</div>{% endif %}
 {% if p.editable and not p.numero %}<div class="alert alert-light border py-2 small"><i class="bi bi-hash me-1"></i>Aún sin número: se asigna al <b>guardar</b> o <b>emitir</b>, y solo si tiene productos.</div>{% endif %}
 {% if p.editable and tasa_referencial %}<div class="alert alert-light border py-2 small"><i class="bi bi-info-circle me-1"></i>Los montos en Bs usan la tasa de hoy. La tasa se congela al <b>emitir</b>.</div>
 {% elif p.editable and not p.tasa_bs %}<div class="alert alert-warning py-2 small"><i class="bi bi-exclamation-triangle me-1"></i>No hay tasa cargada: el presupuesto sale solo en USD.</div>{% endif %}
