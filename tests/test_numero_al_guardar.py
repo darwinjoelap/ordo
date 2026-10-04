@@ -145,3 +145,49 @@ class VentaPorCobrarTests(Base):
         self.client.post(url, {'pagado': '0'})                # se puede revertir
         p.refresh_from_db()
         self.assertFalse(p.pagado)
+
+
+class DatosDelPagoTests(Base):
+    def setUp(self):
+        super().setUp()
+        self.p = self.venta([(self.prod, 2)])                 # 2 × 20 + IVA = 46,40
+        self.client.force_login(self.dueno)
+        self.url = reverse('ventas:pago_entrega', args=[self.p.pk])
+
+    def pagar(self, **datos):
+        r = self.client.post(self.url, {'pagado': '1', 'metodo_pago': 'TRANSFERENCIA', **datos}, follow=True)
+        self.p.refresh_from_db()
+        return r
+
+    def test_banco_referencia_y_monto_distinto(self):
+        r = self.pagar(banco_pago='Banesco', referencia_pago='00123456', monto_pago='40,00', moneda_pago='USD')
+        p = self.p
+        self.assertEqual((p.pagado, p.banco_pago, p.referencia_pago, p.monto_pago, p.moneda_pago),
+                         (True, 'Banesco', '00123456', Decimal('40.00'), 'USD'))
+        self.assertEqual(p.diferencia_pago, Decimal('-6.40'))
+        for texto in ('Banco emisor: Banesco', 'Referencia: 00123456', 'Faltan', '6,40'):
+            self.assertContains(r, texto)
+
+    def test_sin_monto_es_pago_exacto(self):
+        r = self.pagar(banco_pago='Mercantil')
+        self.assertEqual((self.p.pagado, self.p.monto_pago, self.p.moneda_pago, self.p.diferencia_pago),
+                         (True, None, '', None))
+        self.assertNotContains(r, 'Faltan')
+
+    def test_monto_invalido_no_registra(self):
+        r = self.pagar(monto_pago='abc', moneda_pago='USD')
+        self.assertContains(r, 'Revisa la fecha y el monto')
+        self.assertFalse(self.p.pagado)
+        self.pagar(monto_pago='0', moneda_pago='USD')
+        self.assertFalse(self.p.pagado)
+
+    def test_desmarcar_borra_los_datos_del_pago(self):
+        self.pagar(banco_pago='Banesco', referencia_pago='1', monto_pago='50', moneda_pago='USD')
+        self.client.post(self.url, {'pagado': '0'})
+        self.p.refresh_from_db()
+        self.assertEqual((self.p.pagado, self.p.banco_pago, self.p.referencia_pago, self.p.monto_pago), (False, '', '', None))
+
+    def test_formulario_muestra_lo_por_pagar_y_los_bancos(self):
+        r = self.client.get(reverse('ventas:detalle', args=[self.p.pk]))
+        for texto in ('name="banco_pago"', 'name="referencia_pago"', 'name="monto_pago"', 'Por pagar', 'Banesco'):
+            self.assertContains(r, texto)

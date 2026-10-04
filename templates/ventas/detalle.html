@@ -154,15 +154,27 @@
       <form method="post" action="{% url 'ventas:pago_entrega' p.pk %}" class="mb-3">{% csrf_token %}
         {% if p.pagado %}
           <div class="small mb-2 text-success"><i class="bi bi-cash me-1"></i>Pagado {{ p.fecha_pago|date:"d/m/Y" }} · {{ p.get_metodo_pago_display }}</div>
+          {% if p.banco_pago or p.referencia_pago or p.monto_pago %}<div class="small text-muted mb-2">
+            {% if p.banco_pago %}<div>Banco emisor: {{ p.banco_pago }}</div>{% endif %}
+            {% if p.referencia_pago %}<div>Referencia: {{ p.referencia_pago }}</div>{% endif %}
+            {% if p.monto_pago %}<div>Recibido: {% if p.moneda_pago == 'BS' %}Bs {{ p.monto_pago|floatformat:"2g" }}{% else %}{{ p.monto_pago|usd }}{% endif %}</div>
+              {% with dif=p.diferencia_pago %}{% if dif %}<div class="fw-semibold {% if dif < 0 %}text-danger{% else %}text-warning-emphasis{% endif %}">{% if dif < 0 %}Faltan{% else %}Sobran{% endif %} {% if p.moneda_pago == 'BS' %}Bs {{ dif|abs_valor|floatformat:"2g" }}{% else %}{{ dif|abs_valor|usd }}{% endif %} respecto al total</div>{% endif %}{% endwith %}{% endif %}
+          </div>{% endif %}
           <input type="hidden" name="pagado" value="0"><button class="btn btn-sm btn-outline-secondary">Marcar como no pagado</button>
         {% else %}
           <input type="hidden" name="pagado" value="1">
-          <div class="d-flex gap-2 flex-wrap">
-            <select name="metodo_pago" class="form-select form-select-sm" style="max-width:12rem" required>
-              <option value="">Método…</option>{% for v, n in metodos %}<option value="{{ v }}">{{ n }}</option>{% endfor %}</select>
-            <input type="date" name="fecha_pago" class="form-control form-control-sm" style="max-width:10rem">
-            <button class="btn btn-sm btn-outline-success"><i class="bi bi-cash me-1"></i>Registrar pago</button>
+          <div class="row g-2">
+            <div class="col-7"><select name="metodo_pago" class="form-select form-select-sm" required aria-label="Método de pago">
+              <option value="">Método…</option>{% for v, n in metodos %}<option value="{{ v }}">{{ n }}</option>{% endfor %}</select></div>
+            <div class="col-5"><input type="date" name="fecha_pago" class="form-control form-control-sm" aria-label="Fecha del pago"></div>
+            <div class="col-7"><input name="banco_pago" list="bancos-ve" maxlength="60" class="form-control form-control-sm" placeholder="Banco emisor (opcional)" aria-label="Banco emisor"></div>
+            <div class="col-5"><input name="referencia_pago" maxlength="40" inputmode="numeric" class="form-control form-control-sm" placeholder="Referencia" aria-label="Referencia"></div>
+            <div class="col-7"><input name="monto_pago" inputmode="decimal" class="form-control form-control-sm" placeholder="Monto recibido (si difiere)" aria-label="Monto recibido"></div>
+            <div class="col-5"><select name="moneda_pago" class="form-select form-select-sm" aria-label="Moneda del pago"><option value="BS">Bs</option><option value="USD">USD</option></select></div>
+            <div class="col-12 small text-muted">Por pagar: <b>{{ p.neto_usd|usd }}</b>{% if p.total_bs %} · Bs {{ p.total_bs|floatformat:"2g" }}{% endif %}. Deja el monto vacío si pagó exacto.</div>
+            <div class="col-12 d-grid"><button class="btn btn-sm btn-success"><i class="bi bi-cash me-1"></i>Registrar pago</button></div>
           </div>
+          <datalist id="bancos-ve">{% for b in bancos %}<option value="{{ b }}">{% endfor %}</datalist>
         {% endif %}
       </form>
       {% endif %}

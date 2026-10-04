@@ -29,3 +29,12 @@ def miles(valor):
 @register.simple_tag
 def url_pagina(querystring, numero):
     return f'?{querystring}&page={numero}' if querystring else f'?page={numero}'
+
+
+@register.filter
+def abs_valor(valor):
+    """Valor absoluto (para mostrar diferencias sin signo)."""
+    try:
+        return abs(valor)
+    except TypeError:
+        return valor

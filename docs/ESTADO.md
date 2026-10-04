@@ -179,3 +179,4 @@
 - [x] «Nuevo presupuesto» reutiliza el borrador vacío del mismo cliente; el cron borra borradores vacíos sin número de más de 24 h
 - [x] Migración `ventas 0004_numero_al_guardar` (número opcional; único solo cuando no está vacío)
 - [x] Venta confirmada/validada = «Por cobrar» hasta registrar el pago (ya era así; ahora se ve en lista y detalle, con pruebas)
+- [x] Pago con banco emisor, referencia y monto recibido (USD o Bs) opcionales; muestra «Faltan/Sobran» si difiere (migración `ventas 0005_datos_del_pago`)

@@ -37,6 +37,13 @@ def visibles(request):
     return qs
 
 
+# Sugerencias para «Banco emisor» (el campo acepta cualquier texto)
+BANCOS = ['Banco de Venezuela', 'Banesco', 'Mercantil', 'Provincial (BBVA)', 'BNC', 'Bancamiga', 'Banplus', 'Bancaribe',
+          'Banco Exterior', 'Banco del Tesoro', 'Bicentenario', 'BFC Fondo Común', 'Venezolano de Crédito', 'Banco Plaza',
+          'Banco Activo', 'Sofitasa', '100% Banco', 'Bancrecer', 'Mi Banco', 'Banco Caroní', 'Del Sur', 'Banfanb',
+          'Zelle', 'Binance', 'Otro']
+
+
 def _presupuesto(request, pk):
     return get_object_or_404(visibles(request), pk=pk)
 
@@ -182,7 +189,7 @@ def detalle(request, pk):
         'puede_fijar': tiene_permiso(request, 'precios.fijar'),
         'puede_validar': tiene_permiso(request, 'ventas.validar'),
         'precio_editable': perfil.modo_precio != 'FIJO' or tiene_permiso(request, 'precios.fijar'),
-        'metodos': Presupuesto.MetodoPago.choices,
+        'metodos': Presupuesto.MetodoPago.choices, 'bancos': BANCOS,
     })
 
 
@@ -318,13 +325,20 @@ def pago_entrega(request, pk):
     try:
         if 'pagado' in request.POST:
             fecha = request.POST.get('fecha_pago') or None
+            monto = request.POST.get('monto_pago', '').strip().replace(',', '.')
             servicios.registrar_pago(p, request.POST.get('pagado') == '1', request.POST.get('metodo_pago', ''),
-                                     date.fromisoformat(fecha) if fecha else None)
+                                     date.fromisoformat(fecha) if fecha else None,
+                                     banco=request.POST.get('banco_pago', ''),
+                                     referencia=request.POST.get('referencia_pago', ''),
+                                     monto=Decimal(monto) if monto else None,
+                                     moneda=request.POST.get('moneda_pago', ''))
         if 'entregado' in request.POST:
             servicios.registrar_entrega(p, request.POST.get('entregado') == '1')
         messages.success(request, 'Actualizado.')
-    except (servicios.ErrorVenta, ValueError) as e:
+    except servicios.ErrorVenta as e:
         messages.error(request, str(e))
+    except (ValueError, InvalidOperation):
+        messages.error(request, 'Revisa la fecha y el monto del pago.')
     return redirect('ventas:detalle', pk=pk)
 
 

@@ -102,6 +102,12 @@ class Presupuesto(EmpresaModel):
     pagado = models.BooleanField('Pagado', default=False)
     fecha_pago = models.DateField('Fecha de pago', null=True, blank=True)
     metodo_pago = models.CharField('Método de pago', max_length=15, choices=MetodoPago.choices, blank=True)
+    banco_pago = models.CharField('Banco emisor', max_length=60, blank=True)
+    referencia_pago = models.CharField('Referencia', max_length=40, blank=True)
+    # Lo que realmente se recibió, si se quiere dejar constancia (puede diferir del total de la venta)
+    monto_pago = models.DecimalField('Monto recibido', max_digits=18, decimal_places=2, null=True, blank=True)
+    moneda_pago = models.CharField('Moneda del pago', max_length=3, blank=True,
+                                   choices=[('USD', 'USD'), ('BS', 'Bs')])
     entregado = models.BooleanField('Entregado', default=False)
     fecha_entrega = models.DateField('Fecha de entrega', null=True, blank=True)
 
@@ -151,6 +157,15 @@ class Presupuesto(EmpresaModel):
     @property
     def neto_usd(self):
         return self.total_usd - self.devuelto_usd
+
+    @property
+    def diferencia_pago(self):
+        """Recibido − por pagar, en la moneda del pago. None si no se anotó el monto (o es en Bs y no hay tasa)."""
+        if self.monto_pago is None:
+            return None
+        if self.moneda_pago == 'BS':
+            return self.monto_pago - self.total_bs if self.total_bs else None
+        return self.monto_pago - self.neto_usd
 
     @property
     def css_estado(self):

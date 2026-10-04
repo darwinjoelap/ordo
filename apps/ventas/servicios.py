@@ -307,12 +307,27 @@ def cancelar(p, usuario):
 
 
 @transaction.atomic
-def registrar_pago(p, pagado, metodo='', fecha=None):
+def registrar_pago(p, pagado, metodo='', fecha=None, banco='', referencia='', monto=None, moneda=''):
+    """
+    Marca la venta como pagada (o no). banco, referencia y monto recibido son opcionales: sirven para dejar
+    constancia del pago; el monto puede diferir del total y la diferencia queda a la vista.
+    """
+    p = _bloquear(p)
     _exigir(p, E.POR_VALIDAR, E.VALIDADA)
+    if pagado and monto is not None:
+        if monto <= 0:
+            raise ErrorVenta('El monto recibido debe ser mayor que cero.')
+        if moneda not in ('USD', 'BS'):
+            raise ErrorVenta('Indica si el monto recibido es en USD o en Bs.')
     p.pagado = pagado
     p.metodo_pago = metodo if pagado else ''
     p.fecha_pago = (fecha or timezone.localdate()) if pagado else None
-    p.save(update_fields=['pagado', 'metodo_pago', 'fecha_pago'])
+    p.banco_pago = (banco or '').strip()[:60] if pagado else ''
+    p.referencia_pago = (referencia or '').strip()[:40] if pagado else ''
+    p.monto_pago = redondear(monto) if pagado and monto is not None else None
+    p.moneda_pago = moneda if pagado and monto is not None else ''
+    p.save(update_fields=['pagado', 'metodo_pago', 'fecha_pago', 'banco_pago', 'referencia_pago', 'monto_pago',
+                          'moneda_pago'])
     return p
 
 
