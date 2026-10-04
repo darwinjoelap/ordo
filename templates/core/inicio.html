@@ -29,8 +29,8 @@
 <div class="row g-3 mb-4">
   <div class="col-6 col-lg-3"><a href="{% url 'ventas:lista' %}?estado=por_cobrar" class="card card-body h-100 text-decoration-none">
     <div class="small text-muted">Por cobrar</div><div class="fs-4 fw-bold {% if por_cobrar.n %}text-warning-emphasis{% endif %}">{{ por_cobrar.usd|default:0|usd }}</div><div class="small text-muted">{{ por_cobrar.n }} venta{{ por_cobrar.n|pluralize }} sin pago</div></a></div>
-  <div class="col-6 col-lg-3"><a href="{% url 'ventas:lista' %}?estado=ventas&pendiente=entrega" class="card card-body h-100 text-decoration-none">
-    <div class="small text-muted">Por entregar</div><div class="fs-4 fw-bold {% if por_entregar %}text-warning-emphasis{% endif %}">{{ por_entregar }}</div><div class="small text-muted">venta{{ por_entregar|pluralize }} validada{{ por_entregar|pluralize }}</div></a></div>
+  <div class="col-6 col-lg-3"><a href="{% url 'ventas:lista' %}?estado=por_entregar" class="card card-body h-100 text-decoration-none">
+    <div class="small text-muted">Por entregar</div><div class="fs-4 fw-bold {% if por_entregar %}text-warning-emphasis{% endif %}">{{ por_entregar }}</div><div class="small text-muted">venta{{ por_entregar|pluralize }} confirmada{{ por_entregar|pluralize }} sin entregar</div></a></div>
   {% if n_lotes_vencidos is not None %}
   <div class="col-6 col-lg-3"><a href="{% url 'inventario:lista' %}?alerta=vencidos" class="card card-body h-100 text-decoration-none">
     <div class="small text-muted">Lotes vencidos con stock</div><div class="fs-4 fw-bold {% if n_lotes_vencidos %}text-danger{% endif %}">{{ n_lotes_vencidos }}</div><div class="small text-muted">{{ n_lotes_proximos }} vence{{ n_lotes_proximos|pluralize:"n" }} en 30 días</div></a></div>
@@ -47,7 +47,7 @@
       {% if ultimos %}
       <div class="list-group list-group-flush">
         {% for p in ultimos %}<a href="{% url 'ventas:detalle' p.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-2">
-          <div class="min-w-0"><div class="fw-semibold">{{ p.numero|default:"Sin número" }} <span class="badge text-bg-{{ p.css_estado }}">{{ p.get_estado_display }}</span></div><div class="small text-muted text-truncate">{{ p.cliente.nombre }}</div></div>
+          <div class="min-w-0"><div class="fw-semibold">{{ p.numero|default:"Sin número" }} {% include 'ventas/partials/estado.html' with p=p %}</div><div class="small text-muted text-truncate">{{ p.cliente.nombre }}</div></div>
           <div class="text-nowrap">{{ p.total_usd|usd }}</div></a>{% endfor %}
       </div>
       {% else %}<div class="card-body text-muted">Aún no hay presupuestos. <a href="{% url 'ventas:nuevo' %}">Crea el primero</a>.</div>{% endif %}

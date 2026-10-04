@@ -5,7 +5,7 @@
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mt-2 mb-3">
   <div>
-    <h1 class="h3 mb-1">{{ p.numero|default:"Presupuesto nuevo" }} <span class="badge text-bg-{{ p.css_estado }} align-middle fs-6">{{ p.get_estado_display }}</span>{% if p.estado == 'VALIDADA' %} {% if p.pagado %}<span class="badge text-bg-success align-middle fs-6"><i class="bi bi-cash me-1"></i>Pagada</span>{% else %}<span class="badge text-bg-warning align-middle fs-6"><i class="bi bi-hourglass-split me-1"></i>Por cobrar</span>{% endif %}{% endif %}</h1>
+    <h1 class="h3 mb-1">{{ p.numero|default:"Presupuesto nuevo" }} {% include 'ventas/partials/estado.html' with p=p grande=1 %}{% if p.por_entregar %} <span class="badge text-bg-light border align-middle fs-6"><i class="bi bi-truck me-1"></i>Por entregar</span>{% endif %}</h1>
     <div class="text-muted small">
       <a href="{% url 'clientes:detalle' p.cliente_id %}">{{ p.cliente.nombre }}</a>{% if p.cliente.rif %} · {{ p.cliente.rif }}{% endif %}
       · {{ p.fecha|date:"d/m/Y" }}{% if p.editable %} · válido hasta {{ p.valido_hasta|date:"d/m/Y" }}{% endif %}
@@ -129,7 +129,7 @@
         <form method="post" action="{% url 'ventas:accion' p.pk 'confirmar' %}" class="d-grid">{% csrf_token %}<button class="btn btn-success"><i class="bi bi-bag-check me-1"></i>Confirmar venta</button></form>
         <form method="post" action="{% url 'ventas:accion' p.pk 'desapartar' %}" class="d-grid">{% csrf_token %}<button class="btn btn-outline-secondary"><i class="bi bi-unlock me-1"></i>Liberar stock (volver a editar)</button></form>
       {% elif p.estado == 'POR_PAGAR' %}
-        <div class="alert alert-danger py-2 small mb-0"><i class="bi bi-cash me-1"></i><b>Por pagar.</b> Registra el pago (abajo) para enviarla a validación. Marcarla como entregada no la envía.</div>
+        <div class="alert alert-warning py-2 small mb-0"><i class="bi bi-cash me-1"></i><b>Por cobrar.</b> Registra el pago (abajo) para enviarla a validación. La entrega va aparte: puedes entregar antes o después de cobrar.</div>
         <form method="post" action="{% url 'ventas:accion' p.pk 'desconfirmar' %}" class="d-grid" onsubmit="return confirm('¿Devolver esta venta a apartado? Podrás liberarla o cancelarla desde ahí.')">{% csrf_token %}<button class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-counterclockwise me-1"></i>No se va a cobrar: volver a apartado</button></form>
       {% elif p.estado == 'POR_VALIDAR' %}
         {% if puede_validar %}
@@ -179,7 +179,7 @@
             <div class="col-5"><input name="referencia_pago" maxlength="40" inputmode="numeric" class="form-control form-control-sm" placeholder="Referencia" aria-label="Referencia"></div>
             <div class="col-7"><input name="monto_pago" inputmode="decimal" class="form-control form-control-sm" placeholder="Monto recibido (si difiere)" aria-label="Monto recibido"></div>
             <div class="col-5"><select name="moneda_pago" class="form-select form-select-sm" aria-label="Moneda del pago"><option value="BS">Bs</option><option value="USD">USD</option></select></div>
-            <div class="col-12 small text-muted">Por pagar: <b>{{ p.neto_usd|usd }}</b>{% if p.total_bs %} · Bs {{ p.total_bs|floatformat:"2g" }}{% endif %}. Deja el monto vacío si pagó exacto.</div>
+            <div class="col-12 small text-muted">Por cobrar: <b>{{ p.neto_usd|usd }}</b>{% if p.total_bs %} · Bs {{ p.total_bs|floatformat:"2g" }}{% endif %}. Deja el monto vacío si pagó exacto.</div>
             <div class="col-12 d-grid"><button class="btn btn-sm btn-success"><i class="bi bi-cash me-1"></i>Registrar pago</button></div>
           </div>
           <datalist id="bancos-ve">{% for b in bancos %}<option value="{{ b }}">{% endfor %}</datalist>

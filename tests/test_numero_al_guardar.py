@@ -219,5 +219,5 @@ class DatosDelPagoTests(Base):
 
     def test_formulario_muestra_lo_por_pagar_y_los_bancos(self):
         r = self.client.get(reverse('ventas:detalle', args=[self.p.pk]))
-        for texto in ('name="banco_pago"', 'name="referencia_pago"', 'name="monto_pago"', 'Por pagar', 'Banesco'):
+        for texto in ('name="banco_pago"', 'name="referencia_pago"', 'name="monto_pago"', 'Por cobrar', 'Banesco'):
             self.assertContains(r, texto)

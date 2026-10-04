@@ -53,7 +53,7 @@ class Presupuesto(EmpresaModel):
         BORRADOR = 'BORRADOR', 'Borrador'
         EMITIDO = 'EMITIDO', 'Emitido'
         APARTADO = 'APARTADO', 'Apartado'
-        POR_PAGAR = 'POR_PAGAR', 'Por pagar'
+        POR_PAGAR = 'POR_PAGAR', 'Por cobrar'      # confirmada, sin pago registrado (con «validar ventas» activo)
         POR_VALIDAR = 'POR_VALIDAR', 'Por validar'
         VALIDADA = 'VALIDADA', 'Venta validada'
         RECHAZADA = 'RECHAZADA', 'Rechazada'
@@ -154,6 +154,21 @@ class Presupuesto(EmpresaModel):
     def editable(self):
         return self.estado in (self.E.BORRADOR, self.E.EMITIDO)
 
+    CONFIRMADAS = ('POR_PAGAR', 'POR_VALIDAR', 'VALIDADA')
+
+    @property
+    def confirmada(self):
+        """Venta confirmada: desde aquí corren dos flujos independientes, cobro (finanzas) y entrega (logística)."""
+        return self.estado in self.CONFIRMADAS
+
+    @property
+    def por_cobrar(self):
+        return self.estado == self.E.POR_PAGAR or (self.estado == self.E.VALIDADA and not self.pagado)
+
+    @property
+    def por_entregar(self):
+        return self.confirmada and not self.entregado
+
     @property
     def es_venta(self):
         """Fue venta validada (aunque luego se haya devuelto)."""
@@ -174,7 +189,7 @@ class Presupuesto(EmpresaModel):
 
     @property
     def css_estado(self):
-        return {'BORRADOR': 'secondary', 'EMITIDO': 'primary', 'APARTADO': 'warning', 'POR_PAGAR': 'danger',
+        return {'BORRADOR': 'secondary', 'EMITIDO': 'primary', 'APARTADO': 'warning', 'POR_PAGAR': 'warning',
                 'POR_VALIDAR': 'info',
                 'VALIDADA': 'success', 'RECHAZADA': 'danger', 'VENCIDO': 'dark', 'CANCELADO': 'dark',
                 'DEVUELTA': 'secondary'}[self.estado]

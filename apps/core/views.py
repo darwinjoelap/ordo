@@ -40,7 +40,7 @@ def inicio(request):
             'ultimos': docs.select_related('cliente').order_by('-actualizado_en')[:6],
             'por_cobrar': docs.filter(Q(estado=E.POR_PAGAR) | Q(estado=E.VALIDADA, pagado=False)).aggregate(
                 n=Count('pk'), usd=Sum(F('total_usd') - F('devuelto_usd'))),
-            'por_entregar': docs.filter(estado=E.VALIDADA, entregado=False).count(),
+            'por_entregar': docs.filter(estado__in=Presupuesto.CONFIRMADAS, entregado=False).count(),
         })
     if tiene_permiso(request, 'comisiones.ver_propias'):
         from apps.comisiones.models import AjusteComision, Comision

@@ -40,7 +40,10 @@ class PorPagarTests(Base):
         self.assertNotContains(self.client.get(reverse('ventas:lista'), {'estado': 'POR_VALIDAR'}), self.p.numero)
         inicio = self.client.get(reverse('core:inicio')).context
         self.assertEqual((inicio['por_cobrar']['n'], inicio['por_validar']['n']), (1, 0))
-        self.assertContains(self.client.get(reverse('ventas:detalle', args=[self.p.pk])), 'Por pagar')
+        r = self.client.get(reverse('ventas:detalle', args=[self.p.pk]))
+        self.assertContains(r, 'Por cobrar')
+        self.assertNotContains(r, 'Por pagar')
+        self.assertContains(r, 'text-bg-warning')
 
     def test_regla_2_entregada_sin_pago_sigue_en_por_pagar(self):
         self.client.post(self.pago, {'entregado': '1'})

@@ -187,3 +187,8 @@
 - [x] «Por cobrar» del inicio y filtro «Por pagar» = `POR_PAGAR` + validadas sin pago. Migración `ventas 0006_estado_por_pagar` (mueve las «Por validar» sin pago)
 - [x] Se guarda quién registró el pago y cuándo (migración `ventas 0007_pago_registrado_por`)
 - [x] «Nuevo presupuesto» siempre crea uno en blanco y lista los abiertos del cliente para elegir; botón «Actualizar a la tasa de hoy» en presupuestos emitidos (`servicios.actualizar_tasa`)
+
+## Ciclo de venta unificado
+- [x] Confirmar → dos flujos independientes: «Por cobrar» (`Presupuesto.por_cobrar`) y «Por entregar» (`por_entregar` = confirmada sin entregar, cualquier estado de `CONFIRMADAS`)
+- [x] Una sola etiqueta financiera: «Por cobrar» en amarillo (el estado `POR_PAGAR` se muestra así); camión cuando está entregada, en cualquier estado confirmado
+- [x] Un solo parcial para el estado: `templates/ventas/partials/estado.html` (lista, detalle, inicio)

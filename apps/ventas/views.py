@@ -67,15 +67,17 @@ def lista(request):
         qs = qs.filter(estado__in=[E.BORRADOR, E.EMITIDO, E.APARTADO, E.POR_PAGAR, E.POR_VALIDAR])
     elif estado == 'por_cobrar':        # confirmadas sin pago + ventas validadas sin pago
         qs = qs.filter(Q(estado=E.POR_PAGAR) | Q(estado=E.VALIDADA, pagado=False))
+    elif estado == 'por_entregar':      # toda venta confirmada (cobrada o no) que aún no se entrega
+        qs = qs.filter(estado__in=Presupuesto.CONFIRMADAS, entregado=False)
     elif estado:
         qs = qs.filter(estado=estado)
     if q:
         qs = qs.filter(Q(numero__icontains=q) | Q(cliente__nombre__icontains=q) | Q(cliente__rif__icontains=q))
     pendiente = g.get('pendiente', '')
     if pendiente == 'pago':
-        qs = qs.filter(estado=E.VALIDADA, pagado=False)
+        qs = qs.filter(Q(estado=E.POR_PAGAR) | Q(estado=E.VALIDADA, pagado=False))
     elif pendiente == 'entrega':
-        qs = qs.filter(estado=E.VALIDADA, entregado=False)
+        qs = qs.filter(estado__in=Presupuesto.CONFIRMADAS, entregado=False)
     if vendedor and tiene_permiso(request, 'presupuestos.ver_todos'):
         qs = qs.filter(vendedor_id=vendedor)
     totales = qs.aggregate(n=Count('pk'), usd=Sum('total_usd'), devuelto=Sum('devuelto_usd'))
@@ -298,7 +300,7 @@ def accion(request, pk, nombre):
     else:
         if nombre == 'confirmar':
             mensaje = {E.VALIDADA: 'Venta confirmada y validada.',
-                       E.POR_PAGAR: 'Venta confirmada. Queda POR PAGAR: registra el pago para enviarla a validación.',
+                       E.POR_PAGAR: 'Venta confirmada. Queda por cobrar y por entregar: al registrar el pago pasa a validación.',
                        }.get(p.estado, 'Venta confirmada. Queda pendiente de validación.')
         messages.success(request, mensaje)
     destino = request.POST.get('volver')

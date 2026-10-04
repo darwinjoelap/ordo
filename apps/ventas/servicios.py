@@ -278,7 +278,7 @@ def confirmar(p, usuario, empresa):
         p.estado = E.POR_VALIDAR
         p.save(update_fields=['estado', 'confirmado_en', 'motivo_rechazo'])
         return validar(p, usuario, exigir_pago=False)
-    # Con validación: a la cola de «Por validar» entra SOLO con el pago registrado; si no, queda «Por pagar»
+    # Con validación: a la cola de «Por validar» entra SOLO con el pago registrado; si no, queda «Por cobrar»
     p.estado = E.POR_VALIDAR if p.pagado else E.POR_PAGAR
     p.save(update_fields=['estado', 'confirmado_en', 'motivo_rechazo'])
     return p
@@ -286,7 +286,7 @@ def confirmar(p, usuario, empresa):
 
 @transaction.atomic
 def desconfirmar(p, usuario, empresa):
-    """Una venta «Por pagar» que no se va a cobrar vuelve a Apartado (desde ahí se puede liberar o cancelar)."""
+    """Una venta «Por cobrar» que no se va a cobrar vuelve a Apartado (desde ahí se puede liberar o cancelar)."""
     p = _bloquear(p)
     _exigir(p, E.POR_PAGAR)
     if p.entregado:
@@ -302,7 +302,7 @@ def validar(p, usuario, exigir_pago=True):
     """Administrador: la venta cuenta. Sale del stock lo apartado. Solo se valida una venta con pago registrado."""
     p = _bloquear(p)
     if p.estado == E.POR_PAGAR:
-        raise ErrorVenta('Esta venta está por pagar: registra el pago antes de validarla.')
+        raise ErrorVenta('Esta venta está por cobrar: registra el pago antes de validarla.')
     _exigir(p, E.POR_VALIDAR)
     if exigir_pago and not p.pagado:
         raise ErrorVenta('Registra el pago antes de validar la venta.')
@@ -367,14 +367,14 @@ def registrar_pago(p, pagado, metodo='', fecha=None, banco='', referencia='', mo
     p.moneda_pago = moneda if pagado and monto is not None else ''
     p.pago_registrado_por = usuario if pagado else None
     p.pago_registrado_en = timezone.now() if pagado else None
-    # El pago mueve la venta entre bandejas: pagada → «Por validar»; se quita el pago → vuelve a «Por pagar»
+    # El pago mueve la venta entre bandejas: pagada → «Por validar»; se quita el pago → vuelve a «Por cobrar»
     if p.estado == E.POR_PAGAR and pagado:
         p.estado = E.POR_VALIDAR
     elif p.estado == E.POR_VALIDAR and not pagado:
         p.estado = E.POR_PAGAR
     p.save(update_fields=['pagado', 'metodo_pago', 'fecha_pago', 'banco_pago', 'referencia_pago', 'monto_pago',
                           'moneda_pago', 'estado', 'pago_registrado_por', 'pago_registrado_en'])
-    # Si la empresa ya no exige validación, una venta que quedó «Por pagar» se valida sola al cobrarla
+    # Si la empresa ya no exige validación, una venta que quedó «Por cobrar» se valida sola al cobrarla
     if p.estado == E.POR_VALIDAR and usuario is not None and not p.empresa.perfil.requiere_validacion:
         p = validar(p, usuario)
     return p

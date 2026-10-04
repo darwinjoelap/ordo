@@ -12,7 +12,8 @@
   <a href="?" class="btn btn-sm {% if not f.estado %}btn-dark{% else %}btn-outline-secondary{% endif %}">Todos</a>
   <a href="?estado=abiertos" class="btn btn-sm {% if f.estado == 'abiertos' %}btn-dark{% else %}btn-outline-secondary{% endif %}">Abiertos</a>
   <a href="?estado=ventas" class="btn btn-sm {% if f.estado == 'ventas' %}btn-success{% else %}btn-outline-success{% endif %}">Ventas validadas</a>
-  <a href="?estado=por_cobrar" class="btn btn-sm {% if f.estado == 'por_cobrar' %}btn-danger{% else %}btn-outline-danger{% endif %}">Por pagar</a>
+  <a href="?estado=por_cobrar" class="btn btn-sm {% if f.estado == 'por_cobrar' %}btn-warning{% else %}btn-outline-warning{% endif %}">Por cobrar</a>
+  <a href="?estado=por_entregar" class="btn btn-sm {% if f.estado == 'por_entregar' %}btn-dark{% else %}btn-outline-secondary{% endif %}"><i class="bi bi-truck me-1"></i>Por entregar</a>
   <a href="?estado=POR_VALIDAR" class="btn btn-sm {% if f.estado == 'POR_VALIDAR' %}btn-dark{% else %}btn-outline-secondary{% endif %}">Por validar</a>
   <a href="?estado=APARTADO" class="btn btn-sm {% if f.estado == 'APARTADO' %}btn-dark{% else %}btn-outline-secondary{% endif %}">Apartados</a>
 </div>
@@ -41,7 +42,7 @@
         <td>{{ p.cliente.nombre }}</td>
         <td class="d-none d-md-table-cell">{{ p.fecha|date:"d/m/Y" }}</td>
         {% if 'presupuestos.ver_todos' in permisos %}<td class="d-none d-lg-table-cell small">{{ p.vendedor.nombre_visible }}</td>{% endif %}
-        <td><span class="badge text-bg-{{ p.css_estado }}">{{ p.get_estado_display }}</span>{% if p.estado == 'VALIDADA' %} {% if p.pagado %}<span class="badge text-bg-success">Pagada</span>{% else %}<span class="badge text-bg-warning">Por cobrar</span>{% endif %}{% if p.entregado %} <i class="bi bi-truck text-success" title="Entregado"></i>{% else %} <i class="bi bi-truck text-muted" title="Sin entregar"></i>{% endif %}{% elif p.pagado %} <i class="bi bi-cash text-success" title="Pagado"></i>{% endif %}</td>
+        <td>{% include 'ventas/partials/estado.html' with p=p %}</td>
         <td class="text-end text-nowrap">{{ p.total_usd|usd }}</td>
       </tr>
     {% endfor %}
