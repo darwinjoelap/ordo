@@ -5,7 +5,7 @@
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mt-2 mb-3">
   <div>
-    <h1 class="h3 mb-1">{{ p.numero }} <span class="badge text-bg-{{ p.css_estado }} align-middle fs-6">{{ p.get_estado_display }}</span></h1>
+    <h1 class="h3 mb-1">{{ p.numero|default:"Presupuesto nuevo" }} <span class="badge text-bg-{{ p.css_estado }} align-middle fs-6">{{ p.get_estado_display }}</span>{% if p.estado == 'VALIDADA' %} {% if p.pagado %}<span class="badge text-bg-success align-middle fs-6"><i class="bi bi-cash me-1"></i>Pagada</span>{% else %}<span class="badge text-bg-warning align-middle fs-6"><i class="bi bi-hourglass-split me-1"></i>Por cobrar</span>{% endif %}{% endif %}</h1>
     <div class="text-muted small">
       <a href="{% url 'clientes:detalle' p.cliente_id %}">{{ p.cliente.nombre }}</a>{% if p.cliente.rif %} · {{ p.cliente.rif }}{% endif %}
       · {{ p.fecha|date:"d/m/Y" }}{% if p.editable %} · válido hasta {{ p.valido_hasta|date:"d/m/Y" }}{% endif %}
@@ -28,6 +28,7 @@
 {% if p.motivo_rechazo %}<div class="alert alert-danger py-2"><i class="bi bi-x-octagon me-1"></i><b>Rechazada:</b> {{ p.motivo_rechazo }}</div>{% endif %}
 {% if p.requiere_revision %}<div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i>Hay precios fuera del rango permitido. Quien valide la venta lo verá.</div>{% endif %}
 {% if p.estado == 'APARTADO' %}<div class="alert {% if p.apartado_vencido %}alert-danger{% else %}alert-warning{% endif %} py-2"><i class="bi bi-lock me-1"></i>Stock apartado hasta el {{ p.apartado_hasta|date:"d/m/Y H:i" }}.</div>{% endif %}
+{% if p.editable and not p.numero %}<div class="alert alert-light border py-2 small"><i class="bi bi-hash me-1"></i>Aún sin número: se asigna al <b>guardar</b> o <b>emitir</b>, y solo si tiene productos.</div>{% endif %}
 {% if p.editable and tasa_referencial %}<div class="alert alert-light border py-2 small"><i class="bi bi-info-circle me-1"></i>Los montos en Bs usan la tasa de hoy. La tasa se congela al <b>emitir</b>.</div>
 {% elif p.editable and not p.tasa_bs %}<div class="alert alert-warning py-2 small"><i class="bi bi-exclamation-triangle me-1"></i>No hay tasa cargada: el presupuesto sale solo en USD.</div>{% endif %}
 
@@ -89,7 +90,7 @@
           <div class="col-12"><label class="form-label small" for="condiciones">Condiciones (salen en el PDF)</label><textarea id="condiciones" name="condiciones" rows="2" class="form-control form-control-sm">{{ p.condiciones }}</textarea></div>
           <div class="col-12"><label class="form-label small" for="notas">Notas internas</label><textarea id="notas" name="notas" rows="2" class="form-control form-control-sm">{{ p.notas }}</textarea></div>
         </div>
-        <div class="d-flex justify-content-end mt-3"><button class="btn btn-outline-primary btn-sm"><i class="bi bi-save me-1"></i>Guardar cambios</button></div>
+        <div class="d-flex justify-content-end mt-3"><button name="guardar" value="1" class="btn btn-primary btn-sm" {% if not items %}disabled title="Agrega al menos un producto"{% endif %}><i class="bi bi-save me-1"></i>{% if p.numero %}Guardar cambios{% else %}Guardar presupuesto{% endif %}</button></div>
       </div>
       {% endif %}
     </form>
@@ -139,7 +140,9 @@
       {% elif p.estado == 'DEVUELTA' %}
         <div class="text-muted small"><i class="bi bi-arrow-return-left me-1"></i>Validada el {{ p.validado_en|date:"d/m/Y" }} y devuelta por completo.</div>
       {% endif %}
-      {% if p.estado in 'BORRADOR EMITIDO APARTADO RECHAZADA' %}
+      {% if p.estado == 'BORRADOR' %}
+        <form method="post" action="{% url 'ventas:eliminar' p.pk %}" class="d-grid" onsubmit="return confirm('¿Eliminar este borrador por completo? No se puede deshacer.')">{% csrf_token %}<button class="btn btn-link btn-sm text-danger"><i class="bi bi-trash me-1"></i>Eliminar borrador</button></form>
+      {% elif p.estado in 'EMITIDO APARTADO RECHAZADA' %}
         <form method="post" action="{% url 'ventas:accion' p.pk 'cancelar' %}" class="d-grid" onsubmit="return confirm('¿Cancelar este presupuesto? Se libera el stock apartado.')">{% csrf_token %}<button class="btn btn-link btn-sm text-danger">Cancelar presupuesto</button></form>
       {% endif %}
     </div>

@@ -18,5 +18,7 @@ class Command(BaseCommand):
             from apps.ventas.servicios import vencer_apartados
             n = vencer_apartados()
             self.stdout.write(f'Apartados vencidos liberados: {n}')
+            from apps.ventas.servicios import limpiar_borradores_vacios
+            self.stdout.write(f'Borradores vacíos sin número eliminados: {limpiar_borradores_vacios()}')
         if solo in (None, 'tasa'):
             call_command('actualizar_tasa_bcv', stdout=self.stdout, stderr=self.stderr)

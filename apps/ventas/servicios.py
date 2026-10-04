@@ -8,7 +8,7 @@ from django.db import transaction
 from django.dispatch import Signal
 from django.utils import timezone
 
-from apps.core.secuencias import siguiente_numero, siguiente_numero_presupuesto
+from apps.core.secuencias import liberar_numero_presupuesto, siguiente_numero, siguiente_numero_presupuesto
 from apps.core.tenancy import usando_empresa
 from apps.inventario import servicios as inventario
 from apps.tasas.servicios import tasa_vigente
@@ -78,12 +78,55 @@ def resolver_precio(perfil, producto, precio_pedido, puede_fijar_precio):
 def crear(cliente, vendedor, empresa):
     perfil = empresa.perfil
     hoy = timezone.localdate()
+    # Sin número: se asigna al guardar, emitir, apartar o confirmar (asignar_numero). Así un borrador que se
+    # abandona o se queda sin productos no gasta un número del correlativo.
     return Presupuesto.objects.create(
-        numero=siguiente_numero_presupuesto(perfil),
         cliente=cliente, vendedor=vendedor, fecha=hoy,
         valido_hasta=hoy + timedelta(days=perfil.dias_validez_presupuesto or 7),
         iva_pct=perfil.iva_porcentaje, condiciones=perfil.condiciones_presupuesto,
     )
+
+
+def asignar_numero(p):
+    """Da número al presupuesto si aún no lo tiene. Exige productos: un presupuesto vacío no gasta número."""
+    if p.numero:
+        return p
+    if not ItemPresupuesto.objects.filter(presupuesto=p).exists():
+        raise ErrorVenta('Agrega al menos un producto antes de guardar el presupuesto.')
+    p.numero = siguiente_numero_presupuesto(p.empresa.perfil)
+    p.save(update_fields=['numero'])
+    return p
+
+
+@transaction.atomic
+def guardar(p):
+    """Botón «Guardar»: el borrador con productos recibe su número."""
+    p = _bloquear(p)
+    _exigir(p, E.BORRADOR, E.EMITIDO)
+    return asignar_numero(p)
+
+
+@transaction.atomic
+def eliminar(p):
+    """
+    Borra por completo un BORRADOR (nunca emitido). Si ya tenía número y era el último de la serie, el número
+    se libera para el siguiente presupuesto. Devuelve (número que tenía, quedó_libre).
+    """
+    p = _bloquear(p)
+    _exigir(p, E.BORRADOR)
+    numero = p.numero
+    libre = liberar_numero_presupuesto(numero) if numero else True
+    p.delete()
+    return numero, libre
+
+
+def limpiar_borradores_vacios(horas=24):
+    """Cron: borra borradores sin número y sin productos que llevan más de `horas` abandonados (todas las empresas)."""
+    limite = timezone.now() - timedelta(hours=horas)
+    qs = Presupuesto.todos.filter(estado=E.BORRADOR, numero='', creado_en__lt=limite, items__isnull=True)
+    n = qs.count()
+    qs.delete()
+    return n
 
 
 @transaction.atomic
@@ -155,6 +198,7 @@ def emitir(p):
     _exigir(p, E.BORRADOR, E.EMITIDO)
     if not ItemPresupuesto.objects.filter(presupuesto=p).exists():
         raise ErrorVenta('Agrega al menos un producto.')
+    asignar_numero(p)
     tasa = tasa_vigente(p.empresa)
     p.tasa_bs = tasa.bs_por_usd if tasa else None
     p.fecha = timezone.localdate()
@@ -254,6 +298,8 @@ def rechazar(p, usuario, motivo, devolver_a_apartado=True, empresa=None):
 def cancelar(p, usuario):
     p = _bloquear(p)
     _exigir(p, E.BORRADOR, E.EMITIDO, E.APARTADO, E.RECHAZADA)
+    if not p.numero:
+        raise ErrorVenta('Este borrador aún no tiene número: elimínalo en lugar de cancelarlo.')
     _liberar_reservas(p, usuario, 'Cancelado')
     p.estado, p.apartado_hasta = E.CANCELADO, None
     p.save(update_fields=['estado', 'apartado_hasta'])

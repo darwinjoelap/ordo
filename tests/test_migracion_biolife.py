@@ -102,8 +102,15 @@ class MigracionBiolifeTests(TestCase):
         with usando_empresa(self.empresa):
             cliente = Cliente.objects.first()
             vendedor = Usuario.objects.get(username='luis')
+            from apps.inventario.models import Producto
+            producto, perfil = Producto.objects.first(), self.empresa.perfil
             p1 = ventas.crear(cliente, vendedor, self.empresa)
             p2 = ventas.crear(cliente, vendedor, self.empresa)
+            for p in (p1, p2):                                  # el número llega al guardar, con productos
+                ventas.agregar_item(p, producto, 1, None, perfil, True)
+                ventas.guardar(p)
+            p1.refresh_from_db()
+            p2.refresh_from_db()
         self.assertEqual(p1.numero, f'{anio}{ultimo + 1:05d}')
         self.assertEqual(p2.numero, f'{anio}{ultimo + 2:05d}')
 

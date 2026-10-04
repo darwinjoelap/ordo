@@ -40,3 +40,27 @@ def siguiente_numero_presupuesto(perfil):
     sec.ultimo = max([sec.ultimo] + existentes) + 1
     sec.save(update_fields=['ultimo'])
     return f'{anio}{sec.ultimo:05d}'
+
+
+@transaction.atomic
+def liberar_numero_presupuesto(numero):
+    """
+    Al eliminar un borrador que ya tenía número: si era el ÚLTIMO emitido de su serie, la secuencia retrocede
+    y el número se vuelve a usar (no queda hueco). Si ya hay números posteriores, no se toca nada.
+    Devuelve True si el número quedó libre para el siguiente presupuesto.
+    """
+    import re
+    corrido = re.fullmatch(r'(\d{4})(\d{5})', numero or '')
+    guion = re.fullmatch(r'.*P-(\d{4})-(\d{5})', numero or '')
+    if corrido:
+        tipo, anio, n = 'PC', int(corrido.group(1)), int(corrido.group(2))
+    elif guion:
+        tipo, anio, n = 'P', int(guion.group(1)), int(guion.group(2))
+    else:
+        return False
+    sec = Secuencia.objects.select_for_update().filter(tipo=tipo, anio=anio).first()
+    if not sec or sec.ultimo != n:
+        return False
+    sec.ultimo = n - 1
+    sec.save(update_fields=['ultimo'])
+    return True

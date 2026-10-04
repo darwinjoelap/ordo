@@ -137,10 +137,10 @@ def presupuesto_pdf(p, empresa, moneda='ambas', tasa_referencial=False):
     color = colors.HexColor(perfil.color_principal or '#053D74')
     titulo = 'NOTA DE VENTA' if p.es_venta else 'PRESUPUESTO'
     buffer = BytesIO()
-    doc = documento(buffer, titulo_pdf=f'{titulo.title()} {p.numero}')
+    doc = documento(buffer, titulo_pdf=f'{titulo.title()} {p.numero or "borrador"}')
 
     # ── Encabezado: logo | empresa | número, fechas, vendedor y tasa ──────────
-    der = [f'<font size="12"><b>N° {p.numero}</b></font>', '', f'Fecha: {p.fecha:%d/%m/%Y}']
+    der = [f'<font size="12"><b>{("N° " + p.numero) if p.numero else "BORRADOR"}</b></font>', '', f'Fecha: {p.fecha:%d/%m/%Y}']
     if not p.es_venta:
         der.append(f'Válido hasta: {p.valido_hasta:%d/%m/%Y}')
     der.append(f'Vendedor: {p.vendedor.nombre_visible}')

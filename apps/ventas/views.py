@@ -92,7 +92,10 @@ def nuevo(request):
         cliente = get_object_or_404(clientes_visibles(request).filter(activo=True),
                                     pk=request.POST.get('cliente') or request.GET.get('cliente'))
         if request.method == 'POST':
-            p = servicios.crear(cliente, request.user, request.empresa)
+            # Si ya dejó un borrador vacío y sin número para este cliente, se continúa ese en vez de crear otro
+            p = (Presupuesto.objects.filter(estado=E.BORRADOR, numero='', cliente=cliente, vendedor=request.user,
+                                            items__isnull=True).first()
+                 or servicios.crear(cliente, request.user, request.empresa))
             return redirect('ventas:detalle', pk=p.pk)
         return render(request, 'ventas/nuevo.html', {'titulo': 'Nuevo presupuesto', 'cliente': cliente})
     return render(request, 'ventas/nuevo.html', {'titulo': 'Nuevo presupuesto'})
@@ -174,7 +177,7 @@ def detalle(request, pk):
         'devoluciones': Devolucion.objects.filter(presupuesto=p).order_by('creada_en') if p.es_venta else [],
         'puede_devolver': tiene_permiso(request, 'ventas.devolver'),
         'puede_facturar': tiene_permiso(request, 'ventas.facturar'),
-        'titulo': p.numero, 'p': p, 'items': items, 'perfil': perfil,
+        'titulo': p.numero_visible, 'p': p, 'items': items, 'perfil': perfil,
         'montos_bs': montos_bs, 'total_unidades': sum(i.cantidad for i in items), 'tasa_referencial': tasa_referencial,
         'puede_fijar': tiene_permiso(request, 'precios.fijar'),
         'puede_validar': tiene_permiso(request, 'ventas.validar'),
@@ -236,7 +239,13 @@ def actualizar(request, pk):
         p.notas = request.POST.get('notas', p.notas)
         p.condiciones = request.POST.get('condiciones', p.condiciones)
         p.save(update_fields=['notas', 'condiciones'])
-        messages.success(request, 'Presupuesto actualizado.')
+        if 'guardar' in request.POST:           # botón «Guardar»: aquí recibe su número (exige productos)
+            sin_numero = not p.numero
+            p = servicios.guardar(p)
+            messages.success(request, f'Presupuesto guardado con el número {p.numero}.' if sin_numero
+                             else 'Presupuesto actualizado.')
+        else:
+            messages.success(request, 'Presupuesto actualizado.')
     except (ValueError, InvalidOperation):
         messages.error(request, 'Hay cantidades o precios inválidos.')
     except servicios.ErrorVenta as e:
@@ -283,6 +292,27 @@ def accion(request, pk, nombre):
 @login_required
 @requiere('presupuestos.crear')
 @require_POST
+def eliminar(request, pk):
+    """Borra por completo un borrador. No deja documento cancelado ni hueco en la numeración si era el último."""
+    p = _presupuesto(request, pk)
+    try:
+        numero, libre = servicios.eliminar(p)
+    except servicios.ErrorVenta as e:
+        messages.error(request, str(e))
+        return redirect('ventas:detalle', pk=pk)
+    if not numero:
+        messages.success(request, 'Borrador eliminado.')
+    elif libre:
+        messages.success(request, f'Borrador {numero} eliminado. Su número se usará en el próximo presupuesto.')
+    else:
+        messages.warning(request, f'Borrador {numero} eliminado. Ya había presupuestos posteriores: ese número '
+                                  f'queda sin usar.')
+    return redirect('ventas:lista')
+
+
+@login_required
+@requiere('presupuestos.crear')
+@require_POST
 def pago_entrega(request, pk):
     p = _presupuesto(request, pk)
     try:
@@ -313,7 +343,7 @@ def pdf(request, pk):
     referencial = _tasa_referencial(request, p)
     contenido = presupuesto_pdf(p, request.empresa, moneda=request.GET.get('moneda', 'ambas'),
                                 tasa_referencial=referencial)
-    return respuesta_pdf(contenido, p.numero, nombre_corto(p.cliente.nombre), p.fecha)
+    return respuesta_pdf(contenido, p.numero or 'Borrador', nombre_corto(p.cliente.nombre), p.fecha)
 
 
 @login_required

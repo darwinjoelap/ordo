@@ -47,7 +47,7 @@
       {% if ultimos %}
       <div class="list-group list-group-flush">
         {% for p in ultimos %}<a href="{% url 'ventas:detalle' p.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-2">
-          <div class="min-w-0"><div class="fw-semibold">{{ p.numero }} <span class="badge text-bg-{{ p.css_estado }}">{{ p.get_estado_display }}</span></div><div class="small text-muted text-truncate">{{ p.cliente.nombre }}</div></div>
+          <div class="min-w-0"><div class="fw-semibold">{{ p.numero|default:"Sin número" }} <span class="badge text-bg-{{ p.css_estado }}">{{ p.get_estado_display }}</span></div><div class="small text-muted text-truncate">{{ p.cliente.nombre }}</div></div>
           <div class="text-nowrap">{{ p.total_usd|usd }}</div></a>{% endfor %}
       </div>
       {% else %}<div class="card-body text-muted">Aún no hay presupuestos. <a href="{% url 'ventas:nuevo' %}">Crea el primero</a>.</div>{% endif %}

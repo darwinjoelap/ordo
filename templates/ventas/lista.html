@@ -36,11 +36,11 @@
     <tbody>
     {% for p in pagina.object_list %}
       <tr onclick="location.href='{% url 'ventas:detalle' p.pk %}'" role="button">
-        <td class="fw-semibold text-nowrap">{{ p.numero }}{% if p.requiere_revision %} <i class="bi bi-exclamation-triangle-fill text-warning" title="Precio fuera de rango"></i>{% endif %}</td>
+        <td class="fw-semibold text-nowrap">{{ p.numero|default:"Sin número" }}{% if p.requiere_revision %} <i class="bi bi-exclamation-triangle-fill text-warning" title="Precio fuera de rango"></i>{% endif %}</td>
         <td>{{ p.cliente.nombre }}</td>
         <td class="d-none d-md-table-cell">{{ p.fecha|date:"d/m/Y" }}</td>
         {% if 'presupuestos.ver_todos' in permisos %}<td class="d-none d-lg-table-cell small">{{ p.vendedor.nombre_visible }}</td>{% endif %}
-        <td><span class="badge text-bg-{{ p.css_estado }}">{{ p.get_estado_display }}</span>{% if p.pagado %} <i class="bi bi-cash text-success" title="Pagado"></i>{% endif %}{% if p.entregado %} <i class="bi bi-truck text-success" title="Entregado"></i>{% endif %}</td>
+        <td><span class="badge text-bg-{{ p.css_estado }}">{{ p.get_estado_display }}</span>{% if p.estado == 'VALIDADA' %} {% if p.pagado %}<span class="badge text-bg-success">Pagada</span>{% else %}<span class="badge text-bg-warning">Por cobrar</span>{% endif %}{% if p.entregado %} <i class="bi bi-truck text-success" title="Entregado"></i>{% else %} <i class="bi bi-truck text-muted" title="Sin entregar"></i>{% endif %}{% elif p.pagado %} <i class="bi bi-cash text-success" title="Pagado"></i>{% endif %}</td>
         <td class="text-end text-nowrap">{{ p.total_usd|usd }}</td>
       </tr>
     {% endfor %}

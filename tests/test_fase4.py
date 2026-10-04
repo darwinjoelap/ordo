@@ -230,12 +230,17 @@ class FlujoTests(Base):
 
     def test_numeracion_por_empresa(self):
         p1, p2 = self.presupuesto(), self.presupuesto()
+        self.assertEqual((p1.numero, p2.numero), ('', ''))          # el borrador nace sin número
+        with self.empresa_ctx():
+            p1, p2 = servicios.guardar(p1), servicios.guardar(p2)
         self.assertNotEqual(p1.numero, p2.numero)
         self.assertTrue(p2.numero.endswith('00002'))
         with usando_empresa(self.otra):
             c = Cliente.objects.create(nombre='Otro')
             q = servicios.crear(c, self.dueno, self.otra)
-        self.assertTrue(q.numero.endswith('00001'))
+            with self.assertRaisesMessage(servicios.ErrorVenta, 'al menos un producto'):
+                servicios.guardar(q)                                # vacío: no gasta número
+            self.assertEqual(q.numero, '')
 
     def test_pago_y_entrega(self):
         self.perfil.requiere_validacion = False
@@ -251,8 +256,9 @@ class FlujoTests(Base):
 
 class VistasTests(Base):
     def test_vendedor_ve_solo_lo_suyo(self):
-        mio = self.presupuesto(vendedor=self.vendedor)
-        ajeno = self.presupuesto(vendedor=self.vendedor2)
+        with self.empresa_ctx():
+            mio = servicios.guardar(self.presupuesto(vendedor=self.vendedor))
+            ajeno = servicios.guardar(self.presupuesto(vendedor=self.vendedor2))
         self.client.force_login(self.vendedor)
         r = self.client.get(reverse('ventas:lista'))
         self.assertContains(r, mio.numero)

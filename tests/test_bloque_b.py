@@ -136,6 +136,8 @@ class ApartadosTests(Base):
             q = ventas.crear(self.cliente2, self.vendedor2, self.empresa)
             ventas.agregar_item(q, self.prod, 1, None, self.perfil, True)
             ventas.apartar(q, self.vendedor2, self.empresa)
+        p.refresh_from_db()
+        q.refresh_from_db()                                        # el número se asigna al apartar
         self.client.force_login(self.dueno)
         r = self.client.get(reverse('ventas:reporte_apartados'))
         self.assertContains(r, p.numero)

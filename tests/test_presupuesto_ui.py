@@ -93,6 +93,7 @@ class NombreArchivoPdfTests(Base):
         with self.empresa_ctx():
             p = ventas.crear(self.cliente, self.vendedor, self.empresa)
             ventas.agregar_item(p, self.prod, 1, None, self.perfil, True)
+            p = ventas.guardar(p)
         self.client.force_login(self.vendedor)
         url = reverse('ventas:pdf', args=[p.pk])
         r = self.client.get(url)

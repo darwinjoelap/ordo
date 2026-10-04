@@ -69,7 +69,8 @@ class Presupuesto(EmpresaModel):
         MIXTO = 'MIXTO', 'Mixto'
         CREDITO = 'CREDITO', 'Crédito'
 
-    numero = models.CharField('Número', max_length=30)
+    # Vacío mientras es un borrador sin guardar: el número se asigna al guardar, emitir, apartar o confirmar
+    numero = models.CharField('Número', max_length=30, blank=True, default='')
     cliente = models.ForeignKey('clientes.Cliente', on_delete=models.PROTECT, related_name='presupuestos')
     vendedor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='+')
     estado = models.CharField('Estado', max_length=12, choices=Estado.choices, default=Estado.BORRADOR)
@@ -120,7 +121,8 @@ class Presupuesto(EmpresaModel):
         verbose_name_plural = 'Presupuestos y ventas'
         ordering = ['-creado_en', '-pk']
         base_manager_name = 'todos'
-        constraints = [models.UniqueConstraint(fields=['empresa', 'numero'], name='presupuesto_numero_unico')]
+        constraints = [models.UniqueConstraint(fields=['empresa', 'numero'], condition=~models.Q(numero=''),
+                                               name='presupuesto_numero_unico')]
         indexes = [
             models.Index(fields=['empresa', 'estado', 'validado_en'], name='venta_estado_fecha'),
             models.Index(fields=['empresa', 'vendedor', 'estado'], name='venta_vendedor_estado'),
@@ -128,7 +130,11 @@ class Presupuesto(EmpresaModel):
         ]
 
     def __str__(self):
-        return f'{self.numero} · {self.cliente}'
+        return f'{self.numero_visible} · {self.cliente}'
+
+    @property
+    def numero_visible(self):
+        return self.numero or 'Borrador sin número'
 
     # ── Estado ────────────────────────────────────────────────────────────────
     E = Estado

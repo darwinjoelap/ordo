@@ -21,6 +21,7 @@ urlpatterns = [
     path('<int:pk>/agregar/', views.agregar_item, name='agregar_item'),
     path('<int:pk>/actualizar/', views.actualizar, name='actualizar'),
     path('<int:pk>/accion/<slug:nombre>/', views.accion, name='accion'),
+    path('<int:pk>/eliminar/', views.eliminar, name='eliminar'),
     path('<int:pk>/pago-entrega/', views.pago_entrega, name='pago_entrega'),
     path('<int:pk>/pdf/', views.pdf, name='pdf'),
     path('<int:pk>/facturacion/', views.facturacion, name='facturacion'),

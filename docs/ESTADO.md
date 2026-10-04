@@ -172,3 +172,10 @@
 - [x] Se borra al cerrar sesión o si la sesión venció. La pantalla «Sin conexión» lleva a la consulta
 - [ ] NO incluido (decidido): crear presupuestos sin conexión (correlativo, lotes y apartados se deciden en el servidor)
 - [x] Presupuesto: muestra productos y total de unidades
+
+## Número al guardar y venta por cobrar (04/10/2026)
+- [x] El presupuesto nace SIN número; se asigna al Guardar, Emitir, Apartar o Confirmar (`servicios.asignar_numero`), y solo con productos
+- [x] `servicios.eliminar`: borra un BORRADOR por completo; si tenía el último número de la serie, se libera (`liberar_numero_presupuesto`)
+- [x] «Nuevo presupuesto» reutiliza el borrador vacío del mismo cliente; el cron borra borradores vacíos sin número de más de 24 h
+- [x] Migración `ventas 0004_numero_al_guardar` (número opcional; único solo cuando no está vacío)
+- [x] Venta confirmada/validada = «Por cobrar» hasta registrar el pago (ya era así; ahora se ve en lista y detalle, con pruebas)
