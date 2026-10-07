@@ -55,6 +55,10 @@ class ConsultaTests(Base):
         sw = self.client.get('/sw.js').content.decode()
         self.assertIn("'/consulta/datos.json'", sw)
         self.assertIn("consulta-ordo", sw)
+        self.assertIn("searchParams.has('red')", sw)           # primero lo guardado; ?red=1 fuerza la red
+        self.assertIn('Promise.race', sw)                      # límite de espera con señal débil
+        self.assertContains(self.client.get('/offline/'), 'Señal débil')
+        self.assertEqual(self.client.get('/sw.js').status_code, 200)
         self.assertIn('js/consulta', sw)                       # precargado
         self.assertContains(self.client.get('/offline/'), 'href="/consulta/"')
         self.client.force_login(self.vendedor)

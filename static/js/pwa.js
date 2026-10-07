@@ -44,8 +44,8 @@
       sessionStorage.setItem('ordo.consulta.t', String(Date.now()));
     } catch (e) {}
     navigator.serviceWorker.ready.then(function () {
-      fetch('/consulta/', { credentials: 'same-origin' }).catch(function () {});
-      fetch('/consulta/datos.json', { credentials: 'same-origin' }).catch(function () {});
+      fetch('/consulta/', { credentials: 'same-origin', cache: 'reload' }).catch(function () {});
+      fetch('/consulta/datos.json?red=1', { credentials: 'same-origin' }).catch(function () {});
     });
   });
   // Al cerrar sesión se borra lo guardado para la consulta sin conexión en este dispositivo

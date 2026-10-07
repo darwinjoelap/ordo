@@ -12,15 +12,29 @@
   function numero(n, dec) { return Number(n).toLocaleString('es-VE', { minimumFractionDigits: dec, maximumFractionDigits: dec }); }
   function el(tag, clase, texto) { var e = document.createElement(tag); if (clase) e.className = clase; if (texto != null) e.textContent = texto; return e; }
 
+  var actualizando = false, fallo = false;
+  function hace(ms) {
+    var min = Math.floor(ms / 60000);
+    if (min < 1) return 'hace un momento';
+    if (min < 60) return 'hace ' + min + ' min';
+    var h = Math.floor(min / 60);
+    if (h < 24) return 'hace ' + h + ' h' + (min % 60 ? ' ' + (min % 60) + ' min' : '');
+    var d = Math.floor(h / 24);
+    return 'hace ' + d + (d === 1 ? ' día' : ' días');
+  }
+  // Aviso de antigüedad: verde = al día · amarillo = guardados hace rato · rojo = más de un día
   function mostrarEstado() {
-    var f = new Date(datos.generado);
+    if (!datos) return;
+    var f = new Date(datos.generado), edad = Date.now() - f.getTime();
     var cuando = f.toLocaleDateString('es-VE') + ' ' + f.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
-    // Una respuesta recién traída del servidor tiene segundos; si es más vieja, vino de lo guardado en el dispositivo
-    var viejo = (Date.now() - f.getTime()) > 90 * 1000;
-    estado.className = 'alert py-2 small mb-2 ' + (viejo ? 'alert-warning' : 'alert-light border');
-    estado.textContent = (viejo ? 'Sin conexión: datos guardados del ' : 'Datos actualizados: ') + cuando +
-      (datos.tasa ? ' · Tasa ' + numero(datos.tasa.bs, 2) + ' Bs/USD (' + datos.tasa.fecha.split('-').reverse().join('/') + ')' : ' · Sin tasa');
-    if (viejo) estado.textContent += '. La existencia y los precios pueden haber cambiado.';
+    var nivel = edad < 5 * 60000 ? 'alert-success' : (edad < 24 * 3600000 ? 'alert-warning' : 'alert-danger');
+    var texto = 'Datos de ' + hace(edad) + ' (' + cuando + ')';
+    texto += datos.tasa ? ' · Tasa ' + numero(datos.tasa.bs, 2) + ' Bs/USD (' + datos.tasa.fecha.split('-').reverse().join('/') + ')' : ' · Sin tasa';
+    if (actualizando) texto += ' · Actualizando…';
+    else if (fallo) texto += navigator.onLine ? ' · No se pudo actualizar (señal débil). Toca ↻ para reintentar.' : ' · Sin conexión.';
+    if (edad >= 5 * 60000 && !actualizando) texto += ' La existencia y los precios pueden haber cambiado.';
+    estado.className = 'alert py-2 small mb-2 ' + nivel;
+    estado.textContent = texto;
   }
 
   function filaProducto(p) {
@@ -62,32 +76,49 @@
     $('cq-filtro-stock').hidden = vista !== 'productos';
   }
 
-  function cargar() {
-    estado.className = 'alert alert-light border py-2 small mb-2'; estado.textContent = 'Cargando…';
-    fetch(URL_DATOS, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
-      .then(function (r) {
-        if (!r.ok || (r.headers.get('Content-Type') || '').indexOf('json') === -1) throw new Error('sesion');
-        return r.json();
-      })
-      .then(function (d) {
-        datos = d;
-        $('cq-empresa').textContent = d.empresa;
-        $('cq-n-productos').textContent = d.productos.length;
-        $('cq-n-clientes').textContent = d.clientes.length;
-        $('cq-pestana-clientes').hidden = !d.clientes.length;
-        mostrarEstado(); pintar();
-      })
+  function leer(r) {
+    if (!r.ok || r.redirected || (r.headers.get('Content-Type') || '').indexOf('json') === -1) throw new Error('sesion');
+    return r.json();
+  }
+  function usar(d) {
+    if (datos && new Date(d.generado) < new Date(datos.generado)) return;      // nunca retroceder
+    datos = d;
+    $('cq-empresa').textContent = d.empresa;
+    $('cq-n-productos').textContent = d.productos.length;
+    $('cq-n-clientes').textContent = d.clientes.length;
+    $('cq-pestana-clientes').hidden = !d.clientes.length;
+    mostrarEstado(); pintar();
+  }
+  // Ponerse al día con el servidor, sin bloquear: lo guardado ya está en pantalla. Se rinde a los 20 s.
+  function actualizar() {
+    if (actualizando) return;
+    actualizando = true; mostrarEstado();
+    var corte = window.AbortController ? new AbortController() : null;
+    var reloj = setTimeout(function () { if (corte) corte.abort(); }, 20000);
+    fetch(URL_DATOS + '?red=1', { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' }, signal: corte ? corte.signal : undefined })
+      .then(leer)
+      .then(function (d) { fallo = false; actualizando = false; usar(d); mostrarEstado(); })
       .catch(function () {
+        fallo = true; actualizando = false;
+        if (datos) { mostrarEstado(); return; }
         estado.className = 'alert alert-warning py-2 small mb-2';
         estado.textContent = navigator.onLine
-          ? 'No se pudieron cargar los datos. Vuelve a entrar a Ordo e inténtalo de nuevo.'
+          ? 'No se pudieron cargar los datos. Revisa la señal o vuelve a entrar a Ordo, y toca ↻.'
           : 'Sin conexión y sin datos guardados en este dispositivo. Abre Ordo con internet al menos una vez.';
-      });
+      })
+      .then(function () { clearTimeout(reloj); });
+  }
+  // Primero lo guardado en el dispositivo (instantáneo); después, la versión del servidor por detrás.
+  function cargar() {
+    if (!datos) { estado.className = 'alert alert-light border py-2 small mb-2'; estado.textContent = 'Cargando…'; }
+    fetch(URL_DATOS, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+      .then(leer).then(usar).catch(function () {})
+      .then(actualizar);
   }
 
   buscar.addEventListener('input', pintar);
   $('cq-con-stock').addEventListener('change', pintar);
-  $('cq-actualizar').addEventListener('click', cargar);
+  $('cq-actualizar').addEventListener('click', actualizar);
   document.querySelectorAll('[data-cq-vista]').forEach(function (b) {
     b.addEventListener('click', function () {
       vista = b.dataset.cqVista;
@@ -95,7 +126,8 @@
       pintar();
     });
   });
-  window.addEventListener('online', cargar);
-  window.addEventListener('offline', function () { if (datos) mostrarEstado(); });
+  window.addEventListener('online', actualizar);
+  window.addEventListener('offline', function () { fallo = true; mostrarEstado(); });
+  setInterval(mostrarEstado, 30000);                       // la antigüedad avanza sola
   cargar();
 })();

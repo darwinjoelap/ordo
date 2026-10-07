@@ -4,8 +4,9 @@ PWA: manifest, service worker y página sin conexión.
 El service worker:
 - precarga estáticos (CSS/JS/iconos) y la página /offline/;
 - estáticos: primero caché (tienen hash en el nombre gracias a WhiteNoise);
-- páginas: SIEMPRE red; si no hay conexión muestra /offline/;
-- excepción: Consulta rápida (apps/core/consulta.py) guarda su pantalla y sus datos para verlos sin conexión.
+- páginas: SIEMPRE red; sin conexión, o si la red tarda más de 6 s (señal débil), muestra /offline/;
+- excepción: Consulta rápida (apps/core/consulta.py) guarda su pantalla y sus datos y los sirve PRIMERO desde
+  el dispositivo; consulta.js los pone al día por detrás (datos.json?red=1).
   No guarda HTML de la app en caché: los datos son por empresa y por usuario.
 """
 import json
@@ -83,6 +84,12 @@ const CACHE = 'ordo-__VERSION__';
 const PRECARGA = __PRECARGA__;
 const STATIC = '__STATIC__';
 const CONSULTA = 'consulta-ordo';   // no empieza por "ordo-": sobrevive a los despliegues
+const ESPERA = 6000;                // ms que se espera una página antes de ofrecer la consulta guardada
+const pacientes = new Set();        // direcciones que el usuario pidió seguir esperando
+
+self.addEventListener('message', (e) => {
+  if (e.data && e.data.esperar) pacientes.add(e.data.esperar);
+});
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECARGA)).then(() => self.skipWaiting()));
@@ -113,26 +120,41 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Consulta rápida (pantalla y datos): primero red y se guarda la última respuesta; sin conexión, lo guardado.
+  // Consulta rápida (pantalla y datos): PRIMERO LO GUARDADO, para que abra al instante aunque la señal sea mala.
+  //  · petición normal → lo guardado en el dispositivo (la pantalla además se renueva por detrás); si no hay, red.
+  //  · datos.json?red=1 → solo red (la pide consulta.js para ponerse al día); se guarda la respuesta.
   // Si la sesión terminó (redirige al login o 401/403) se borra lo guardado en este dispositivo.
   if (url.pathname === '/consulta/' || url.pathname === '/consulta/datos.json') {
+    const deRed = () => fetch(req).then((resp) => {
+      if (resp.ok && !resp.redirected) {
+        const copia = resp.clone(); caches.open(CONSULTA).then((c) => c.put(url.pathname, copia));
+      } else if (resp.redirected || resp.status === 401 || resp.status === 403) {
+        caches.delete(CONSULTA);
+      }
+      return resp;
+    });
+    if (url.searchParams.has('red')) { e.respondWith(deRed()); return; }
     e.respondWith(
-      fetch(req).then((resp) => {
-        if (resp.ok && !resp.redirected) {
-          const copia = resp.clone(); caches.open(CONSULTA).then((c) => c.put(url.pathname, copia));
-        } else if (resp.redirected || resp.status === 401 || resp.status === 403) {
-          caches.delete(CONSULTA);
+      caches.open(CONSULTA).then((c) => c.match(url.pathname)).then((guardado) => {
+        if (guardado) {
+          if (req.mode === 'navigate') e.waitUntil(deRed().catch(() => {}));
+          return guardado;
         }
-        return resp;
-      }).catch(() => caches.open(CONSULTA).then((c) => c.match(url.pathname))
-        .then((r) => r || (req.mode === 'navigate' ? caches.match('/offline/') : Response.error())))
+        return deRed().catch(() => (req.mode === 'navigate' ? caches.match('/offline/') : Response.error()));
+      })
     );
     return;
   }
 
-  // Páginas: siempre red; sin conexión → /offline/
+  // Páginas: siempre red. Sin conexión, o si la red no responde en ESPERA ms (señal débil), se muestra /offline/,
+  // que ofrece la consulta guardada. «Seguir esperando» avisa por mensaje y esa dirección se carga sin límite.
   if (req.mode === 'navigate') {
-    e.respondWith(fetch(req).catch(() => caches.match('/offline/')));
+    const red = fetch(req);
+    if (pacientes.delete(url.pathname)) { e.respondWith(red.catch(() => caches.match('/offline/'))); return; }
+    const limite = new Promise((ok) => setTimeout(() => ok(null), ESPERA));
+    e.respondWith(
+      Promise.race([red, limite]).then((resp) => resp || caches.match('/offline/'), () => caches.match('/offline/'))
+    );
   }
 });
 """

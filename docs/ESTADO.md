@@ -194,3 +194,5 @@
 - [x] Un solo parcial para el estado: `templates/ventas/partials/estado.html` (lista, detalle, inicio)
 
 - **Punto de equilibrio** (`apps/finanzas`, `/finanzas/equilibrio/`, permiso `finanzas.ver` = dueño/administrador): costos fijos por mes (`CostoFijo` con vigencia desde/hasta), deducciones % sobre venta o utilidad bruta (`Deduccion`), cálculo en `servicios.calcular` (ventas validadas sin IVA − devoluciones − costo − comisiones − deducciones, acumulado por día vs. fijos). Gráfica SVG propia.
+
+- **Señal débil**: la Consulta rápida sirve primero lo guardado en el dispositivo y se pone al día por detrás (`datos.json?red=1`, se rinde a los 20 s) con aviso de antigüedad; las demás páginas esperan 6 s (`ESPERA` en `apps/core/pwa.py`) y muestran `/offline/` como «Señal débil» con «Seguir esperando».

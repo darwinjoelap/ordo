@@ -1,17 +1,35 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block titulo %}Sin conexión{% endblock %}
+{# Se muestra sin conexión y también cuando la red tarda demasiado (señal débil). El texto lo decide el navegador. #}
 {% block cuerpo %}
 <div class="ordo-login">
   <div class="card shadow-sm"><div class="card-body p-4 p-sm-5 text-center">
     <img src="{% static 'img/marca/ordo-simbolo-web.png' %}" alt="Ordo" style="height:64px">
-    <h1 class="h4 mt-3">Sin conexión</h1>
-    <p class="text-muted">Ordo necesita internet para trabajar con datos actualizados.</p>
+    <h1 class="h4 mt-3" id="of-titulo">Sin conexión</h1>
+    <p class="text-muted" id="of-texto">Ordo necesita internet para trabajar con datos actualizados.</p>
     <div class="d-grid gap-2">
       <a class="btn btn-primary" href="/consulta/"><i class="bi bi-search me-1"></i>Consultar precios y existencia guardados</a>
-      <button class="btn btn-outline-primary" onclick="location.reload()"><i class="bi bi-arrow-clockwise me-1"></i>Reintentar</button>
+      <button class="btn btn-outline-primary" id="of-reintentar"><i class="bi bi-arrow-clockwise me-1"></i>Reintentar</button>
+      <button class="btn btn-link btn-sm" id="of-esperar" hidden>Seguir esperando esta pantalla</button>
     </div>
-    <p class="small text-muted mt-3 mb-0">La consulta muestra los datos de la última vez que este dispositivo tuvo conexión. Para crear presupuestos hace falta internet.</p>
+    <p class="small text-muted mt-3 mb-0">La consulta muestra los datos de la última vez que este dispositivo los pudo actualizar. Para crear presupuestos hace falta internet.</p>
   </div></div>
 </div>
+<script>
+(function () {
+  var debil = navigator.onLine, esperar = document.getElementById('of-esperar');
+  if (debil) {
+    document.getElementById('of-titulo').textContent = 'Señal débil';
+    document.getElementById('of-texto').textContent = 'La conexión está muy lenta y esta pantalla no terminó de cargar.';
+    esperar.hidden = !(navigator.serviceWorker && navigator.serviceWorker.controller);
+  }
+  document.getElementById('of-reintentar').addEventListener('click', function () { location.reload(); });
+  esperar.addEventListener('click', function () {
+    esperar.disabled = true; esperar.textContent = 'Esperando…';
+    navigator.serviceWorker.controller.postMessage({ esperar: location.pathname });
+    setTimeout(function () { location.reload(); }, 100);
+  });
+})();
+</script>
 {% endblock %}
