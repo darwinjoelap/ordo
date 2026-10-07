@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+<style>
+  .pe-ayuda{font-size:.8rem;color:var(--bs-secondary-color);line-height:1.35}
+  .pe-graf{position:relative}
+  .pe-graf svg{display:block;width:100%;height:auto;font-family:inherit}
+  .pe-tip{position:absolute;pointer-events:none;background:var(--bs-body-bg);border:1px solid var(--bs-border-color);border-radius:.5rem;
+    padding:.4rem .6rem;font-size:.8rem;box-shadow:0 4px 14px rgba(0,0,0,.12);white-space:nowrap;display:none;z-index:5}
+  .pe-ley{display:flex;flex-wrap:wrap;gap:.25rem 1rem;font-size:.8rem;color:var(--bs-secondary-color)}
+  .pe-ley i{display:inline-block;width:18px;height:0;border-top:2px solid;vertical-align:middle;margin-right:.35rem}
+  .pe-ley i.caja{height:10px;border:0;border-radius:2px}
+</style>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+  <div><h1 class="h3 mb-0">Punto de equilibrio</h1>
+    <div class="small text-muted">El día del mes en que lo ganado cubre los costos fijos. A partir de ahí, lo que entra es utilidad.</div></div>
+  <div class="d-flex align-items-center gap-1">
+    <a class="btn btn-outline-secondary btn-sm" href="?mes={{ anterior|date:'Y-m' }}" aria-label="Mes anterior"><i class="bi bi-chevron-left"></i></a>
+    <form method="get"><input type="month" name="mes" value="{{ mes|date:'Y-m' }}" class="form-control form-control-sm" onchange="this.form.submit()" aria-label="Mes"></form>
+    {% if siguiente %}<a class="btn btn-outline-secondary btn-sm" href="?mes={{ siguiente|date:'Y-m' }}" aria-label="Mes siguiente"><i class="bi bi-chevron-right"></i></a>{% endif %}
+  </div>
+</div>
+
+{% if r.fijos == 0 %}
+<div class="alert alert-info"><i class="bi bi-info-circle me-1"></i><strong>Falta un dato:</strong> agrega abajo tus costos fijos del mes (alquiler, nómina, servicios…). Sin ellos no hay punto de equilibrio que calcular.</div>
+{% elif r.futuro %}
+<div class="alert alert-secondary">Este mes aún no comienza.</div>
+{% elif r.equilibrio_fecha %}
+<div class="alert alert-success"><i class="bi bi-check-circle-fill me-1"></i><strong>Punto de equilibrio alcanzado el {{ r.equilibrio_fecha|date:"d/m/Y" }}.</strong>
+  Desde ese día el mes deja utilidad: van <strong>{{ r.utilidad|usd }}</strong>{% if r.en_curso %} hasta hoy{% endif %}.</div>
+{% elif r.en_curso %}
+<div class="alert alert-warning"><i class="bi bi-hourglass-split me-1"></i><strong>Aún no se alcanza.</strong> Faltan <strong>{{ r.falta|usd }}</strong> de margen para cubrir los costos fijos.
+  {% if r.proyeccion.dia_estimado %}Al ritmo actual se alcanzaría cerca del <strong>día {{ r.proyeccion.dia_estimado }}</strong>.{% else %}Al ritmo actual <strong>no se alcanzaría este mes</strong>.{% endif %}</div>
+{% else %}
+<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-1"></i><strong>No se alcanzó el punto de equilibrio.</strong> El mes cerró con una pérdida de <strong>{{ r.falta|usd }}</strong>.</div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card card-body h-100"><div class="small text-muted">Ventas del mes</div><div class="fs-4 fw-bold">{{ r.totales.ingreso|usd }}</div>
+    <div class="pe-ayuda">Ventas validadas, sin IVA, menos devoluciones. {{ r.n_ventas }} venta{{ r.n_ventas|pluralize }}.</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-body h-100"><div class="small text-muted">Margen</div><div class="fs-4 fw-bold">{{ r.totales.margen|usd }}</div>
+    <div class="pe-ayuda">Lo que queda de las ventas después de pagar el producto, las comisiones y las deducciones.{% if r.razon_margen is not None %} Es el {{ r.razon_margen }} % de lo vendido.{% endif %}</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-body h-100"><div class="small text-muted">Costos fijos</div><div class="fs-4 fw-bold">{{ r.fijos|usd }}</div>
+    <div class="pe-ayuda">Lo que se paga este mes venda o no venda.{% if r.ventas_equilibrio %} Para cubrirlos hay que vender unos {{ r.ventas_equilibrio|usd }}.{% endif %}</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-body h-100"><div class="small text-muted">{% if r.utilidad >= 0 %}Utilidad{% else %}Falta por cubrir{% endif %}</div>
+    <div class="fs-4 fw-bold {% if r.utilidad >= 0 %}text-success{% else %}text-danger{% endif %}"><i class="bi {% if r.utilidad >= 0 %}bi-arrow-up-right{% else %}bi-arrow-down-right{% endif %} fs-6"></i> {{ r.utilidad|abs_valor|usd }}</div>
+    <div class="pe-ayuda">Margen menos costos fijos.{% if r.proyeccion %} Si el ritmo sigue igual, el mes cerraría con {{ r.proyeccion.fin_de_mes|usd }} de margen.{% endif %}</div></div></div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header ordo-card-titulo d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-graph-up-arrow me-1"></i>Evolución del mes</span>
+    <button type="button" class="btn btn-sm btn-light" data-bs-toggle="collapse" data-bs-target="#pe-tabla"><i class="bi bi-table me-1"></i>Ver tabla</button>
+  </div>
+  <div class="card-body">
+    {% if r.serie %}
+    <div class="pe-ley mb-2">
+      <span><i style="border-color:#0A5A9E"></i>Margen acumulado</span>
+      <span><i style="border-color:#6c757d;border-top-style:dashed"></i>Costos fijos del mes</span>
+      <span><i class="caja" style="background:rgba(208,59,59,.18)"></i>Zona de pérdida</span>
+      <span><i class="caja" style="background:rgba(12,163,12,.18)"></i>Zona de utilidad</span>
+      {% if r.proyeccion %}<span><i style="border-color:#0A5A9E;border-top-style:dotted"></i>Proyección al ritmo actual</span>{% endif %}
+    </div>
+    <div class="pe-graf" id="pe-graf"><div class="pe-tip" id="pe-tip"></div></div>
+    <div class="pe-ayuda mt-2"><strong>Cómo leerla:</strong> la línea azul suma día a día lo que deja cada venta. Mientras va por debajo de la línea punteada, el mes todavía no paga sus costos fijos. Donde la cruza está el punto de equilibrio.</div>
+    {% else %}<div class="text-muted">Sin datos para este mes.</div>{% endif %}
+    <div class="collapse mt-3" id="pe-tabla"><div class="table-responsive"><table class="table table-sm align-middle mb-0">
+      <thead><tr><th>Día</th><th class="text-end">Ventas</th><th class="text-end">Costo producto</th><th class="text-end">Comisiones</th><th class="text-end">Deducciones</th><th class="text-end">Margen del día</th><th class="text-end">Acumulado</th><th class="text-end">Menos fijos</th></tr></thead>
+      <tbody>{% for s in r.serie %}<tr{% if s.dia == r.equilibrio_dia %} class="table-success"{% endif %}>
+        <td>{{ s.dia }}{% if s.dia == r.equilibrio_dia %} <span class="badge text-bg-success">Equilibrio</span>{% endif %}</td>
+        <td class="text-end">{{ s.ingreso|usd }}</td><td class="text-end">{{ s.costo|usd }}</td><td class="text-end">{{ s.comision|usd }}</td>
+        <td class="text-end">{{ s.deducciones|usd }}</td><td class="text-end">{{ s.margen|usd }}</td><td class="text-end fw-semibold">{{ s.acumulado|usd }}</td>
+        <td class="text-end {% if s.utilidad < 0 %}text-danger{% else %}text-success{% endif %}">{{ s.utilidad|usd }}</td></tr>{% endfor %}</tbody>
+    </table></div></div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header ordo-card-titulo"><i class="bi bi-calculator me-1"></i>Cómo se llega al resultado</div>
+  <div class="card-body">
+    <table class="table table-sm mb-2">
+      <tr><td>Ventas del mes <span class="pe-ayuda">(sin IVA, menos devoluciones)</span></td><td class="text-end text-nowrap fw-semibold">{{ r.totales.ingreso|usd }}</td></tr>
+      <tr><td>− Costo de lo vendido <span class="pe-ayuda">(lo que costó el producto)</span></td><td class="text-end text-nowrap">{{ r.totales.costo|usd }}</td></tr>
+      <tr><td>− Comisiones de vendedores <span class="pe-ayuda">(se toman solas del módulo de comisiones)</span></td><td class="text-end text-nowrap">{{ r.totales.comision|usd }}</td></tr>
+      <tr><td>− Deducciones <span class="pe-ayuda">(los porcentajes de abajo)</span></td><td class="text-end text-nowrap">{{ r.totales.deducciones|usd }}</td></tr>
+      <tr class="table-light"><td class="fw-semibold">= Margen</td><td class="text-end text-nowrap fw-semibold">{{ r.totales.margen|usd }}</td></tr>
+      <tr><td>− Costos fijos del mes</td><td class="text-end text-nowrap">{{ r.fijos|usd }}</td></tr>
+      <tr class="table-light"><td class="fw-bold">= {% if r.utilidad >= 0 %}Utilidad{% else %}Pérdida{% endif %}</td><td class="text-end text-nowrap fw-bold {% if r.utilidad >= 0 %}text-success{% else %}text-danger{% endif %}">{{ r.utilidad|usd }}</td></tr>
+    </table>
+    <div class="pe-ayuda">Todo en dólares. Una venta cuenta el día en que se valida, no el día en que se cobra.</div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6"><div class="card h-100">
+    <div class="card-header ordo-card-titulo"><i class="bi bi-building me-1"></i>Costos fijos de {{ mes|date:"m/Y" }}</div>
+    <div class="card-body">
+      <div class="pe-ayuda mb-2"><strong>Costo fijo:</strong> se paga igual vendas mucho o poco. Ejemplos: alquiler, sueldos fijos, internet, contador, suscripciones.</div>
+      {% if r.costos %}<table class="table table-sm align-middle">
+        {% for c in r.costos %}<tr><td>{{ c.nombre }} <span class="badge text-bg-light border">{% if c.recurrente %}Cada mes{% else %}Solo este mes{% endif %}</span></td>
+          <td class="text-end">{{ c.monto_usd|usd }}</td>
+          <td class="text-end" style="width:1%"><form method="post" action="{% url 'finanzas:costo_quitar' c.pk %}" onsubmit="return confirm('¿Quitar «{{ c.nombre|escapejs }}» desde este mes? Los meses anteriores no cambian.')">{% csrf_token %}<input type="hidden" name="mes" value="{{ mes|date:'Y-m' }}">
+            <button class="btn btn-sm btn-outline-danger" aria-label="Quitar {{ c.nombre }}"><i class="bi bi-trash"></i></button></form></td></tr>{% endfor %}
+        <tr class="table-light"><td class="fw-semibold">Total</td><td class="text-end fw-semibold">{{ r.fijos|usd }}</td><td></td></tr>
+      </table>{% else %}<div class="text-muted small mb-2">Aún no hay costos fijos para este mes.</div>{% endif %}
+      <form method="post" action="{% url 'finanzas:costo_agregar' %}" class="row g-2 align-items-end">{% csrf_token %}<input type="hidden" name="mes" value="{{ mes|date:'Y-m' }}">
+        <div class="col-12 col-sm-5"><label class="form-label small mb-1" for="cf-nombre">Concepto</label><input id="cf-nombre" name="nombre" maxlength="80" required class="form-control form-control-sm" placeholder="Alquiler"></div>
+        <div class="col-6 col-sm-3"><label class="form-label small mb-1" for="cf-monto">Monto USD</label><input id="cf-monto" name="monto" type="number" step="0.01" min="0.01" required class="form-control form-control-sm"></div>
+        <div class="col-6 col-sm-4"><label class="form-label small mb-1" for="cf-rec">Se repite</label><select id="cf-rec" name="recurrente" class="form-select form-select-sm"><option value="1">Cada mes</option><option value="0">Solo este mes</option></select></div>
+        <div class="col-12"><button class="btn btn-sm btn-success"><i class="bi bi-plus-lg me-1"></i>Agregar</button></div>
+      </form>
+      <div class="pe-ayuda mt-2">«Cada mes» cuenta desde {{ mes|date:"m/Y" }} en adelante. Si un monto cambia, quita el costo y agrégalo con el monto nuevo: los meses pasados conservan el anterior.</div>
+    </div></div></div>
+
+  <div class="col-lg-6"><div class="card h-100">
+    <div class="card-header ordo-card-titulo"><i class="bi bi-percent me-1"></i>Deducciones</div>
+    <div class="card-body">
+      <div class="pe-ayuda mb-2"><strong>Deducción:</strong> porcentaje que se va con cada venta. <strong>Sobre la venta</strong>: se calcula del monto vendido (comisión del banco o del punto, impuestos municipales). <strong>Sobre la utilidad bruta</strong>: se calcula de lo que queda al restar el costo del producto (por ejemplo, una reserva para impuesto sobre la renta).</div>
+      {% if r.deducciones or deducciones_inactivas %}<table class="table table-sm align-middle">
+        {% for d in r.deducciones %}<tr><td>{{ d.nombre }} <span class="badge text-bg-light border">{{ d.get_base_display }}</span></td><td class="text-end">{{ d.porcentaje }} %</td>
+          <td class="text-end text-nowrap" style="width:1%"><form method="post" action="{% url 'finanzas:deduccion_quitar' d.pk %}" class="d-inline">{% csrf_token %}<input type="hidden" name="mes" value="{{ mes|date:'Y-m' }}">
+            <button class="btn btn-sm btn-outline-secondary" title="Desactivar" aria-label="Desactivar {{ d.nombre }}"><i class="bi bi-pause"></i></button>
+            <button name="eliminar" value="1" class="btn btn-sm btn-outline-danger" aria-label="Eliminar {{ d.nombre }}" onclick="return confirm('¿Eliminar esta deducción?')"><i class="bi bi-trash"></i></button></form></td></tr>{% endfor %}
+        {% for d in deducciones_inactivas %}<tr class="text-muted"><td><s>{{ d.nombre }}</s> <span class="badge text-bg-light border">Desactivada</span></td><td class="text-end">{{ d.porcentaje }} %</td>
+          <td class="text-end text-nowrap" style="width:1%"><form method="post" action="{% url 'finanzas:deduccion_quitar' d.pk %}" class="d-inline">{% csrf_token %}<input type="hidden" name="mes" value="{{ mes|date:'Y-m' }}">
+            <button class="btn btn-sm btn-outline-success" title="Activar" aria-label="Activar {{ d.nombre }}"><i class="bi bi-play"></i></button>
+            <button name="eliminar" value="1" class="btn btn-sm btn-outline-danger" aria-label="Eliminar {{ d.nombre }}" onclick="return confirm('¿Eliminar esta deducción?')"><i class="bi bi-trash"></i></button></form></td></tr>{% endfor %}
+      </table>{% else %}<div class="text-muted small mb-2">Sin deducciones.</div>{% endif %}
+      <form method="post" action="{% url 'finanzas:deduccion_agregar' %}" class="row g-2 align-items-end">{% csrf_token %}<input type="hidden" name="mes" value="{{ mes|date:'Y-m' }}">
+        <div class="col-12 col-sm-5"><label class="form-label small mb-1" for="de-nombre">Concepto</label><input id="de-nombre" name="nombre" maxlength="80" required class="form-control form-control-sm" placeholder="Comisión bancaria"></div>
+        <div class="col-5 col-sm-3"><label class="form-label small mb-1" for="de-pct">%</label><input id="de-pct" name="porcentaje" type="number" step="0.01" min="0.01" max="100" required class="form-control form-control-sm"></div>
+        <div class="col-7 col-sm-4"><label class="form-label small mb-1" for="de-base">Se aplica</label><select id="de-base" name="base" class="form-select form-select-sm">{% for v, t in bases %}<option value="{{ v }}">{{ t }}</option>{% endfor %}</select></div>
+        <div class="col-12"><button class="btn btn-sm btn-success"><i class="bi bi-plus-lg me-1"></i>Agregar</button></div>
+      </form>
+      <div class="pe-ayuda mt-2">Las deducciones activas se aplican a todos los meses, también a los pasados. Las comisiones de vendedores no van aquí: ya se restan solas.</div>
+    </div></div></div>
+</div>
+
+{{ grafica|json_script:"pe-datos" }}
+<script>
+(function () {
+  var caja = document.getElementById('pe-graf'); if (!caja) return;
+  var D = JSON.parse(document.getElementById('pe-datos').textContent), S = D.serie, tip = document.getElementById('pe-tip');
+  var angosto = caja.clientWidth < 520, NS = 'http://www.w3.org/2000/svg', W = angosto ? 380 : 720, H = angosto ? 270 : 300, m = {t: 18, r: 14, b: 28, l: angosto ? 46 : 58};
+  var AZUL = '#0A5A9E', VERDE = '#0ca30c', ROJO = '#d03b3b';
+  function el(n, a, p) { var e = document.createElementNS(NS, n); for (var k in a) e.setAttribute(k, a[k]); (p || svg).appendChild(e); return e; }
+  function usd(v) { return (v < 0 ? '-' : '') + '$ ' + Math.abs(v).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+  function corto(v) { var a = Math.abs(v); return (v < 0 ? '-' : '') + '$' + (a >= 1000 ? (a / 1000).toLocaleString('es-VE', {maximumFractionDigits: 1}) + 'k' : Math.round(a)); }
+  var vals = S.map(function (s) { return s.acumulado; }).concat([0, D.fijos]); if (D.proyeccion !== null) vals.push(D.proyeccion);
+  var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals); if (hi === lo) hi = lo + 1;
+  var pad = (hi - lo) * .08; hi += pad; if (lo < 0) lo -= pad;
+  function X(d) { return m.l + (d / D.dias) * (W - m.l - m.r); }
+  function Y(v) { return m.t + (1 - (v - lo) / (hi - lo)) * (H - m.t - m.b); }
+  var svg = document.createElementNS(NS, 'svg'); svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', 'Margen acumulado por día frente a los costos fijos de ' + D.mes); caja.insertBefore(svg, tip);
+  var yf = Y(D.fijos);
+  if (D.fijos > 0) {
+    el('rect', {x: m.l, y: yf, width: W - m.l - m.r, height: H - m.b - yf, fill: ROJO, opacity: .07});
+    el('rect', {x: m.l, y: m.t, width: W - m.l - m.r, height: yf - m.t, fill: VERDE, opacity: .07});
+  }
+  for (var i = 0; i <= 4; i++) { var v = lo + (hi - lo) * i / 4, y = Y(v);
+    el('line', {x1: m.l, x2: W - m.r, y1: y, y2: y, stroke: 'currentColor', 'stroke-opacity': .1});
+    el('text', {x: m.l - 6, y: y + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'currentColor', 'fill-opacity': .65}).textContent = corto(v); }
+  [1, 5, 10, 15, 20, 25, D.dias].forEach(function (d) {
+    el('text', {x: X(d), y: H - 8, 'text-anchor': 'middle', 'font-size': 11, fill: 'currentColor', 'fill-opacity': .65}).textContent = d; });
+  if (D.fijos > 0) {
+    el('line', {x1: m.l, x2: W - m.r, y1: yf, y2: yf, stroke: '#6c757d', 'stroke-width': 1.5, 'stroke-dasharray': '6 4'});
+    el('text', {x: W - m.r - 4, y: yf - 6, 'text-anchor': 'end', 'font-size': 11, fill: 'currentColor', 'fill-opacity': .8}).textContent = 'Costos fijos ' + usd(D.fijos);
+  }
+  var pts = [[X(0), Y(0)]].concat(S.map(function (s) { return [X(s.dia), Y(s.acumulado)]; }));
+  el('polyline', {points: pts.map(function (p) { return p.join(','); }).join(' '), fill: 'none', stroke: AZUL, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round'});
+  var ult = S[S.length - 1];
+  if (D.proyeccion !== null && ult.dia < D.dias)
+    el('line', {x1: X(ult.dia), y1: Y(ult.acumulado), x2: X(D.dias), y2: Y(D.proyeccion), stroke: AZUL, 'stroke-width': 2, 'stroke-dasharray': '2 5', 'stroke-linecap': 'round'});
+  if (D.equilibrio) { var e = S[D.equilibrio - 1], ex = X(e.dia), ey = Y(e.acumulado);
+    el('circle', {cx: ex, cy: ey, r: 6, fill: VERDE, stroke: 'var(--bs-body-bg)', 'stroke-width': 2});
+    var der = ex < m.l + 120;
+    el('text', {x: ex + (der ? 10 : -10), y: der ? Math.min(ey + 18, H - m.b - 4) : Math.max(ey - 10, m.t + 10), 'text-anchor': der ? 'start' : 'end', 'font-size': 12, 'font-weight': 600, fill: 'currentColor'}).textContent = 'Equilibrio: día ' + e.dia;
+  } else {
+    el('circle', {cx: X(ult.dia), cy: Y(ult.acumulado), r: 4, fill: AZUL, stroke: 'var(--bs-body-bg)', 'stroke-width': 2});
+  }
+  var guia = el('line', {y1: m.t, y2: H - m.b, stroke: 'currentColor', 'stroke-opacity': .35, visibility: 'hidden'});
+  var punto = el('circle', {r: 5, fill: AZUL, stroke: 'var(--bs-body-bg)', 'stroke-width': 2, visibility: 'hidden'});
+  function mover(ev) {
+    var r = svg.getBoundingClientRect(), cx = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left;
+    var d = Math.round(((cx / r.width * W) - m.l) / (W - m.l - m.r) * D.dias); d = Math.max(1, Math.min(S.length, d));
+    var s = S[d - 1], x = X(s.dia), y = Y(s.acumulado), dif = s.acumulado - D.fijos;
+    guia.setAttribute('x1', x); guia.setAttribute('x2', x); guia.setAttribute('visibility', 'visible');
+    punto.setAttribute('cx', x); punto.setAttribute('cy', y); punto.setAttribute('visibility', 'visible');
+    tip.innerHTML = '<strong>Día ' + s.dia + '</strong><br>Ventas del día: ' + usd(s.ingreso) + '<br>Margen del día: ' + usd(s.margen) +
+      '<br>Acumulado: <strong>' + usd(s.acumulado) + '</strong><br>' + (D.fijos > 0 ? (dif >= 0 ? '▲ Utilidad: ' : '▼ Falta: ') + usd(Math.abs(dif)) : '');
+    tip.style.display = 'block';
+    var px = x / W * r.width, tw = tip.offsetWidth;
+    tip.style.left = Math.max(0, Math.min(r.width - tw, px + (px > r.width / 2 ? -tw - 12 : 12))) + 'px';
+    tip.style.top = Math.max(0, y / H * r.height - 40) + 'px';
+  }
+  function salir() { tip.style.display = 'none'; guia.setAttribute('visibility', 'hidden'); punto.setAttribute('visibility', 'hidden'); }
+  svg.addEventListener('mousemove', mover); svg.addEventListener('touchstart', mover, {passive: true}); svg.addEventListener('touchmove', mover, {passive: true});
+  svg.addEventListener('mouseleave', salir);
+})();
+</script>
+{% endblock %}

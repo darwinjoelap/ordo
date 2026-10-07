@@ -15,7 +15,7 @@ from .models import Empresa, Membresia, Rol
 # Primeros segmentos de URL que usa Ordo: no pueden ser enlaces de empresa
 RESERVADOS = {
     'admin', 'api', 'cuenta', 'empresa', 'empresas', 'inventario', 'proveedores', 'compras', 'clientes',
-    'ventas', 'comisiones', 'plataforma', 'salud', 'offline', 'instalar', 'visor', 'consulta', 'static', 'media', 'favicon.ico',
+    'ventas', 'comisiones', 'finanzas', 'plataforma', 'salud', 'offline', 'instalar', 'visor', 'consulta', 'static', 'media', 'favicon.ico',
     'manifest.webmanifest', 'sw.js', '__debug__', 'ordo', 'www', 'app', 'soporte', 'ayuda', 'login', 'entrar',
 }
 PATRON = re.compile(r'^[a-z0-9]+(?:-[a-z0-9]+)*$')

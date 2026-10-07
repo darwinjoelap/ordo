@@ -35,6 +35,8 @@ PERMISOS = {
     # Comisiones (Fase 5)
     'comisiones.ver_propias': {Rol.VENDEDOR} | GESTION,
     'comisiones.liquidar': GESTION,
+    # Finanzas: punto de equilibrio (muestra costos y utilidad)
+    'finanzas.ver': GESTION,
 }
 
 

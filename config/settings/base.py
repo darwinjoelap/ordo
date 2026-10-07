@@ -43,6 +43,7 @@ ORDO_APPS = [
     'apps.clientes',
     'apps.ventas',
     'apps.comisiones',
+    'apps.finanzas',
 ]
 
 # apps.usuarios va primero para que su `createsuperuser` reemplace al de Django

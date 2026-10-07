@@ -192,3 +192,5 @@
 - [x] Confirmar → dos flujos independientes: «Por cobrar» (`Presupuesto.por_cobrar`) y «Por entregar» (`por_entregar` = confirmada sin entregar, cualquier estado de `CONFIRMADAS`)
 - [x] Una sola etiqueta financiera: «Por cobrar» en amarillo (el estado `POR_PAGAR` se muestra así); camión cuando está entregada, en cualquier estado confirmado
 - [x] Un solo parcial para el estado: `templates/ventas/partials/estado.html` (lista, detalle, inicio)
+
+- **Punto de equilibrio** (`apps/finanzas`, `/finanzas/equilibrio/`, permiso `finanzas.ver` = dueño/administrador): costos fijos por mes (`CostoFijo` con vigencia desde/hasta), deducciones % sobre venta o utilidad bruta (`Deduccion`), cálculo en `servicios.calcular` (ventas validadas sin IVA − devoluciones − costo − comisiones − deducciones, acumulado por día vs. fijos). Gráfica SVG propia.
