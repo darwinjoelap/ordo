@@ -166,3 +166,38 @@ class SinStockPdfTests(Base):
     def test_el_dueno_lo_configura(self):
         self.client.force_login(self.dueno)
         self.assertContains(self.client.get(reverse('empresas:mi_empresa')), 'name="ocultar_sin_stock"')
+
+
+class ImportarExentoTests(Base):
+    def test_columna_exento_en_la_importacion(self):
+        from io import BytesIO
+
+        from openpyxl import Workbook
+
+        from apps.inventario import importacion as ip
+        from apps.inventario.models import Producto
+
+        def excel(filas, titulos):
+            wb = Workbook()
+            ws = wb.active
+            ws.title = 'Productos'
+            ws.append(titulos)
+            for f in filas:
+                ws.append(f)
+            b = BytesIO()
+            wb.save(b)
+            return b.getvalue()
+        with self.empresa_ctx():
+            Producto.objects.filter(pk=self.prod.pk).update(exento_iva=True)
+            r = ip.validar(excel([['NUEVO', 'Urea', 'Fertilizantes', 'SI'], ['NUEVO2', 'Otro', 'Fertilizantes', None]],
+                                 ['codigo', 'nombre', 'categoria', 'exento_iva']))
+            self.assertTrue(r.valido, r.errores)
+            ip.aplicar(r, self.dueno)
+            self.assertTrue(Producto.objects.get(codigo='NUEVO').exento_iva)
+            self.assertFalse(Producto.objects.get(codigo='NUEVO2').exento_iva)
+            r = ip.validar(excel([[self.prod.codigo, 'Glucosa', 'Reactivos']], ['codigo', 'nombre', 'categoria']))
+            ip.aplicar(r, self.dueno)
+            self.assertTrue(Producto.objects.get(pk=self.prod.pk).exento_iva)       # sin la columna no cambia
+            exportado = ip.exportar_productos(Producto.objects.filter(codigo='NUEVO'))
+            r = ip.validar(exportado)
+            self.assertTrue(r.productos['NUEVO'].datos['exento_iva'])

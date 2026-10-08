@@ -200,3 +200,6 @@
 - **«&» en los PDF**: `apps.core.pdf.Paragraph` escapa `&` y `<` de los datos; todos los PDF importan ese (no el de ReportLab).
 - **Exento de IVA**: `Producto.exento_iva` → `ItemPresupuesto.exento_iva` (copia al agregar) y `Presupuesto.exento_usd`; `models.partir_iva()` calcula IVA solo sobre la base imponible (USD, Bs y devoluciones). PDF y pantalla marcan (E) y separan Exento / Base imponible.
 - **Nota de despacho**: `ventas.Despacho` (1 por presupuesto, mismo número), `/ventas/<pk>/despacho/` y `/despacho/pdf/`, `servicios.guardar_despacho`; desde APARTADO en adelante. Documento no fiscal.
+
+- **Importar clientes por Excel**: `apps/clientes/importacion.py` (plantilla, validar, aplicar, exportar), `views_importacion.py`, `/clientes/importar/`, permiso `clientes.importar` (dueño/administrador). Coincide por RIF y, sin RIF, por nombre normalizado; actualiza sin borrar datos.
+- **Ocultar SIN STOCK en PDF**: `PerfilEmpresa.ocultar_sin_stock` (Mi empresa → Documentos).

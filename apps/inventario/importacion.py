@@ -65,6 +65,8 @@ COLUMNAS = [
             'Exige fecha de vencimiento en cada ingreso. Vacío = NO.', 18),
     Columna('descripcion', 'descripcion', False, 'Texto', '', 'Opcional.', 24),
     Columna('activo', 'activo', False, 'SI / NO', 'SI', 'Vacío = SI.', 8),
+    Columna('exento_iva', 'exento_iva', False, 'SI / NO', 'NO',
+            'Producto exento de IVA: sale marcado (E). Vacío = NO en productos nuevos; en los existentes no cambia.', 11),
     Columna('existencia_inicial', 'existencia_inicial', False, 'Entero ≥ 0', 12,
             'Solo para productos NUEVOS. Crea un ingreso inicial con el costo_usd.', 16),
     Columna('numero_lote', 'numero_lote', False, 'Texto', 'L2601',
@@ -376,7 +378,8 @@ def validar(contenido):
                 ('costo_usd', _decimal, Decimal('0')), ('precio_venta_usd', _decimal, Decimal('0')),
                 ('stock_minimo', _entero, 0), ('dias_por_unidad', _decimal, Decimal('30')),
                 ('maneja_lote', _si_no, False),
-                ('maneja_vencimiento', _si_no, False), ('activo', _si_no, True)):
+                ('maneja_vencimiento', _si_no, False), ('activo', _si_no, True),
+                ('exento_iva', _si_no, None)):
             try:
                 datos[clave] = conversor(d.get(clave), defecto)
             except ValueError as e:
@@ -467,6 +470,8 @@ def aplicar(resultado, usuario):
                       precio_venta_usd=d['precio_venta_usd'], stock_minimo=d['stock_minimo'],
                       factor_venta_dias=d['dias_por_unidad'],
                       maneja_lotes=d['maneja_lote'], maneja_vencimiento=d['maneja_vencimiento'], activo=d['activo'])
+        if d.get('exento_iva') is not None or not p.existente:     # vacío no cambia a los que ya existen
+            campos['exento_iva'] = bool(d.get('exento_iva'))
         if p.existente:
             for k, v in campos.items():
                 setattr(p.existente, k, v)
@@ -495,7 +500,7 @@ def exportar_productos(productos):
                    p.proveedor_habitual.nombre if p.proveedor_habitual else None,
                    float(p.precio_costo_usd), float(p.precio_venta_usd), p.stock_minimo, float(p.factor_venta_dias),
                    si_no(p.maneja_lotes),
-                   si_no(p.maneja_vencimiento), p.descripcion or None, si_no(p.activo)])
+                   si_no(p.maneja_vencimiento), p.descripcion or None, si_no(p.activo), si_no(p.exento_iva)])
     salida = BytesIO()
     wb.save(salida)
     return salida.getvalue()
