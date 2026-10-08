@@ -80,7 +80,12 @@ def encabezado_empresa(empresa, titulo='', subtitulo=''):
 
     logo = _imagen_logo(perfil)
     celdas = [logo, datos, derecha] if logo else [datos, derecha]
-    anchos = [50 * mm, 80 * mm, 56 * mm] if logo else [120 * mm, 66 * mm]
+    if logo:
+        # La columna del logo mide lo que mide el logo (+ 5 mm de aire): los datos quedan pegados a él
+        ancho_logo = logo.drawWidth + 5 * mm
+        anchos = [ancho_logo, 130 * mm - ancho_logo, 56 * mm]
+    else:
+        anchos = [120 * mm, 66 * mm]
     tabla = Table([celdas], colWidths=anchos)
     tabla.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
