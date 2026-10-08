@@ -2,6 +2,7 @@
 Piezas comunes de los PDF de Ordo. TODOS los documentos usan encabezado_empresa()
 para que el panel "Mi empresa" se refleje en presupuestos, órdenes y reportes.
 """
+import re
 from io import BytesIO
 
 from reportlab.lib import colors
@@ -10,7 +11,25 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
-from reportlab.platypus import HRFlowable, Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import HRFlowable, Image, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Paragraph as _Paragraph
+
+# ReportLab lee el texto de un Paragraph como marcado: un «&» o un «<» sueltos en un dato escrito por el usuario
+# («Agroservicios J&M», «Tubo < 5 ml») salían alterados («J&M;») o rompían el PDF. Se escapan aquí, una sola vez,
+# respetando las entidades (&amp;) y las etiquetas que sí usamos (<b>, <br/>, <font …>).
+_AMP_SUELTO = re.compile(r'&(?!(?:[A-Za-z][A-Za-z0-9]*|#[0-9]+|#x[0-9A-Fa-f]+);)')
+_MENOR_SUELTO = re.compile(r'<(?!/?(?:b|i|u|br|font|super|sub|strike|a|para|span|nobr)\b[^<>]*>)')
+
+
+def texto_seguro(texto):
+    return _MENOR_SUELTO.sub('&lt;', _AMP_SUELTO.sub('&amp;', str(texto)))
+
+
+class Paragraph(_Paragraph):
+    """Paragraph de ReportLab que tolera «&» y «<» en los datos. TODOS los PDF de Ordo importan este."""
+
+    def __init__(self, text, *args, **kwargs):
+        super().__init__(texto_seguro(text), *args, **kwargs)
 
 ESTILOS = getSampleStyleSheet()
 ESTILO_NOMBRE = ParagraphStyle('nombre', parent=ESTILOS['Heading2'], spaceAfter=2, leading=17)

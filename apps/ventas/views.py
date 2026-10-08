@@ -9,6 +9,7 @@ from django.db.models import Count, Q, Sum
 from django.db.models.functions import Lower
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apps.clientes.permisos import clientes_visibles
@@ -18,7 +19,7 @@ from apps.core.pdf import nombre_corto, respuesta_pdf
 
 from . import servicios
 from .models import ItemPresupuesto, Presupuesto, Reserva, desglose_bs
-from .pdf import presupuesto_pdf
+from .pdf import despacho_pdf, presupuesto_pdf
 
 E = Presupuesto.Estado
 
@@ -191,7 +192,7 @@ def detalle(request, pk):
         'puede_devolver': tiene_permiso(request, 'ventas.devolver'),
         'puede_facturar': tiene_permiso(request, 'ventas.facturar'),
         'titulo': p.numero_visible, 'p': p, 'items': items, 'perfil': perfil,
-        'montos_bs': montos_bs, 'total_unidades': sum(i.cantidad for i in items), 'tasa_referencial': tasa_referencial,
+        'montos_bs': montos_bs, 'base_imponible': p.base_usd - p.exento_usd, 'total_unidades': sum(i.cantidad for i in items), 'tasa_referencial': tasa_referencial,
         'puede_fijar': tiene_permiso(request, 'precios.fijar'),
         'puede_validar': tiene_permiso(request, 'ventas.validar'),
         'precio_editable': perfil.modo_precio != 'FIJO' or tiene_permiso(request, 'precios.fijar'),
@@ -387,3 +388,42 @@ def facturacion(request, pk):
     except servicios.ErrorVenta as e:
         messages.error(request, str(e))
     return redirect('ventas:detalle', pk=pk)
+
+
+@login_required
+@requiere('presupuestos.crear')
+def despacho(request, pk):
+    """Datos del transportista y del vehículo para la nota de despacho (una por presupuesto/venta)."""
+    p = _presupuesto(request, pk)
+    from .models import Despacho
+    d = Despacho.objects.filter(presupuesto=p).first()
+    if not p.despachable:
+        messages.error(request, 'La nota de despacho se emite cuando el presupuesto está apartado o la venta confirmada.')
+        return redirect('ventas:detalle', pk=p.pk)
+    datos = {c: getattr(d, c) for c in servicios.CAMPOS_DESPACHO} if d else {'direccion_entrega': p.cliente.direccion or ''}
+    datos['fecha'] = d.fecha if d else timezone.localdate()
+    datos['con_precios'] = d.con_precios if d else True
+    if request.method == 'POST':
+        datos = {c: request.POST.get(c, '') for c in servicios.CAMPOS_DESPACHO}
+        datos['fecha'] = _fecha_o_none(request.POST.get('fecha')) or timezone.localdate()
+        datos['con_precios'] = request.POST.get('con_precios') == '1'
+        try:
+            servicios.guardar_despacho(p, datos, request.user)
+        except servicios.ErrorVenta as error:
+            messages.error(request, str(error))
+        else:
+            messages.success(request, 'Nota de despacho guardada. Ya puedes abrir el PDF.')
+            return redirect('ventas:despacho', pk=p.pk)
+    return render(request, 'ventas/despacho.html', {
+        'titulo': f'Nota de despacho {p.numero}', 'p': p, 'd': d, 'datos': datos,
+        'recientes': servicios.transportistas_recientes(),
+    })
+
+
+@login_required
+@requiere('presupuestos.crear')
+def despacho_pdf_vista(request, pk):
+    from .models import Despacho
+    p = _presupuesto(request, pk)
+    d = get_object_or_404(Despacho.objects.select_related('presupuesto__cliente', 'presupuesto__vendedor'), presupuesto=p)
+    return respuesta_pdf(despacho_pdf(d, request.empresa), f'Despacho-{p.numero}', nombre_corto(p.cliente.nombre), d.fecha)

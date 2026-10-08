@@ -41,10 +41,21 @@ def desglose_bs(p, items):
         return None
     lineas = {i.pk: redondear(redondear(i.precio_usd * p.tasa_bs) * i.cantidad) for i in items}
     subtotal = sum(lineas.values(), Decimal('0'))
-    descuento = redondear(subtotal * p.descuento_pct / 100)
+    m = partir_iva(subtotal, sum((lineas[i.pk] for i in items if i.exento_iva), Decimal('0')), p.descuento_pct, p.iva_pct)
+    return {'lineas': lineas, 'subtotal': subtotal, **m}
+
+
+def partir_iva(subtotal, subtotal_exento, descuento_pct, iva_pct):
+    """
+    Reparte un subtotal entre lo exento (E) y la base imponible. El descuento se aplica por igual a ambos.
+    El IVA se calcula SOLO sobre la base imponible. Sirve para USD y para Bs.
+    """
+    descuento = redondear(subtotal * descuento_pct / 100)
     base = subtotal - descuento
-    iva = redondear(base * p.iva_pct / 100)
-    return {'lineas': lineas, 'subtotal': subtotal, 'descuento': descuento, 'base': base, 'iva': iva,
+    exento = min(redondear(subtotal_exento * (100 - descuento_pct) / 100), base)
+    gravable = base - exento
+    iva = redondear(gravable * iva_pct / 100)
+    return {'descuento': descuento, 'base': base, 'exento': exento, 'gravable': gravable, 'iva': iva,
             'total': base + iva}
 
 
@@ -89,6 +100,8 @@ class Presupuesto(EmpresaModel):
     descuento_usd = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     base_usd = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     iva_usd = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    # Parte de base_usd que corresponde a productos exentos de IVA (E). base_usd − exento_usd = base imponible
+    exento_usd = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     total_usd = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     total_bs = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     requiere_revision = models.BooleanField('Precio fuera de rango', default=False)
@@ -170,6 +183,11 @@ class Presupuesto(EmpresaModel):
         return self.confirmada and not self.entregado
 
     @property
+    def despachable(self):
+        """Se puede emitir la nota de despacho: la mercancía ya está apartada o vendida."""
+        return self.estado in (self.E.APARTADO, *self.CONFIRMADAS)
+
+    @property
     def es_venta(self):
         """Fue venta validada (aunque luego se haya devuelto)."""
         return self.estado in (self.E.VALIDADA, self.E.DEVUELTA)
@@ -207,6 +225,7 @@ class ItemPresupuesto(EmpresaModel):
     precio_usd = models.DecimalField('Precio', max_digits=12, decimal_places=2)
     costo_usd = models.DecimalField('Costo de referencia', max_digits=12, decimal_places=2, default=0)
     fuera_de_rango = models.BooleanField(default=False)
+    exento_iva = models.BooleanField('Exento de IVA', default=False)   # copia del producto al agregarlo
     orden = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
@@ -234,6 +253,35 @@ class Reserva(EmpresaModel):
 
     def __str__(self):
         return f'{self.item.producto.codigo} · {self.lote} · {self.cantidad}'
+
+
+class Despacho(EmpresaModel):
+    """
+    Nota de despacho de un presupuesto apartado o de una venta: quién transporta la mercancía y en qué vehículo.
+    Una por documento; lleva su mismo número. No es un documento fiscal.
+    """
+    presupuesto = models.OneToOneField(Presupuesto, on_delete=models.CASCADE, related_name='despacho')
+    fecha = models.DateField('Fecha de despacho', default=timezone.localdate)
+    direccion_entrega = models.TextField('Dirección de entrega', blank=True)
+    transportista = models.CharField('Nombre del transportista', max_length=120)
+    cedula = models.CharField('Cédula', max_length=20, blank=True)
+    telefono = models.CharField('Teléfono', max_length=30, blank=True)
+    empresa_transporte = models.CharField('Empresa de transporte', max_length=120, blank=True)
+    vehiculo = models.CharField('Vehículo (marca, modelo, color)', max_length=120, blank=True)
+    placa = models.CharField('Placa', max_length=15)
+    observaciones = models.TextField('Observaciones', blank=True)
+    con_precios = models.BooleanField('Mostrar precios y totales', default=True)
+    creado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='+')
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Nota de despacho'
+        verbose_name_plural = 'Notas de despacho'
+        base_manager_name = 'todos'
+
+    def __str__(self):
+        return f'Despacho {self.presupuesto.numero}'
 
 
 class Devolucion(EmpresaModel):

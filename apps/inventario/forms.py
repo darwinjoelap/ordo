@@ -11,7 +11,7 @@ class ProductoForm(FormBootstrap, forms.ModelForm):
     class Meta:
         model = Producto
         fields = ['codigo', 'nombre', 'descripcion', 'categoria', 'subcategoria', 'marca', 'unidad',
-                  'proveedor_habitual', 'maneja_lotes', 'maneja_vencimiento', 'precio_costo_usd',
+                  'proveedor_habitual', 'maneja_lotes', 'maneja_vencimiento', 'exento_iva', 'precio_costo_usd',
                   'precio_venta_usd', 'stock_minimo', 'factor_venta_dias', 'activo']
         widgets = {
             'descripcion': forms.Textarea(attrs={'rows': 2}),

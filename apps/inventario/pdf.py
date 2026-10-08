@@ -4,7 +4,9 @@ from itertools import groupby
 from django.utils import timezone
 from reportlab.lib import colors
 from reportlab.lib.units import mm
-from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import Spacer, Table, TableStyle
+
+from apps.core.pdf import Paragraph  # noqa: E402  (escapa & y < de los datos)
 
 from apps.core.pdf import ESTILO_CELDA, ESTILOS, documento, encabezado_empresa, pie_empresa
 from apps.core.templatetags.ordo import usd

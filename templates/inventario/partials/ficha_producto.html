@@ -5,7 +5,8 @@
     <div class="fw-semibold text-truncate">{{ producto.nombre }}</div>
     <div class="small text-muted"><code>{{ producto.codigo }}</code> · disponible {{ producto.stock_disponible|miles }} {{ producto.unidad.abreviatura }}
       {% if producto.maneja_lotes %} · <span class="badge text-bg-light border">Lote</span>{% endif %}
-      {% if producto.maneja_vencimiento %} <span class="badge text-bg-light border">Vencimiento</span>{% endif %}</div>
+      {% if producto.maneja_vencimiento %} <span class="badge text-bg-light border">Vencimiento</span>{% endif %}
+      {% if producto.exento_iva %} <span class="badge text-bg-info">Exento de IVA (E)</span>{% endif %}</div>
   </div>
   <a href="{{ request.path }}" class="btn btn-outline-secondary btn-sm flex-shrink-0">Cambiar</a>
 </div>

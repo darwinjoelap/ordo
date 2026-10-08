@@ -129,6 +129,8 @@ class Producto(EmpresaModel):
                                            blank=True, related_name='productos', verbose_name='Proveedor habitual')
     maneja_lotes = models.BooleanField('Maneja número de lote', default=False)
     maneja_vencimiento = models.BooleanField('Maneja fecha de vencimiento', default=False)
+    exento_iva = models.BooleanField('Exento de IVA', default=False,
+                                     help_text='No se le calcula IVA y sale marcado (E) en los documentos.')
     precio_costo_usd = models.DecimalField('Costo (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'))
     precio_venta_usd = models.DecimalField('Precio de venta (USD)', max_digits=12, decimal_places=2,
                                            default=Decimal('0.00'))

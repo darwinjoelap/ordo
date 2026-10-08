@@ -196,3 +196,7 @@
 - **Punto de equilibrio** (`apps/finanzas`, `/finanzas/equilibrio/`, permiso `finanzas.ver` = dueño/administrador): costos fijos por mes (`CostoFijo` con vigencia desde/hasta), deducciones % sobre venta o utilidad bruta (`Deduccion`), cálculo en `servicios.calcular` (ventas validadas sin IVA − devoluciones − costo − comisiones − deducciones, acumulado por día vs. fijos). Gráfica SVG propia.
 
 - **Señal débil**: la Consulta rápida sirve primero lo guardado en el dispositivo y se pone al día por detrás (`datos.json?red=1`, se rinde a los 20 s) con aviso de antigüedad; las demás páginas esperan 6 s (`ESPERA` en `apps/core/pwa.py`) y muestran `/offline/` como «Señal débil» con «Seguir esperando».
+
+- **«&» en los PDF**: `apps.core.pdf.Paragraph` escapa `&` y `<` de los datos; todos los PDF importan ese (no el de ReportLab).
+- **Exento de IVA**: `Producto.exento_iva` → `ItemPresupuesto.exento_iva` (copia al agregar) y `Presupuesto.exento_usd`; `models.partir_iva()` calcula IVA solo sobre la base imponible (USD, Bs y devoluciones). PDF y pantalla marcan (E) y separan Exento / Base imponible.
+- **Nota de despacho**: `ventas.Despacho` (1 por presupuesto, mismo número), `/ventas/<pk>/despacho/` y `/despacho/pdf/`, `servicios.guardar_despacho`; desde APARTADO en adelante. Documento no fiscal.

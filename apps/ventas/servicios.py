@@ -13,7 +13,8 @@ from apps.core.tenancy import usando_empresa
 from apps.inventario import servicios as inventario
 from apps.tasas.servicios import tasa_vigente
 
-from .models import Devolucion, ItemDevolucion, ItemPresupuesto, Presupuesto, Reserva, desglose_bs, redondear
+from .models import (Despacho, Devolucion, ItemDevolucion, ItemPresupuesto, Presupuesto, Reserva, desglose_bs,
+                     partir_iva, redondear)
 
 E = Presupuesto.Estado
 CIEN = Decimal('100')
@@ -138,12 +139,13 @@ def agregar_item(p, producto, cantidad, precio, perfil, puede_fijar_precio):
     item = ItemPresupuesto.objects.filter(presupuesto=p, producto=producto).first()
     if item:
         item.cantidad += cantidad
-        item.precio_usd, item.fuera_de_rango = precio, fuera
-        item.save(update_fields=['cantidad', 'precio_usd', 'fuera_de_rango'])
+        item.precio_usd, item.fuera_de_rango, item.exento_iva = precio, fuera, producto.exento_iva
+        item.save(update_fields=['cantidad', 'precio_usd', 'fuera_de_rango', 'exento_iva'])
     else:
         item = ItemPresupuesto.objects.create(
             presupuesto=p, producto=producto, cantidad=cantidad, precio_base_usd=producto.precio_venta_usd,
             precio_usd=precio, costo_usd=producto.precio_costo_usd, fuera_de_rango=fuera,
+            exento_iva=producto.exento_iva,
             orden=ItemPresupuesto.objects.filter(presupuesto=p).count())
     recalcular_totales(p)
     return item
@@ -178,15 +180,13 @@ def actualizar_items(p, cambios, quitar, perfil, puede_fijar_precio, descuento_p
 def recalcular_totales(p):
     items = list(ItemPresupuesto.objects.filter(presupuesto=p))
     subtotal = sum((i.subtotal_usd for i in items), Decimal('0'))
-    descuento = redondear(subtotal * p.descuento_pct / CIEN)
-    base = subtotal - descuento
-    iva = redondear(base * p.iva_pct / CIEN)
-    total = base + iva
-    p.subtotal_usd, p.descuento_usd, p.base_usd, p.iva_usd, p.total_usd = subtotal, descuento, base, iva, total
+    m = partir_iva(subtotal, sum((i.subtotal_usd for i in items if i.exento_iva), Decimal('0')), p.descuento_pct, p.iva_pct)
+    p.subtotal_usd, p.descuento_usd, p.base_usd, p.iva_usd, p.total_usd = subtotal, m['descuento'], m['base'], m['iva'], m['total']
+    p.exento_usd = m['exento']
     bs = desglose_bs(p, items)
     p.total_bs = bs['total'] if bs else Decimal('0')
     p.requiere_revision = any(i.fuera_de_rango for i in items)
-    p.save(update_fields=['subtotal_usd', 'descuento_usd', 'base_usd', 'iva_usd', 'total_usd', 'total_bs',
+    p.save(update_fields=['subtotal_usd', 'descuento_usd', 'base_usd', 'iva_usd', 'exento_usd', 'total_usd', 'total_bs',
                           'requiere_revision', 'actualizado_en'])
 
 
@@ -443,7 +443,7 @@ def _lotes_para_devolver(item, cantidad):
     return reparto
 
 
-def _totales_devolucion(p, subtotal, completa):
+def _totales_devolucion(p, subtotal, completa, subtotal_exento=Decimal('0')):
     """Montos de la devolución con el descuento, IVA y tasa de la venta. Si completa la venta, cierra al centavo."""
     if completa:
         from django.db.models import Sum
@@ -455,10 +455,8 @@ def _totales_devolucion(p, subtotal, completa):
                 'descuento_usd': p.descuento_usd - (previas['d'] or cero),
                 'base_usd': p.base_usd - (previas['b'] or cero), 'iva_usd': p.iva_usd - (previas['i'] or cero),
                 'total_usd': p.total_usd - (previas['t'] or cero), 'total_bs': p.total_bs - (previas['bs'] or cero)}
-    descuento = redondear(subtotal * p.descuento_pct / CIEN)
-    base = subtotal - descuento
-    iva = redondear(base * p.iva_pct / CIEN)
-    total = base + iva
+    m = partir_iva(subtotal, subtotal_exento, p.descuento_pct, p.iva_pct)
+    descuento, base, iva, total = m['descuento'], m['base'], m['iva'], m['total']
     return {'subtotal_usd': subtotal, 'descuento_usd': descuento, 'base_usd': base, 'iva_usd': iva,
             'total_usd': total, 'total_bs': redondear(total * p.tasa_bs) if p.tasa_bs else Decimal('0')}
 
@@ -509,7 +507,8 @@ def devolver(p, usuario, lineas, motivo, fecha=None, reembolso=None):
 
     completa = all(ya.get(i.pk, 0) + pedidas.get(i.pk, (0,))[0] == i.cantidad for i in items.values())
     subtotal = sum((redondear(cant * items[i].precio_usd) for i, (cant, _) in pedidas.items()), Decimal('0'))
-    montos = _totales_devolucion(p, subtotal, completa)
+    exento = sum((redondear(cant * items[i].precio_usd) for i, (cant, _) in pedidas.items() if items[i].exento_iva), Decimal('0'))
+    montos = _totales_devolucion(p, subtotal, completa, exento)
     datos_reembolso = _validar_reembolso(reembolso, montos['total_usd'])
 
     perfil = p.empresa.perfil
@@ -566,3 +565,50 @@ def vencer_apartados():
             p.save(update_fields=['estado'])
             total += 1
     return total
+
+
+# ── Nota de despacho ──────────────────────────────────────────────────────────
+CAMPOS_DESPACHO = ('direccion_entrega', 'transportista', 'cedula', 'telefono', 'empresa_transporte', 'vehiculo',
+                   'placa', 'observaciones')
+
+
+@transaction.atomic
+def guardar_despacho(p, datos, usuario):
+    """Crea o actualiza la nota de despacho. datos: los CAMPOS_DESPACHO + fecha (date) + con_precios (bool)."""
+    if not p.despachable:
+        raise ErrorVenta('La nota de despacho se emite cuando el presupuesto está apartado o la venta confirmada.')
+    limpio = {c: (datos.get(c) or '').strip() for c in CAMPOS_DESPACHO}
+    limpio['placa'] = limpio['placa'].upper()
+    if not limpio['transportista']:
+        raise ErrorVenta('Escribe el nombre del transportista.')
+    if not limpio['placa']:
+        raise ErrorVenta('Escribe la placa del vehículo.')
+    for campo in CAMPOS_DESPACHO:
+        maximo = Despacho._meta.get_field(campo).max_length
+        if maximo and len(limpio[campo]) > maximo:
+            raise ErrorVenta(f'{Despacho._meta.get_field(campo).verbose_name}: máximo {maximo} caracteres.')
+    limpio['fecha'] = datos.get('fecha') or timezone.localdate()
+    limpio['con_precios'] = bool(datos.get('con_precios'))
+    d = Despacho.objects.filter(presupuesto=p).first()
+    if d:
+        for campo, valor in limpio.items():
+            setattr(d, campo, valor)
+        d.save()
+    else:
+        d = Despacho.objects.create(presupuesto=p, creado_por=usuario, **limpio)
+    return d
+
+
+def transportistas_recientes(limite=30):
+    """Transportistas ya usados (el más reciente de cada nombre + placa), para no volver a escribirlos."""
+    vistos, salida = set(), []
+    for d in Despacho.objects.order_by('-actualizado_en')[:300]:
+        clave = (d.transportista.lower(), d.placa)
+        if clave in vistos:
+            continue
+        vistos.add(clave)
+        salida.append({c: getattr(d, c) for c in ('transportista', 'cedula', 'telefono', 'empresa_transporte',
+                                                  'vehiculo', 'placa')})
+        if len(salida) >= limite:
+            break
+    return salida

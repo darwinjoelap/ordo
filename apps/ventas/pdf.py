@@ -5,7 +5,9 @@ from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import HRFlowable, Image, KeepTogether, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import HRFlowable, Image, KeepTogether, Spacer, Table, TableStyle
+
+from apps.core.pdf import Paragraph  # noqa: E402  (escapa & y < de los datos)
 
 from apps.core.pdf import ESTILO_CELDA, ESTILOS, documento, encabezado_empresa, pie_empresa
 from apps.core.templatetags.ordo import usd
@@ -101,9 +103,9 @@ E_LOTE = _estilo('p_lote', fontSize=8, leading=10, textColor=GRIS_TEXTO)
 E_PEQUENO = _estilo('p_pequeno', fontSize=8, leading=10, textColor=GRIS_TEXTO)
 
 
-def _celda_descripcion(producto):
-    """Nombre con la marca como sublínea."""
-    texto = producto.nombre
+def _celda_descripcion(producto, exento=False):
+    """Nombre con la marca como sublínea. (E) = exento de IVA, como pide el SENIAT en los documentos de venta."""
+    texto = producto.nombre + (' <b>(E)</b>' if exento else '')
     if producto.marca_id:
         texto += f'<br/><font size="7" color="#6C757D"><i>{producto.marca.nombre}</i></font>'
     return Paragraph(texto, E_NORMAL)
@@ -186,9 +188,10 @@ def presupuesto_pdf(p, empresa, moneda='ambas', tasa_referencial=False):
                  .order_by(Lower('producto__nombre'), 'pk'))
     lotes = lotes_por_item(p, items)
     montos_bs = desglose_bs(p, items)
+    marcar_e = bool(p.iva_pct) and any(i.exento_iva for i in items)     # venta sin IVA: no hay nada que distinguir
     for i in items:
         lote, venc = _celdas_lote(i.producto, lotes.get(i.pk))
-        fila = [Paragraph(i.producto.codigo, E_NORMAL), _celda_descripcion(i.producto), lote, venc,
+        fila = [Paragraph(i.producto.codigo, E_NORMAL), _celda_descripcion(i.producto, marcar_e and i.exento_iva), lote, venc,
                 Paragraph(f'{i.cantidad}', E_CENTRO)]
         precio_bs = redondear(i.precio_usd * p.tasa_bs) if p.tasa_bs else None
         if moneda == 'ambas':
@@ -226,6 +229,9 @@ def presupuesto_pdf(p, empresa, moneda='ambas', tasa_referencial=False):
     if p.descuento_usd:
         tot.append(fila_total(f'Descuento ({pct(p.descuento_pct)} %):', p.descuento_usd, 'descuento', negativo=True))
         tot.append(fila_total('Subtotal con descuento:', p.base_usd, 'base'))
+    if marcar_e:
+        tot.append(fila_total('Exento (E):', p.exento_usd, 'exento'))
+        tot.append(fila_total('Base imponible:', p.base_usd - p.exento_usd, 'gravable'))
     if p.iva_usd:
         tot.append(fila_total(f'IVA ({pct(p.iva_pct)} %):', p.iva_usd, 'iva'))
     if moneda == 'usd':
@@ -248,6 +254,9 @@ def presupuesto_pdf(p, empresa, moneda='ambas', tasa_referencial=False):
     e.append(tt)
 
     # ── Avisos ────────────────────────────────────────────────────────────────
+    if marcar_e:
+        e += [Spacer(1, 2 * mm), Paragraph('(E) Producto exento de IVA. El impuesto se calcula solo sobre la base imponible.',
+                                           _estilo('p_exento', fontSize=7, textColor=GRIS_TEXTO))]
     if p.estado == p.E.APARTADO and p.apartado_hasta:
         from django.utils import timezone
         e += [Spacer(1, 3 * mm), Paragraph(
@@ -398,6 +407,125 @@ def facturacion_pdf(ventas, t, f, empresa):
                             ('LINEBELOW', (0, 0), (-1, -2), 0.25, colors.HexColor('#E5E7EB'))]))
     e += [tr, Spacer(1, 3 * mm),
           Paragraph('Montos en USD, netos de devoluciones e incluyen IVA.', ESTILOS['Italic'])]
+    pie = pie_empresa(empresa)
+    doc.build(e, onFirstPage=pie, onLaterPages=pie)
+    return buffer.getvalue()
+
+
+def despacho_pdf(d, empresa):
+    """
+    Nota de despacho: lo que sale, para quién, quién lo transporta y en qué vehículo, con espacio para firmas.
+    Mismo número del presupuesto/venta. Con o sin precios (d.con_precios). No es un documento fiscal.
+    """
+    p = d.presupuesto
+    perfil = empresa.perfil
+    color = colors.HexColor(perfil.color_principal or '#053D74')
+    buffer = BytesIO()
+    doc = documento(buffer, titulo_pdf=f'Nota de despacho {p.numero}')
+    der = [f'<font size="12"><b>N° {p.numero}</b></font>', '', f'Fecha de despacho: {d.fecha:%d/%m/%Y}',
+           f'Vendedor: {p.vendedor.nombre_visible}']
+    con_bs = d.con_precios and bool(p.tasa_bs)
+    if con_bs:
+        der.append(f'Tasa: Bs {p.tasa_bs:.4f}/USD'.replace('.', ','))
+    e = encabezado_empresa(empresa, titulo='NOTA DE DESPACHO', subtitulo='<br/>'.join(der))
+    blanco = _estilo('d_cab', fontSize=8, textColor=colors.white, fontName='Helvetica-Bold')
+
+    def caja(titulo, filas, anchos):
+        t = Table([[Paragraph(titulo, blanco)] + [''] * (len(anchos) - 1)] + filas, colWidths=[a * mm for a in anchos])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), color), ('SPAN', (0, 0), (-1, 0)),
+            ('BACKGROUND', (0, 1), (-1, -1), GRIS_CLARO), ('BOX', (0, 0), (-1, -1), 0.5, GRIS_BORDE),
+            ('INNERGRID', (0, 1), (-1, -1), 0.25, GRIS_BORDE), ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6), ('TOPPADDING', (0, 0), (-1, -1), 3), ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        return t
+
+    def dato(etiqueta, valor):
+        return Paragraph(f'{etiqueta}: <b>{valor or "—"}</b>', E_NORMAL)
+
+    c = p.cliente
+    destino = (d.direccion_entrega or c.direccion or '—').replace('\n', '<br/>')
+    e += [caja('DESTINATARIO', [
+        [Paragraph(f'<b>{c.nombre}</b>', E_NORMAL), Paragraph(f'RIF/Cédula: {c.rif or "—"}', E_NORMAL)],
+        [Paragraph(f'Entregar en: {destino}', E_NORMAL), Paragraph(f'Tel: {c.telefono or "—"}<br/>Contacto: {c.contacto or "—"}', E_NORMAL)],
+    ], [96, 90]), Spacer(1, 3 * mm)]
+    e += [caja('TRANSPORTE', [
+        [dato('Transportista', d.transportista), dato('Cédula', d.cedula), dato('Teléfono', d.telefono)],
+        [dato('Vehículo', d.vehiculo), dato('Placa', d.placa), dato('Empresa de transporte', d.empresa_transporte)],
+    ], [76, 44, 66]), Spacer(1, 4 * mm)]
+
+    # ── Mercancía ─────────────────────────────────────────────────────────────
+    hi = _estilo('d_hi', textColor=colors.white, fontName='Helvetica-Bold')
+    hc = _estilo('d_hc', textColor=colors.white, fontName='Helvetica-Bold', alignment=TA_CENTER)
+    hd = _estilo('d_hd', textColor=colors.white, fontName='Helvetica-Bold', alignment=TA_RIGHT)
+    cab = [Paragraph('Cód.', hi), Paragraph('Descripción', hi), Paragraph('Lote', hi), Paragraph('F. Venc.', hi),
+           Paragraph('Cant.', hc), Paragraph('Und.', hc)]
+    if d.con_precios:
+        cab += [Paragraph('P. Unit USD', hd), Paragraph('Subtotal USD', hd)]
+        anchos = [20, 52, 24, 19, 13, 12, 22, 24]
+    else:
+        anchos = [26, 86, 30, 22, 12, 10]
+    items = list(ItemPresupuesto.todos.filter(presupuesto=p).select_related('producto__unidad', 'producto__marca')
+                 .order_by(Lower('producto__nombre'), 'pk'))
+    lotes = lotes_por_item(p, items)
+    marcar_e = d.con_precios and bool(p.iva_pct) and any(i.exento_iva for i in items)
+    filas = [cab]
+    for i in items:
+        lote, venc = _celdas_lote(i.producto, lotes.get(i.pk))
+        fila = [Paragraph(i.producto.codigo, E_NORMAL), _celda_descripcion(i.producto, marcar_e and i.exento_iva), lote, venc,
+                Paragraph(f'{i.cantidad}', E_CENTRO), Paragraph(i.producto.unidad.abreviatura, E_CENTRO)]
+        if d.con_precios:
+            fila += [Paragraph(usd(i.precio_usd), E_DER), Paragraph(usd(i.subtotal_usd), E_DER)]
+        filas.append(fila)
+    t = Table(filas, colWidths=[a * mm for a in anchos], repeatRows=1)
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), color), ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, GRIS_CLARO]),
+        ('BOX', (0, 0), (-1, -1), 0.5, GRIS_BORDE), ('INNERGRID', (0, 0), (-1, -1), 0.25, GRIS_BORDE),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4), ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 3), ('BOTTOMPADDING', (0, 0), (-1, -1), 3), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    e += [t, Spacer(1, 3 * mm)]
+
+    tot = [['Productos / unidades:', f'{len(items)} / {sum(i.cantidad for i in items)}']]
+    if d.con_precios:
+        montos_bs = desglose_bs(p, items)
+        tot.append(['Subtotal:', usd(p.subtotal_usd)])
+        if p.descuento_usd:
+            tot.append([f'Descuento ({pct(p.descuento_pct)} %):', f'-{usd(p.descuento_usd)}'])
+        if marcar_e:
+            tot.append(['Exento (E):', usd(p.exento_usd)])
+            tot.append(['Base imponible:', usd(p.base_usd - p.exento_usd)])
+        if p.iva_usd:
+            tot.append([f'IVA ({pct(p.iva_pct)} %):', usd(p.iva_usd)])
+        tot.append(['TOTAL USD:', usd(p.total_usd)])
+        if con_bs and montos_bs:
+            tot.append(['TOTAL Bs:', bs(montos_bs['total'])])
+    tt = Table(tot, colWidths=[100 * mm, 40 * mm], hAlign='RIGHT')
+    estilo_t = [('FONTSIZE', (0, 0), (-1, -1), 9), ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+                ('TOPPADDING', (0, 0), (-1, -1), 2), ('BOTTOMPADDING', (0, 0), (-1, -1), 2)]
+    if d.con_precios:
+        estilo_t += [('LINEABOVE', (0, -1 - int(bool(con_bs))), (-1, -1 - int(bool(con_bs))), 1, color),
+                     ('FONTNAME', (0, -1 - int(bool(con_bs))), (-1, -1), 'Helvetica-Bold')]
+    else:
+        estilo_t.append(('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'))
+    tt.setStyle(TableStyle(estilo_t))
+    e.append(tt)
+    nota = _estilo('d_nota', fontSize=7, textColor=GRIS_TEXTO)
+    if marcar_e:
+        e += [Spacer(1, 2 * mm), Paragraph('(E) Producto exento de IVA. El impuesto se calcula solo sobre la base imponible.', nota)]
+    if d.observaciones:
+        e += [Spacer(1, 3 * mm), Paragraph(f'<b>Observaciones:</b> {d.observaciones.replace(chr(10), "<br/>")}', E_PEQUENO)]
+
+    # ── Firmas ────────────────────────────────────────────────────────────────
+    def firma(titulo, nombre=''):
+        return Paragraph(f'<br/><br/><br/>______________________________<br/><b>{titulo}</b><br/>'
+                         f'Nombre: {nombre or "____________________"}<br/>C.I.: ________________<br/>Fecha y hora: ____________',
+                         _estilo('d_firma', fontSize=8, alignment=TA_CENTER, leading=11))
+    firmas = Table([[firma('Despachado por'), firma('Transportista', d.transportista), firma('Recibido conforme')]],
+                   colWidths=[62 * mm] * 3)
+    e.append(KeepTogether([Spacer(1, 6 * mm), firmas, Spacer(1, 4 * mm), Paragraph(
+        'Documento de control interno para el traslado de mercancía. No es factura ni sustituye a la guía de despacho '
+        'fiscal. Sin derecho a crédito fiscal.', nota)]))
     pie = pie_empresa(empresa)
     doc.build(e, onFirstPage=pie, onLaterPages=pie)
     return buffer.getvalue()

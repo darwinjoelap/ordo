@@ -8,7 +8,9 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
-from reportlab.platypus import Paragraph, Spacer
+from reportlab.platypus import Spacer
+
+from apps.core.pdf import Paragraph  # noqa: E402  (escapa & y < de los datos)
 
 from apps.core.middleware import SESION_EMPRESA
 from apps.core.pdf import ESTILOS, documento, encabezado_empresa, pie_empresa

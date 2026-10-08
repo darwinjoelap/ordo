@@ -19,6 +19,8 @@
       <li><a class="dropdown-item" target="_blank" data-pdf href="{% url 'ventas:pdf' p.pk %}?moneda=ambas">USD y Bs</a></li>
       <li><a class="dropdown-item" target="_blank" data-pdf href="{% url 'ventas:pdf' p.pk %}?moneda=usd">Solo USD</a></li>
       {% if p.tasa_bs %}<li><a class="dropdown-item" target="_blank" data-pdf href="{% url 'ventas:pdf' p.pk %}?moneda=bs">Solo Bs</a></li>{% endif %}
+      {% if p.despachable %}<li><hr class="dropdown-divider"></li>
+      <li><a class="dropdown-item" href="{% url 'ventas:despacho' p.pk %}"><i class="bi bi-truck me-1"></i>Nota de despacho</a></li>{% endif %}
     </ul>
   </div>
 </div>
@@ -61,7 +63,7 @@
           {% for i in items %}
             <tr class="{% if i.fuera_de_rango %}table-warning{% endif %}">
               <td>
-                <div class="fw-semibold">{{ i.producto.nombre }}</div>
+                <div class="fw-semibold">{{ i.producto.nombre }}{% if i.exento_iva and p.iva_pct %} <span class="badge text-bg-info fw-normal" title="Exento de IVA">E</span>{% endif %}</div>
                 <div class="small text-muted">{{ i.producto.codigo }}{% if i.precio_usd != i.precio_base_usd %} · lista {{ i.precio_base_usd|usd }}{% endif %}{% if i.fuera_de_rango %} · <span class="text-warning-emphasis">fuera de rango</span>{% endif %}</div>
                 {% if i.disponible is not None %}{% if i.disponible <= 0 %}<div class="small text-danger fw-bold"><i class="bi bi-exclamation-circle me-1"></i>SIN STOCK</div>{% elif i.disponible < i.cantidad %}<div class="small text-danger fw-semibold"><i class="bi bi-exclamation-circle me-1"></i>Solo hay {{ i.disponible|miles }} disponibles</div>{% endif %}{% endif %}
                 {% for r in i.lista_reservas %}<div class="small text-muted"><i class="bi bi-lock"></i> Lote {{ r.lote.numero_lote|default:r.lote.pk }}{% if r.lote.fecha_vencimiento %} (vence {{ r.lote.fecha_vencimiento|date:"d/m/Y" }}){% endif %}: {{ r.cantidad }}</div>{% endfor %}
@@ -109,6 +111,8 @@
           <tr class="text-muted"><td>Productos / unidades</td><td class="text-end"{% if montos_bs %} colspan="2"{% endif %}>{{ items|length }} / {{ total_unidades|miles }}</td></tr>
           <tr><td>Subtotal</td><td class="text-end">{{ p.subtotal_usd|usd }}</td>{% if montos_bs %}<td class="text-end">{{ montos_bs.subtotal|floatformat:"2g" }}</td>{% endif %}</tr>
           {% if p.descuento_usd %}<tr><td>Descuento ({{ p.descuento_pct|floatformat:"-2" }} %)</td><td class="text-end">-{{ p.descuento_usd|usd }}</td>{% if montos_bs %}<td class="text-end">-{{ montos_bs.descuento|floatformat:"2g" }}</td>{% endif %}</tr>{% endif %}
+          {% if p.exento_usd and p.iva_pct %}<tr><td>Exento (E)</td><td class="text-end">{{ p.exento_usd|usd }}</td>{% if montos_bs %}<td class="text-end">{{ montos_bs.exento|floatformat:"2g" }}</td>{% endif %}</tr>
+          <tr><td>Base imponible</td><td class="text-end">{{ base_imponible|usd }}</td>{% if montos_bs %}<td class="text-end">{{ montos_bs.gravable|floatformat:"2g" }}</td>{% endif %}</tr>{% endif %}
           {% if p.iva_usd %}<tr><td>IVA ({{ p.iva_pct|floatformat:"-2" }} %)</td><td class="text-end">{{ p.iva_usd|usd }}</td>{% if montos_bs %}<td class="text-end">{{ montos_bs.iva|floatformat:"2g" }}</td>{% endif %}</tr>{% endif %}
           <tr class="border-top fw-bold fs-6"><td>Total</td><td class="text-end text-nowrap">{{ p.total_usd|usd }}</td>{% if montos_bs %}<td class="text-end text-nowrap">{{ montos_bs.total|floatformat:"2g" }}</td>{% endif %}</tr>
           </tbody>
