@@ -111,21 +111,22 @@ def _celda_descripcion(producto, exento=False):
     return Paragraph(texto, E_NORMAL)
 
 
-def _celdas_lote(producto, info):
+def _celdas_lote(producto, info, avisar_falta=True):
     """
     (celda Lote, celda F. Venc.) en la MISMA fila del producto: un renglón por lote dentro de la celda.
     Con más de un lote, la cantidad de cada uno va entre paréntesis.
+    avisar_falta=False (Mi empresa → Documentos) omite el «SIN STOCK» en rojo.
     """
     if not info:
         return Paragraph('N/A', E_LOTE), Paragraph('N/A', E_LOTE)
     lotes, varios = info['lotes'], len(info['lotes']) > 1
     numeros = [(numero or '—') + (f' ({cant})' if varios else '') for numero, _, cant in lotes]
     fechas = [f'{vence:%d/%m/%Y}' if vence else '—' for _, vence, _ in lotes]
-    if info['falta']:
+    if info['falta'] and avisar_falta:
         faltan = f' (faltan {info["falta"]})' if lotes else ''
         numeros.append(f'<font color="#DC3545"><b>SIN STOCK</b>{faltan}</font>')
         fechas.append('<font color="#DC3545">—</font>')
-    return Paragraph('<br/>'.join(numeros), E_LOTE), Paragraph('<br/>'.join(fechas), E_LOTE)
+    return Paragraph('<br/>'.join(numeros) or '—', E_LOTE), Paragraph('<br/>'.join(fechas) or '—', E_LOTE)
 
 
 def presupuesto_pdf(p, empresa, moneda='ambas', tasa_referencial=False):
@@ -190,7 +191,7 @@ def presupuesto_pdf(p, empresa, moneda='ambas', tasa_referencial=False):
     montos_bs = desglose_bs(p, items)
     marcar_e = bool(p.iva_pct) and any(i.exento_iva for i in items)     # venta sin IVA: no hay nada que distinguir
     for i in items:
-        lote, venc = _celdas_lote(i.producto, lotes.get(i.pk))
+        lote, venc = _celdas_lote(i.producto, lotes.get(i.pk), not perfil.ocultar_sin_stock)
         fila = [Paragraph(i.producto.codigo, E_NORMAL), _celda_descripcion(i.producto, marcar_e and i.exento_iva), lote, venc,
                 Paragraph(f'{i.cantidad}', E_CENTRO)]
         precio_bs = redondear(i.precio_usd * p.tasa_bs) if p.tasa_bs else None
@@ -264,7 +265,7 @@ def presupuesto_pdf(p, empresa, moneda='ambas', tasa_referencial=False):
             f'{timezone.localtime(p.apartado_hasta):%d/%m/%Y %H:%M}. Pasada esa fecha el apartado se libera.',
             _estilo('p_aviso', fontSize=8, textColor=colors.HexColor('#856404'), backColor=colors.HexColor('#FFF3CD'),
                     borderColor=colors.HexColor('#FFC107'), borderWidth=0.5, borderPadding=6))]
-    if any(x['referencial'] and (x['lotes'] or x['falta']) for x in lotes.values()):
+    if any(x['referencial'] and (x['lotes'] or (x['falta'] and not perfil.ocultar_sin_stock)) for x in lotes.values()):
         e += [Spacer(1, 3 * mm), Paragraph('* Lote y fecha de vencimiento son referenciales (FEFO). '
                                            'Se confirman al apartar.', _estilo('p_nota', fontSize=7, textColor=GRIS_TEXTO))]
 
@@ -471,7 +472,7 @@ def despacho_pdf(d, empresa):
     marcar_e = d.con_precios and bool(p.iva_pct) and any(i.exento_iva for i in items)
     filas = [cab]
     for i in items:
-        lote, venc = _celdas_lote(i.producto, lotes.get(i.pk))
+        lote, venc = _celdas_lote(i.producto, lotes.get(i.pk), not perfil.ocultar_sin_stock)
         fila = [Paragraph(i.producto.codigo, E_NORMAL), _celda_descripcion(i.producto, marcar_e and i.exento_iva), lote, venc,
                 Paragraph(f'{i.cantidad}', E_CENTRO), Paragraph(i.producto.unidad.abreviatura, E_CENTRO)]
         if d.con_precios:

@@ -148,6 +148,10 @@ class PerfilEmpresa(models.Model):
         'Condiciones del presupuesto', blank=True,
         default='Precios sujetos a la tasa del día de emisión. Validez según fecha indicada.')
     pie_documentos = models.CharField('Pie de página de documentos', max_length=250, blank=True)
+    ocultar_sin_stock = models.BooleanField(
+        'No mostrar «SIN STOCK» en los PDF', default=False,
+        help_text='Para empresas que presupuestan productos que aún no tienen en inventario. '
+                  'El aviso sigue viéndose dentro de Ordo.')
     datos_bancarios = models.TextField('Datos bancarios / pago móvil', blank=True)
     firma = models.ImageField('Firma o sello', upload_to=_ruta_firma, blank=True,
                               help_text='Opcional. PNG con fondo transparente.')

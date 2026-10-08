@@ -137,3 +137,32 @@ class DespachoTests(Base):
         with self.empresa_ctx():
             ventas.guardar_despacho(p, self.DATOS, self.vendedor)
             self.assertEqual(ventas.transportistas_recientes()[0]['placa'], 'AB123CD')
+
+
+class SinStockPdfTests(Base):
+    """Mi empresa → Documentos → «No mostrar SIN STOCK en los PDF»."""
+
+    def textos_pdf(self):
+        with self.empresa_ctx():
+            p = ventas.crear(self.cliente, self.vendedor, self.empresa)
+            self.prod.maneja_lotes = True
+            self.prod.save()
+            ventas.agregar_item(p, self.prod, 99999, None, self.perfil, True)       # mucho más de lo que hay
+            textos = []
+            real = pdf_ventas.Paragraph
+            with mock.patch.object(pdf_ventas, 'Paragraph', side_effect=lambda t, *a, **k: (textos.append(str(t)), real(t, *a, **k))[1]):
+                pdf_ventas.presupuesto_pdf(p, self.empresa)
+        return ' '.join(textos)
+
+    def test_por_defecto_avisa(self):
+        self.assertIn('SIN STOCK', self.textos_pdf())
+
+    def test_se_puede_ocultar(self):
+        self.perfil.ocultar_sin_stock = True
+        self.perfil.save()
+        self.empresa.perfil.refresh_from_db()
+        self.assertNotIn('SIN STOCK', self.textos_pdf())
+
+    def test_el_dueno_lo_configura(self):
+        self.client.force_login(self.dueno)
+        self.assertContains(self.client.get(reverse('empresas:mi_empresa')), 'name="ocultar_sin_stock"')
