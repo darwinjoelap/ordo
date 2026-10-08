@@ -144,6 +144,15 @@ class LimiteYVencimientoTests(Base):
         self.client.force_login(self.dueno)
         self.assertContains(self.client.get('/'), 'vence en <b>3 días</b>')
 
+    def test_aviso_no_le_sale_al_vendedor_ni_antes_de_7_dias(self):
+        Empresa.objects.filter(pk=self.empresa.pk).update(activa_hasta=HOY + timedelta(days=3))
+        usuario = equipo.agregar(self.empresa, self.m_dueno, 'vend', 'Ana', 'Pérez', Rol.VENDEDOR)[0].usuario
+        self.client.force_login(usuario)
+        self.assertNotContains(self.client.get('/', follow=True), 'El servicio de Ordo vence')
+        Empresa.objects.filter(pk=self.empresa.pk).update(activa_hasta=HOY + timedelta(days=8))
+        self.client.force_login(self.dueno)
+        self.assertNotContains(self.client.get('/'), 'El servicio de Ordo vence')
+
 
 class SoporteTests(Base):
     def test_superusuario_va_al_panel_y_entra_a_cualquier_empresa(self):
