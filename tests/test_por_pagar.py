@@ -128,7 +128,7 @@ class QuienRegistroElPagoTests(Base):
         p.refresh_from_db()
         self.assertEqual(p.pago_registrado_por, self.dueno)
         self.assertIsNotNone(p.pago_registrado_en)
-        self.assertContains(self.client.get(reverse('ventas:detalle', args=[p.pk])), 'Registrado por')
+        self.assertContains(self.client.get(reverse('ventas:detalle', args=[p.pk])), 'Registró')
         self.client.post(url, {'pagado': '0'})
         p.refresh_from_db()
         self.assertEqual((p.pago_registrado_por, p.pago_registrado_en), (None, None))

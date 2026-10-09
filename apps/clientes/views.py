@@ -4,10 +4,13 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Q
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
 from apps.core.permisos import requiere, tiene_permiso
 
+from . import estado_cuenta
 from .forms import ClienteForm
 from .permisos import clientes_visibles
 
@@ -28,10 +31,49 @@ def lista(request):
 @requiere('clientes.gestionar')
 def detalle(request, pk):
     cliente = get_object_or_404(clientes_visibles(request).select_related('vendedor'), pk=pk)
-    from apps.ventas.models import Presupuesto
-    presupuestos = Presupuesto.objects.filter(cliente=cliente).order_by('-creado_en')[:20]
-    return render(request, 'clientes/detalle.html', {'titulo': cliente.nombre, 'cliente': cliente,
-                                                     'presupuestos': presupuestos})
+    base, docs, filtro, desde, hasta = _estado_cuenta(request, cliente)
+    pagina = Paginator(docs, 30).get_page(request.GET.get('page'))
+    params = request.GET.copy()
+    params.pop('page', None)
+    return render(request, 'clientes/detalle.html', {
+        'titulo': cliente.nombre, 'cliente': cliente, 'pagina': pagina, 'filtro': filtro,
+        'filtros': [(k, etq, n) for (k, (etq, _)), n in zip(estado_cuenta.FILTROS.items(), estado_cuenta.conteos(base).values())],
+        'totales': estado_cuenta.totales(docs), 'desde': desde, 'hasta': hasta, 'querystring': params.urlencode(),
+        'saldo_total': estado_cuenta.totales(estado_cuenta.documentos(base, 'por_cobrar')[0])['saldo'],
+    })
+
+
+def _estado_cuenta(request, cliente):
+    from apps.ventas.views import _fecha_o_none, visibles
+    base = visibles(request).filter(cliente=cliente)
+    desde, hasta = _fecha_o_none(request.GET.get('desde')), _fecha_o_none(request.GET.get('hasta'))
+    docs, filtro = estado_cuenta.documentos(base, request.GET.get('filtro', 'todos'), desde, hasta)
+    return base, docs, filtro, desde, hasta
+
+
+@login_required
+@requiere('clientes.gestionar')
+def estado_cuenta_pdf(request, pk):
+    from apps.core.pdf import nombre_corto, respuesta_pdf
+    cliente = get_object_or_404(clientes_visibles(request), pk=pk)
+    _, docs, filtro, desde, hasta = _estado_cuenta(request, cliente)
+    contenido = estado_cuenta.pdf(cliente, list(docs), filtro, request.empresa, desde, hasta)
+    return respuesta_pdf(contenido, 'Estado-cuenta', nombre_corto(cliente.nombre), filtro.replace('_', '-'),
+                         timezone.localdate())
+
+
+@login_required
+@requiere('clientes.gestionar')
+def estado_cuenta_excel(request, pk):
+    from apps.core.pdf import nombre_archivo, nombre_corto
+    cliente = get_object_or_404(clientes_visibles(request), pk=pk)
+    _, docs, filtro, desde, hasta = _estado_cuenta(request, cliente)
+    r = HttpResponse(estado_cuenta.excel(cliente, list(docs), filtro, desde, hasta),
+                     content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    nombre = nombre_archivo('Estado-cuenta', nombre_corto(cliente.nombre), filtro.replace('_', '-'),
+                            timezone.localdate(), extension='xlsx')
+    r['Content-Disposition'] = f'attachment; filename="{nombre}"'
+    return r
 
 
 @login_required

@@ -133,7 +133,7 @@
         <form method="post" action="{% url 'ventas:accion' p.pk 'confirmar' %}" class="d-grid">{% csrf_token %}<button class="btn btn-success"><i class="bi bi-bag-check me-1"></i>Confirmar venta</button></form>
         <form method="post" action="{% url 'ventas:accion' p.pk 'desapartar' %}" class="d-grid">{% csrf_token %}<button class="btn btn-outline-secondary"><i class="bi bi-unlock me-1"></i>Liberar stock (volver a editar)</button></form>
       {% elif p.estado == 'POR_PAGAR' %}
-        <div class="alert alert-warning py-2 small mb-0"><i class="bi bi-cash me-1"></i><b>Por cobrar.</b> Registra el pago (abajo) para enviarla a validación. La entrega va aparte: puedes entregar antes o después de cobrar.</div>
+        <div class="alert alert-warning py-2 small mb-0"><i class="bi bi-cash me-1"></i><b>Por cobrar{% if p.abono_parcial %} · abono parcial{% endif %}.</b> Registra los pagos abajo (pueden ser parciales). Cuando quede pagada por completo pasa a validación. La entrega va aparte.</div>
         <form method="post" action="{% url 'ventas:accion' p.pk 'desconfirmar' %}" class="d-grid" onsubmit="return confirm('¿Devolver esta venta a apartado? Podrás liberarla o cancelarla desde ahí.')">{% csrf_token %}<button class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-counterclockwise me-1"></i>No se va a cobrar: volver a apartado</button></form>
       {% elif p.estado == 'POR_VALIDAR' %}
         {% if puede_validar %}
@@ -162,33 +162,61 @@
     <div class="card card-body mb-3">
       <div class="fw-semibold mb-2">Pago y entrega</div>
       {% if p.estado != 'APARTADO' %}
-      <form method="post" action="{% url 'ventas:pago_entrega' p.pk %}" class="mb-3">{% csrf_token %}
-        {% if p.pagado %}
-          <div class="small mb-2 text-success"><i class="bi bi-cash me-1"></i>Pagado {{ p.fecha_pago|date:"d/m/Y" }} · {{ p.get_metodo_pago_display }}</div>
-          {% if p.pago_registrado_por %}<div class="small text-muted mb-2">Registrado por <b>{{ p.pago_registrado_por.nombre_visible }}</b> el {{ p.pago_registrado_en|date:"d/m/Y H:i" }}</div>{% endif %}
-          {% if p.banco_pago or p.referencia_pago or p.monto_pago %}<div class="small text-muted mb-2">
-            {% if p.banco_pago %}<div>Banco emisor: {{ p.banco_pago }}</div>{% endif %}
-            {% if p.referencia_pago %}<div>Referencia: {{ p.referencia_pago }}</div>{% endif %}
-            {% if p.monto_pago %}<div>Recibido: {% if p.moneda_pago == 'BS' %}Bs {{ p.monto_pago|floatformat:"2g" }}{% else %}{{ p.monto_pago|usd }}{% endif %}</div>
-              {% with dif=p.diferencia_pago %}{% if dif %}<div class="fw-semibold {% if dif < 0 %}text-danger{% else %}text-warning-emphasis{% endif %}">{% if dif < 0 %}Faltan{% else %}Sobran{% endif %} {% if p.moneda_pago == 'BS' %}Bs {{ dif|abs_valor|floatformat:"2g" }}{% else %}{{ dif|abs_valor|usd }}{% endif %} respecto al total</div>{% endif %}{% endwith %}{% endif %}
-          </div>{% endif %}
-          <input type="hidden" name="pagado" value="0"><button class="btn btn-sm btn-outline-secondary">Marcar como no pagado</button>
-        {% else %}
-          <input type="hidden" name="pagado" value="1">
-          <div class="row g-2">
-            <div class="col-7"><select name="metodo_pago" class="form-select form-select-sm" required aria-label="Método de pago">
-              <option value="">Método…</option>{% for v, n in metodos %}<option value="{{ v }}">{{ n }}</option>{% endfor %}</select></div>
-            <div class="col-5"><input type="date" name="fecha_pago" class="form-control form-control-sm" aria-label="Fecha del pago"></div>
-            <div class="col-7"><input name="banco_pago" list="bancos-ve" maxlength="60" class="form-control form-control-sm" placeholder="Banco emisor (opcional)" aria-label="Banco emisor"></div>
-            <div class="col-5"><input name="referencia_pago" maxlength="40" inputmode="numeric" class="form-control form-control-sm" placeholder="Referencia" aria-label="Referencia"></div>
-            <div class="col-7"><input name="monto_pago" inputmode="decimal" class="form-control form-control-sm" placeholder="Monto recibido (si difiere)" aria-label="Monto recibido"></div>
-            <div class="col-5"><select name="moneda_pago" class="form-select form-select-sm" aria-label="Moneda del pago"><option value="BS">Bs</option><option value="USD">USD</option></select></div>
-            <div class="col-12 small text-muted">Por cobrar: <b>{{ p.neto_usd|usd }}</b>{% if p.total_bs %} · Bs {{ p.total_bs|floatformat:"2g" }}{% endif %}. Deja el monto vacío si pagó exacto.</div>
-            <div class="col-12 d-grid"><button class="btn btn-sm btn-success"><i class="bi bi-cash me-1"></i>Registrar pago</button></div>
-          </div>
-          <datalist id="bancos-ve">{% for b in bancos %}<option value="{{ b }}">{% endfor %}</datalist>
-        {% endif %}
+      <div class="mb-3">
+        <div class="d-flex justify-content-between small"><span>Total a cobrar</span><b>{{ p.neto_usd|usd }}</b></div>
+        <div class="d-flex justify-content-between small"><span>Abonado</span><span class="text-success">{{ p.abonado_usd|usd }}</span></div>
+        <div class="d-flex justify-content-between {% if p.pagado %}text-success{% else %}text-danger{% endif %} fw-semibold border-top mt-1 pt-1">
+          <span>{% if p.pagado %}<i class="bi bi-check-circle-fill me-1"></i>Pagada por completo{% else %}Falta por cobrar{% endif %}</span><span>{% if not p.pagado %}{{ p.saldo_usd|usd }}{% endif %}</span></div>
+        {% if not p.pagado and p.neto_usd %}<div class="progress mt-1" style="height:6px" role="progressbar" aria-label="Porcentaje cobrado"><div class="progress-bar bg-success" style="width:{% widthratio p.abonado_usd p.neto_usd 100 %}%"></div></div>{% endif %}
+      </div>
+      {% if abonos %}
+      <div class="small mb-3">
+        <div class="text-muted mb-1">Pagos recibidos</div>
+        {% for a in abonos %}
+        <div class="d-flex justify-content-between align-items-start gap-2 border-bottom py-1">
+          <div><b>{{ a.monto_usd|usd }}</b>{% if a.moneda == 'BS' %} <span class="text-muted">(Bs {{ a.monto|floatformat:"2g" }} a {{ a.tasa_bs|floatformat:"2g" }})</span>{% elif a.monto != a.monto_usd %} <span class="text-muted">(recibido {{ a.monto|usd }})</span>{% endif %}
+            <div class="text-muted">{{ a.fecha|date:"d/m/Y" }} · {{ a.get_metodo_display }}{% if a.banco %} · {{ a.banco }}{% endif %}{% if a.referencia %} · Ref. {{ a.referencia }}{% endif %}</div>
+            {% if a.registrado_por %}<div class="text-muted">Registró {{ a.registrado_por.nombre_visible }} · {{ a.registrado_en|date:"d/m/Y H:i" }}</div>{% endif %}</div>
+          {% if puede_validar or a.registrado_por_id == request.user.pk and p.estado != 'VALIDADA' %}
+          <form method="post" action="{% url 'ventas:anular_abono' p.pk a.pk %}" onsubmit="return confirm('¿Quitar este abono?')">{% csrf_token %}
+            <button class="btn btn-sm btn-link text-danger p-0" aria-label="Quitar abono"><i class="bi bi-trash"></i></button></form>{% endif %}
+        </div>{% endfor %}
+      </div>
+      {% endif %}
+      {% if not p.pagado %}
+      <form method="post" action="{% url 'ventas:abonar' p.pk %}" class="mb-3 border rounded p-2" id="form-abono">{% csrf_token %}
+        <div class="small fw-semibold mb-2">Registrar pago</div>
+        <div class="row g-2">
+          <div class="col-7"><input name="monto" id="ab-monto" inputmode="decimal" class="form-control form-control-sm" placeholder="Monto" aria-label="Monto" value="{{ p.saldo_usd|floatformat:'2' }}" required></div>
+          <div class="col-5"><select name="moneda" id="ab-moneda" class="form-select form-select-sm" aria-label="Moneda"><option value="USD">USD</option><option value="BS">Bs</option></select></div>
+          <div class="col-12" id="ab-tasa-fila" hidden><div class="input-group input-group-sm"><span class="input-group-text">Tasa</span>
+            <input name="tasa" id="ab-tasa" inputmode="decimal" class="form-control" value="{{ tasa_hoy|floatformat:'4'|default:'' }}" aria-label="Tasa Bs por USD"><span class="input-group-text" id="ab-equivale"></span></div></div>
+          <div class="col-7"><select name="metodo" class="form-select form-select-sm" required aria-label="Método de pago">
+            <option value="">Método…</option>{% for v, n in metodos %}<option value="{{ v }}">{{ n }}</option>{% endfor %}</select></div>
+          <div class="col-5"><input type="date" name="fecha" class="form-control form-control-sm" aria-label="Fecha del pago"></div>
+          <div class="col-7"><input name="banco" list="bancos-ve" maxlength="60" class="form-control form-control-sm" placeholder="Banco emisor (opcional)" aria-label="Banco emisor"></div>
+          <div class="col-5"><input name="referencia" maxlength="40" inputmode="numeric" class="form-control form-control-sm" placeholder="Referencia" aria-label="Referencia"></div>
+          <div class="col-12 small text-muted">Puede ser parcial. Falta {{ p.saldo_usd|usd }}{% if saldo_bs %} (Bs {{ saldo_bs|floatformat:"2g" }} a la tasa de hoy){% endif %}.</div>
+          {% if perfil.comision_requiere_pago %}<div class="col-12 small text-warning-emphasis"><i class="bi bi-info-circle me-1"></i>La comisión del vendedor se paga solo cuando la venta está <b>pagada por completo</b>. Los abonos parciales no la liberan.</div>{% endif %}
+          <div class="col-12 d-grid"><button class="btn btn-sm btn-success"><i class="bi bi-cash me-1"></i>Registrar pago</button></div>
+        </div>
+        <datalist id="bancos-ve">{% for b in bancos %}<option value="{{ b }}">{% endfor %}</datalist>
       </form>
+      <script>
+      (function () {
+        var mon = document.getElementById('ab-moneda'), monto = document.getElementById('ab-monto'), tasa = document.getElementById('ab-tasa'),
+            fila = document.getElementById('ab-tasa-fila'), eq = document.getElementById('ab-equivale'), saldo = {{ p.saldo_usd|stringformat:"s" }};
+        function num(v) { v = (v || '').trim(); if (v.indexOf(',') > -1 && v.indexOf('.') > -1) v = v.replace(/\./g, ''); return parseFloat(v.replace(',', '.')); }
+        function fmt(v, d) { return v.toLocaleString('es-VE', {minimumFractionDigits: d, maximumFractionDigits: d}); }
+        function equiv() { var m = num(monto.value), t = num(tasa.value); eq.textContent = (m > 0 && t > 0) ? '≈ $ ' + fmt(m / t, 2) : ''; }
+        mon.addEventListener('change', function () {
+          var bs = mon.value === 'BS', t = num(tasa.value); fila.hidden = !bs;
+          monto.value = bs ? (t > 0 ? fmt(saldo * t, 2) : '') : fmt(saldo, 2); equiv();
+        });
+        monto.addEventListener('input', equiv); tasa.addEventListener('input', equiv);
+      })();
+      </script>
+      {% endif %}
       {% endif %}
       <form method="post" action="{% url 'ventas:pago_entrega' p.pk %}">{% csrf_token %}
         {% if p.entregado %}
@@ -227,7 +255,7 @@
       <div class="d-flex justify-content-between"><span>{{ comision.base_usd|usd }} × {{ comision.porcentaje_efectivo|floatformat:2 }} %</span><span class="fw-bold">{{ comision.monto_usd|usd }}</span></div>
       {% for a in comision.lista_ajustes %}<div class="d-flex justify-content-between text-danger"><span>Devolución <a href="{% url 'ventas:devolucion' a.devolucion_id %}" class="text-danger">{{ a.devolucion.numero }}</a>{% if a.liquidacion_id %} · descontada{% endif %}</span><span>{{ a.monto_usd|usd }}</span></div>{% endfor %}
       {% if comision.lista_ajustes %}<div class="d-flex justify-content-between border-top mt-1 pt-1"><span>Neto</span><span class="fw-bold">{{ comision.neto|usd }}</span></div>{% endif %}
-      <div class="text-muted">{% if comision.liquidacion %}Liquidada en <a href="{% url 'comisiones:liquidacion' comision.liquidacion_id %}">{{ comision.liquidacion.numero }}</a>{% elif perfil.comision_requiere_pago and not p.pagado %}Se liquida cuando la venta esté cobrada{% else %}Disponible para liquidar{% endif %}</div>
+      <div class="text-muted">{% if comision.liquidacion %}Liquidada en <a href="{% url 'comisiones:liquidacion' comision.liquidacion_id %}">{{ comision.liquidacion.numero }}</a>{% elif perfil.comision_requiere_pago and not p.pagado %}<span class="text-warning-emphasis fw-semibold"><i class="bi bi-hourglass-split me-1"></i>Se paga cuando la venta esté pagada por completo.</span>{% if p.abono_parcial %} Van {{ p.abonado_usd|usd }} cobrados; faltan {{ p.saldo_usd|usd }}. Los abonos parciales no liberan la comisión.{% endif %}{% else %}Disponible para liquidar{% endif %}</div>
     </div>
     {% endif %}
     {% if devoluciones %}

@@ -111,8 +111,9 @@ def pie_empresa(empresa):
     return dibujar
 
 
-def documento(buffer, titulo_pdf='Documento'):
-    return SimpleDocTemplate(buffer, pagesize=letter, title=titulo_pdf,
+def documento(buffer, titulo_pdf='Documento', horizontal=False):
+    from reportlab.lib.pagesizes import landscape
+    return SimpleDocTemplate(buffer, pagesize=landscape(letter) if horizontal else letter, title=titulo_pdf,
                              leftMargin=15 * mm, rightMargin=15 * mm, topMargin=14 * mm, bottomMargin=20 * mm)
 
 

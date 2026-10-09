@@ -114,7 +114,9 @@ class Presupuesto(EmpresaModel):
                                      related_name='+')
     motivo_rechazo = models.CharField('Motivo del rechazo', max_length=250, blank=True)
 
+    # pagado = la venta quedó cubierta por completo con sus abonos (lo calcula servicios.registrar_abono)
     pagado = models.BooleanField('Pagado', default=False)
+    abonado_usd = models.DecimalField('Abonado (USD)', max_digits=14, decimal_places=2, default=0)
     fecha_pago = models.DateField('Fecha de pago', null=True, blank=True)
     metodo_pago = models.CharField('Método de pago', max_length=15, choices=MetodoPago.choices, blank=True)
     banco_pago = models.CharField('Banco emisor', max_length=60, blank=True)
@@ -197,6 +199,15 @@ class Presupuesto(EmpresaModel):
         return self.total_usd - self.devuelto_usd
 
     @property
+    def saldo_usd(self):
+        """Lo que falta por cobrar (USD). Nunca negativo."""
+        return max(self.neto_usd - self.abonado_usd, Decimal('0'))
+
+    @property
+    def abono_parcial(self):
+        return not self.pagado and self.abonado_usd > 0
+
+    @property
     def diferencia_pago(self):
         """Recibido − por pagar, en la moneda del pago. None si no se anotó el monto (o es en Bs y no hay tasa)."""
         if self.monto_pago is None:
@@ -253,6 +264,34 @@ class Reserva(EmpresaModel):
 
     def __str__(self):
         return f'{self.item.producto.codigo} · {self.lote} · {self.cantidad}'
+
+
+class Abono(EmpresaModel):
+    """
+    Un pago (total o parcial) de una venta. La venta queda «pagada» cuando la suma de sus abonos en USD cubre el
+    total. Un abono en Bs se convierte a USD con la tasa indicada (por defecto, la del día del abono).
+    """
+    presupuesto = models.ForeignKey(Presupuesto, on_delete=models.CASCADE, related_name='abonos')
+    fecha = models.DateField('Fecha', default=timezone.localdate)
+    metodo = models.CharField('Método', max_length=15, choices=Presupuesto.MetodoPago.choices)
+    banco = models.CharField('Banco emisor', max_length=60, blank=True)
+    referencia = models.CharField('Referencia', max_length=40, blank=True)
+    moneda = models.CharField('Moneda', max_length=3, choices=[('USD', 'USD'), ('BS', 'Bs')], default='USD')
+    monto = models.DecimalField('Monto', max_digits=18, decimal_places=2)
+    tasa_bs = models.DecimalField('Tasa Bs/USD', max_digits=14, decimal_places=4, null=True, blank=True)
+    monto_usd = models.DecimalField('Equivale (USD)', max_digits=14, decimal_places=2)
+    registrado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+                                       related_name='+')
+    registrado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Abono'
+        verbose_name_plural = 'Abonos'
+        ordering = ['fecha', 'pk']
+        base_manager_name = 'todos'
+
+    def __str__(self):
+        return f'{self.presupuesto.numero} · {self.monto_usd}'
 
 
 class Despacho(EmpresaModel):

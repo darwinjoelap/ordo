@@ -189,19 +189,21 @@ class DatosDelPagoTests(Base):
         self.p.refresh_from_db()
         return r
 
-    def test_banco_referencia_y_monto_distinto(self):
-        r = self.pagar(banco_pago='Banesco', referencia_pago='00123456', monto_pago='40,00', moneda_pago='USD')
+    def test_banco_referencia_y_monto_menor_es_abono_parcial(self):
+        r = self.client.post(reverse('ventas:abonar', args=[self.p.pk]), {
+            'monto': '40,00', 'moneda': 'USD', 'metodo': 'TRANSFERENCIA', 'banco': 'Banesco', 'referencia': '00123456'},
+            follow=True)
+        self.p.refresh_from_db()
         p = self.p
-        self.assertEqual((p.pagado, p.banco_pago, p.referencia_pago, p.monto_pago, p.moneda_pago),
-                         (True, 'Banesco', '00123456', Decimal('40.00'), 'USD'))
-        self.assertEqual(p.diferencia_pago, Decimal('-6.40'))
-        for texto in ('Banco emisor: Banesco', 'Referencia: 00123456', 'Faltan', '6,40'):
+        self.assertEqual((p.pagado, p.banco_pago, p.referencia_pago, p.abonado_usd, p.saldo_usd),
+                         (False, 'Banesco', '00123456', Decimal('40.00'), Decimal('6.40')))
+        for texto in ('Banesco', 'Ref. 00123456', 'Falta por cobrar', '6,40', 'Abono parcial'):
             self.assertContains(r, texto)
 
     def test_sin_monto_es_pago_exacto(self):
         r = self.pagar(banco_pago='Mercantil')
         self.assertEqual((self.p.pagado, self.p.monto_pago, self.p.moneda_pago, self.p.diferencia_pago),
-                         (True, None, '', None))
+                         (True, Decimal('46.40'), 'USD', Decimal('0.00')))
         self.assertNotContains(r, 'Faltan')
 
     def test_monto_invalido_no_registra(self):
@@ -219,5 +221,5 @@ class DatosDelPagoTests(Base):
 
     def test_formulario_muestra_lo_por_pagar_y_los_bancos(self):
         r = self.client.get(reverse('ventas:detalle', args=[self.p.pk]))
-        for texto in ('name="banco_pago"', 'name="referencia_pago"', 'name="monto_pago"', 'Por cobrar', 'Banesco'):
+        for texto in ('name="banco"', 'name="referencia"', 'name="monto"', 'Falta por cobrar', 'Banesco'):
             self.assertContains(r, texto)

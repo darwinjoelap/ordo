@@ -11,6 +11,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from apps.core.templatetags.ordo import usd
 from apps.core.permisos import PERMISOS, requiere, tiene_permiso
 from apps.empresas.models import Membresia
 from apps.inventario.models import Categoria
@@ -75,7 +76,10 @@ def detalle_vendedor(request, vendedor_id=None):
         if c.liquidacion_id:
             c.estado, c.css = f'Liquidada ({c.liquidacion.numero})', 'success' if c.liquidacion.pagada else 'info'
         elif perfil.comision_requiere_pago and not c.presupuesto.pagado:
-            c.estado, c.css = 'Espera cobro', 'warning'
+            p = c.presupuesto
+            c.estado = (f'Espera pago completo · faltan {usd(p.saldo_usd)}' if p.abono_parcial
+                        else 'Espera pago completo')
+            c.css = 'warning'
         else:
             c.estado, c.css = 'Disponible', 'primary'
     ajustes = list(AjusteComision.objects.filter(vendedor=vendedor, fecha__gte=mes, fecha__lt=_siguiente_mes(mes))

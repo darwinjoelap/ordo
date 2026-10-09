@@ -18,7 +18,7 @@ from apps.inventario.models import Producto
 from apps.core.pdf import nombre_corto, respuesta_pdf
 
 from . import servicios
-from .models import ItemPresupuesto, Presupuesto, Reserva, desglose_bs
+from .models import Abono, ItemPresupuesto, Presupuesto, Reserva, desglose_bs, redondear
 from .pdf import despacho_pdf, presupuesto_pdf
 
 E = Presupuesto.Estado
@@ -142,6 +142,12 @@ def buscar_productos(request, pk):
         'modo': perfil.modo_precio})
 
 
+def _tasa_hoy(request):
+    from apps.tasas.servicios import tasa_vigente
+    t = tasa_vigente(request.empresa)
+    return t.bs_por_usd if t else None
+
+
 def _tasa_referencial(request, p):
     """
     Un borrador aún no tiene tasa (se congela al emitir). Para mostrar montos en Bs se le pone EN MEMORIA
@@ -196,7 +202,10 @@ def detalle(request, pk):
         'puede_fijar': tiene_permiso(request, 'precios.fijar'),
         'puede_validar': tiene_permiso(request, 'ventas.validar'),
         'precio_editable': perfil.modo_precio != 'FIJO' or tiene_permiso(request, 'precios.fijar'),
-        'metodos': Presupuesto.MetodoPago.choices, 'bancos': BANCOS,
+        'metodos': [m for m in Presupuesto.MetodoPago.choices if m[0] != 'MIXTO'], 'bancos': BANCOS,
+        'abonos': list(Abono.objects.filter(presupuesto=p).select_related('registrado_por')),
+        'tasa_hoy': _tasa_hoy(request),
+        'saldo_bs': redondear(p.saldo_usd * _tasa_hoy(request)) if _tasa_hoy(request) and not p.pagado else None,
     })
 
 
@@ -427,3 +436,54 @@ def despacho_pdf_vista(request, pk):
     p = _presupuesto(request, pk)
     d = get_object_or_404(Despacho.objects.select_related('presupuesto__cliente', 'presupuesto__vendedor'), presupuesto=p)
     return respuesta_pdf(despacho_pdf(d, request.empresa), f'Despacho-{p.numero}', nombre_corto(p.cliente.nombre), d.fecha)
+
+
+def _decimal_post(request, campo):
+    texto = request.POST.get(campo, '').strip().replace(' ', '')
+    if ',' in texto and '.' in texto:
+        texto = texto.replace('.', '').replace(',', '.')
+    return Decimal(texto.replace(',', '.')) if texto else None
+
+
+@login_required
+@requiere('presupuestos.crear')
+@require_POST
+def abonar(request, pk):
+    """Registra un pago parcial o el saldo completo («todo»=1)."""
+    p = _presupuesto(request, pk)
+    try:
+        moneda = request.POST.get('moneda', 'USD')
+        monto = p.saldo_usd if request.POST.get('todo') == '1' and moneda == 'USD' else _decimal_post(request, 'monto')
+        if monto is None:
+            raise servicios.ErrorVenta('Escribe el monto del abono.')
+        fecha = request.POST.get('fecha') or None
+        p = servicios.registrar_abono(p, monto, moneda, request.POST.get('metodo', ''), request.user,
+                                      fecha=date.fromisoformat(fecha) if fecha else None,
+                                      banco=request.POST.get('banco', ''), referencia=request.POST.get('referencia', ''),
+                                      tasa=_decimal_post(request, 'tasa') if moneda == 'BS' else None)
+    except servicios.ErrorVenta as e:
+        messages.error(request, str(e))
+    except (ValueError, InvalidOperation):
+        messages.error(request, 'Revisa la fecha, el monto y la tasa.')
+    else:
+        if p.pagado:
+            messages.success(request, 'Pago registrado: la venta quedó pagada por completo.')
+        else:
+            from apps.core.templatetags.ordo import usd
+            messages.success(request, f'Abono registrado. Falta por cobrar {usd(p.saldo_usd)}.')
+    return redirect('ventas:detalle', pk=pk)
+
+
+@login_required
+@requiere('presupuestos.crear')
+@require_POST
+def anular_abono(request, pk, abono_id):
+    """Quitar un abono: el dueño/administrador siempre; quien lo registró, mientras la venta no esté validada."""
+    p = _presupuesto(request, pk)
+    abono = get_object_or_404(Abono, pk=abono_id, presupuesto=p)
+    if not (tiene_permiso(request, 'ventas.validar') or (abono.registrado_por_id == request.user.pk and p.estado != E.VALIDADA)):
+        messages.error(request, 'Solo el administrador puede quitar este abono.')
+        return redirect('ventas:detalle', pk=pk)
+    servicios.anular_abono(abono, request.user)
+    messages.success(request, 'Abono eliminado.')
+    return redirect('ventas:detalle', pk=pk)

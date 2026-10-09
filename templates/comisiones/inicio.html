@@ -11,16 +11,16 @@
 {% if sin_porcentaje %}
 <div class="alert alert-warning py-2 small"><i class="bi bi-exclamation-triangle me-1"></i>Sin porcentaje asignado (sus ventas generan 0): {% for v in sin_porcentaje %}{{ v.nombre_visible }}{% if not forloop.last %}, {% endif %}{% endfor %}. <a href="{% url 'comisiones:configuracion' %}">Configurar</a></div>
 {% endif %}
-<p class="small text-muted">Base: venta sin IVA, después del descuento. {% if perfil.comision_requiere_pago %}Solo se liquidan comisiones de ventas <b>cobradas</b>.{% else %}Se liquidan al validar la venta.{% endif %}</p>
+<p class="small text-muted">Base: venta sin IVA, después del descuento. {% if perfil.comision_requiere_pago %}Solo se liquidan comisiones de ventas <b>pagadas por completo</b> (los abonos parciales no cuentan).{% else %}Se liquidan al validar la venta.{% endif %}</p>
 <div class="row g-3 mb-3">
   <div class="col-4"><div class="card card-body"><div class="small text-muted">Por liquidar</div><div class="fs-4 fw-bold text-primary">{{ totales.disponible|usd }}</div></div></div>
-  <div class="col-4"><div class="card card-body"><div class="small text-muted">Esperan cobro</div><div class="fs-4 fw-bold {% if totales.por_cobrar %}text-warning{% endif %}">{{ totales.por_cobrar|usd }}</div></div></div>
+  <div class="col-4"><div class="card card-body"><div class="small text-muted">Esperan pago completo</div><div class="fs-4 fw-bold {% if totales.por_cobrar %}text-warning{% endif %}">{{ totales.por_cobrar|usd }}</div></div></div>
   <div class="col-4"><div class="card card-body"><div class="small text-muted">Generado este mes</div><div class="fs-4 fw-bold">{{ totales.mes|usd }}</div></div></div>
 </div>
 <div class="card mb-3"><div class="card-header bg-white fw-semibold">Por vendedor</div>
   {% if filas %}
   <div class="table-responsive"><table class="table align-middle mb-0">
-    <thead class="table-light"><tr><th>Vendedor</th><th class="text-end">Por liquidar</th><th class="text-end d-none d-sm-table-cell">Esperan cobro</th><th class="text-end d-none d-md-table-cell">Este mes</th><th></th></tr></thead>
+    <thead class="table-light"><tr><th>Vendedor</th><th class="text-end">Por liquidar</th><th class="text-end d-none d-sm-table-cell">Esperan pago completo</th><th class="text-end d-none d-md-table-cell">Este mes</th><th></th></tr></thead>
     <tbody>{% for f in filas %}<tr>
       <td><a href="{% url 'comisiones:vendedor' f.vendedor_id %}">{{ f.vendedor.nombre_visible }}</a></td>
       <td class="text-end fw-semibold">{{ f.disponible|usd }} <span class="small text-muted">({{ f.n_disponible }})</span></td>

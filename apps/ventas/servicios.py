@@ -13,7 +13,7 @@ from apps.core.tenancy import usando_empresa
 from apps.inventario import servicios as inventario
 from apps.tasas.servicios import tasa_vigente
 
-from .models import (Despacho, Devolucion, ItemDevolucion, ItemPresupuesto, Presupuesto, Reserva, desglose_bs,
+from .models import (Abono, Despacho, Devolucion, ItemDevolucion, ItemPresupuesto, Presupuesto, Reserva, desglose_bs,
                      partir_iva, redondear)
 
 E = Presupuesto.Estado
@@ -345,39 +345,111 @@ def cancelar(p, usuario):
     return p
 
 
+TOLERANCIA = Decimal('0.01')
+CONFIRMADAS = (E.POR_PAGAR, E.POR_VALIDAR, E.VALIDADA)
+
+
+def _actualizar_cobro(p, usuario):
+    """
+    Recalcula lo abonado y si la venta quedó pagada. El pago completo mueve la venta entre bandejas:
+    pagada → «Por validar»; deja de estarlo → vuelve a «Por cobrar». Los campos *_pago guardan el ÚLTIMO abono
+    (los usan reportes y PDF).
+    """
+    from django.db.models import Sum
+    abonos = list(Abono.objects.filter(presupuesto=p).order_by('fecha', 'pk'))
+    p.abonado_usd = sum((a.monto_usd for a in abonos), Decimal('0'))
+    p.pagado = bool(abonos) and p.abonado_usd >= p.neto_usd - TOLERANCIA
+    ultimo = abonos[-1] if abonos else None
+    p.fecha_pago = ultimo.fecha if ultimo else None
+    p.metodo_pago = (ultimo.metodo if len({a.metodo for a in abonos}) == 1 else Presupuesto.MetodoPago.MIXTO) if ultimo else ''
+    p.banco_pago = ultimo.banco if ultimo else ''
+    p.referencia_pago = ultimo.referencia if ultimo else ''
+    p.monto_pago = ultimo.monto if ultimo else None
+    p.moneda_pago = ultimo.moneda if ultimo else ''
+    p.pago_registrado_por = ultimo.registrado_por if ultimo else None
+    p.pago_registrado_en = ultimo.registrado_en if ultimo else None
+    if p.estado == E.POR_PAGAR and p.pagado:
+        p.estado = E.POR_VALIDAR
+    elif p.estado == E.POR_VALIDAR and not p.pagado:
+        p.estado = E.POR_PAGAR
+    p.save(update_fields=['abonado_usd', 'pagado', 'metodo_pago', 'fecha_pago', 'banco_pago', 'referencia_pago',
+                          'monto_pago', 'moneda_pago', 'estado', 'pago_registrado_por', 'pago_registrado_en'])
+    # Si la empresa no exige validación, la venta que quedó cubierta se valida sola
+    if p.estado == E.POR_VALIDAR and p.pagado and usuario is not None and not p.empresa.perfil.requiere_validacion:
+        p = validar(p, usuario)
+    return p
+
+
+@transaction.atomic
+def registrar_abono(p, monto, moneda, metodo, usuario, fecha=None, banco='', referencia='', tasa=None):
+    """
+    Registra un pago (parcial o el saldo completo). monto en la moneda indicada; si es Bs se convierte con `tasa`
+    (o la del día). No se acepta más de lo que falta por cobrar.
+    """
+    p = _bloquear(p)
+    _exigir(p, *CONFIRMADAS)
+    if p.pagado:
+        raise ErrorVenta('Esta venta ya está pagada por completo.')
+    if metodo not in Presupuesto.MetodoPago.values:
+        raise ErrorVenta('Elige el método de pago.')
+    if moneda not in ('USD', 'BS'):
+        raise ErrorVenta('Indica si el monto es en USD o en Bs.')
+    monto = redondear(monto)
+    if monto <= 0:
+        raise ErrorVenta('El monto debe ser mayor que cero.')
+    tasa_usada = None
+    if moneda == 'BS':
+        if tasa is None:
+            vigente = tasa_vigente(p.empresa)
+            tasa = vigente.bs_por_usd if vigente else None
+        if not tasa or tasa <= 0:
+            raise ErrorVenta('No hay tasa del día para convertir el abono en Bs. Indica la tasa.')
+        tasa_usada = Decimal(tasa)
+        monto_usd = redondear(monto / tasa_usada)
+    else:
+        monto_usd = monto
+    saldo = p.saldo_usd
+    if monto_usd > saldo + TOLERANCIA:
+        raise ErrorVenta(f'El abono ({monto_usd} USD) supera lo que falta por cobrar ({saldo} USD).')
+    if saldo - monto_usd <= TOLERANCIA:          # un centavo de redondeo no deja la venta abierta
+        monto_usd = saldo
+    Abono.objects.create(presupuesto=p, fecha=fecha or timezone.localdate(), metodo=metodo,
+                         banco=(banco or '').strip()[:60], referencia=(referencia or '').strip()[:40], moneda=moneda,
+                         monto=monto, tasa_bs=tasa_usada, monto_usd=monto_usd, registrado_por=usuario)
+    return _actualizar_cobro(p, usuario)
+
+
+@transaction.atomic
+def anular_abono(abono, usuario):
+    """Elimina un abono mal registrado. Si la venta deja de estar pagada, vuelve a «por cobrar»."""
+    p = _bloquear(abono.presupuesto)
+    abono.delete()
+    return _actualizar_cobro(p, usuario)
+
+
 @transaction.atomic
 def registrar_pago(p, pagado, metodo='', fecha=None, banco='', referencia='', monto=None, moneda='', usuario=None):
     """
-    Marca la venta como pagada (o no). banco, referencia y monto recibido son opcionales: sirven para dejar
-    constancia del pago; el monto puede diferir del total y la diferencia queda a la vista.
+    Atajo: pagado=True registra un abono por TODO el saldo (en USD); pagado=False anula todos los abonos.
+    monto/moneda, si vienen, quedan como lo recibido en el abono.
     """
     p = _bloquear(p)
-    _exigir(p, E.POR_PAGAR, E.POR_VALIDAR, E.VALIDADA)
-    if pagado and monto is not None:
-        if monto <= 0:
-            raise ErrorVenta('El monto recibido debe ser mayor que cero.')
-        if moneda not in ('USD', 'BS'):
-            raise ErrorVenta('Indica si el monto recibido es en USD o en Bs.')
-    p.pagado = pagado
-    p.metodo_pago = metodo if pagado else ''
-    p.fecha_pago = (fecha or timezone.localdate()) if pagado else None
-    p.banco_pago = (banco or '').strip()[:60] if pagado else ''
-    p.referencia_pago = (referencia or '').strip()[:40] if pagado else ''
-    p.monto_pago = redondear(monto) if pagado and monto is not None else None
-    p.moneda_pago = moneda if pagado and monto is not None else ''
-    p.pago_registrado_por = usuario if pagado else None
-    p.pago_registrado_en = timezone.now() if pagado else None
-    # El pago mueve la venta entre bandejas: pagada → «Por validar»; se quita el pago → vuelve a «Por cobrar»
-    if p.estado == E.POR_PAGAR and pagado:
-        p.estado = E.POR_VALIDAR
-    elif p.estado == E.POR_VALIDAR and not pagado:
-        p.estado = E.POR_PAGAR
-    p.save(update_fields=['pagado', 'metodo_pago', 'fecha_pago', 'banco_pago', 'referencia_pago', 'monto_pago',
-                          'moneda_pago', 'estado', 'pago_registrado_por', 'pago_registrado_en'])
-    # Si la empresa ya no exige validación, una venta que quedó «Por cobrar» se valida sola al cobrarla
-    if p.estado == E.POR_VALIDAR and usuario is not None and not p.empresa.perfil.requiere_validacion:
-        p = validar(p, usuario)
-    return p
+    _exigir(p, *CONFIRMADAS)
+    if not pagado:
+        Abono.objects.filter(presupuesto=p).delete()
+        return _actualizar_cobro(p, usuario)
+    if p.pagado:
+        return p
+    saldo = p.saldo_usd
+    if saldo <= 0:
+        return _actualizar_cobro(p, usuario)
+    if monto is not None and monto <= 0:
+        raise ErrorVenta('El monto recibido debe ser mayor que cero.')
+    Abono.objects.create(presupuesto=p, fecha=fecha or timezone.localdate(), metodo=metodo or Presupuesto.MetodoPago.TRANSFERENCIA,
+                         banco=(banco or '').strip()[:60], referencia=(referencia or '').strip()[:40],
+                         moneda=moneda if monto is not None and moneda in ('USD', 'BS') else 'USD',
+                         monto=redondear(monto) if monto is not None else saldo, monto_usd=saldo, registrado_por=usuario)
+    return _actualizar_cobro(p, usuario)
 
 
 @transaction.atomic
@@ -532,6 +604,8 @@ def devolver(p, usuario, lineas, motivo, fecha=None, reembolso=None):
         p.estado = E.DEVUELTA
         campos.append('estado')
     p.save(update_fields=campos)
+    if Abono.objects.filter(presupuesto=p).exists():      # con menos por cobrar, lo abonado puede cubrirla
+        _actualizar_cobro(p, None)
     venta_devuelta.send(sender=Devolucion, devolucion=dev, usuario=usuario)
     return dev
 

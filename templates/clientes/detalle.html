@@ -23,13 +23,39 @@
     </div>
   </div>
   <div class="col-md-7">
+    {% if saldo_total %}<div class="alert alert-warning py-2 small"><i class="bi bi-cash me-1"></i>Saldo por cobrar de este cliente: <b>{{ saldo_total|usd }}</b> <a href="?filtro=por_cobrar" class="ms-1">Ver</a></div>{% endif %}
     <div class="card">
-      <div class="card-header bg-white fw-semibold">Presupuestos y ventas</div>
-      {% if presupuestos %}
-      <div class="table-responsive"><table class="table table-sm table-hover mb-0 align-middle"><thead class="table-light"><tr><th>Número</th><th>Fecha</th><th>Estado</th><th class="text-end">Total</th></tr></thead><tbody>
-        {% for p in presupuestos %}<tr onclick="location.href='{% url 'ventas:detalle' p.pk %}'" role="button"><td class="fw-semibold">{{ p.numero }}</td><td class="small">{{ p.fecha|date:"d/m/Y" }}</td><td><span class="badge text-bg-{{ p.css_estado }}">{{ p.get_estado_display }}</span></td><td class="text-end">{{ p.total_usd|usd }}</td></tr>{% endfor %}
-      </tbody></table></div>
-      {% else %}<div class="card-body text-muted">Sin presupuestos todavía.</div>{% endif %}
+      <div class="card-header ordo-card-titulo d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span><i class="bi bi-journal-text me-1"></i>Estado de cuenta</span>
+        <div class="d-flex gap-1">
+          <a class="btn btn-sm btn-light" target="_blank" data-pdf href="{% url 'clientes:estado_cuenta_pdf' cliente.pk %}?{{ querystring }}"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+          <a class="btn btn-sm btn-light" href="{% url 'clientes:estado_cuenta_excel' cliente.pk %}?{{ querystring }}"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+        </div>
+      </div>
+      <div class="card-body pb-2">
+        <div class="d-flex flex-wrap gap-1 mb-2">{% for k, etq, n in filtros %}{% if n or k == 'todos' or k == filtro %}
+          <a href="?filtro={{ k }}{% if desde %}&desde={{ desde|date:'Y-m-d' }}{% endif %}{% if hasta %}&hasta={{ hasta|date:'Y-m-d' }}{% endif %}" class="btn btn-sm {% if k == filtro %}btn-primary{% else %}btn-outline-secondary{% endif %}">{{ etq }} <span class="badge {% if k == filtro %}text-bg-light{% else %}text-bg-secondary{% endif %}">{{ n }}</span></a>{% endif %}{% endfor %}</div>
+        <form method="get" class="row g-2 align-items-end"><input type="hidden" name="filtro" value="{{ filtro }}">
+          <div class="col-5"><label class="form-label small mb-0" for="ec-desde">Desde</label><input type="date" id="ec-desde" name="desde" value="{{ desde|date:'Y-m-d' }}" class="form-control form-control-sm"></div>
+          <div class="col-5"><label class="form-label small mb-0" for="ec-hasta">Hasta</label><input type="date" id="ec-hasta" name="hasta" value="{{ hasta|date:'Y-m-d' }}" class="form-control form-control-sm"></div>
+          <div class="col-2 d-grid"><button class="btn btn-sm btn-outline-primary" aria-label="Filtrar por fecha"><i class="bi bi-funnel"></i></button></div>
+        </form>
+      </div>
+      {% if pagina.object_list %}
+      <div class="table-responsive"><table class="table table-sm table-hover mb-0 align-middle"><thead class="table-light"><tr><th>Número</th><th>Fecha</th><th>Situación</th><th class="text-end">Total</th><th class="text-end">Saldo</th></tr></thead><tbody>
+        {% for p in pagina %}<tr onclick="location.href='{% url 'ventas:detalle' p.pk %}'" role="button">
+          <td class="fw-semibold">{{ p.numero_visible }}</td><td class="small">{{ p.fecha|date:"d/m/Y" }}</td>
+          <td>{% include 'ventas/partials/estado.html' with p=p %}{% if p.facturado %} <span class="badge text-bg-light border" title="Factura">F {{ p.numero_factura }}</span>{% endif %}</td>
+          <td class="text-end text-nowrap">{{ p.neto_usd|usd }}</td>
+          <td class="text-end text-nowrap {% if p.saldo_usd and p.confirmada or p.saldo_usd and p.es_venta %}text-danger fw-semibold{% endif %}">{% if p.confirmada or p.es_venta %}{% if p.saldo_usd %}{{ p.saldo_usd|usd }}{% else %}—{% endif %}{% else %}<span class="text-muted">—</span>{% endif %}</td></tr>{% endfor %}
+      </tbody>
+      <tfoot class="table-light"><tr class="fw-semibold"><td colspan="3">{{ totales.n }} documento{{ totales.n|pluralize }}{% if totales.abonado %} · abonado {{ totales.abonado|usd }}{% endif %}</td><td class="text-end text-nowrap">{{ totales.total|usd }}</td><td class="text-end text-nowrap {% if totales.saldo %}text-danger{% endif %}">{{ totales.saldo|usd }}</td></tr></tfoot>
+      </table></div>
+      {% if pagina.has_other_pages %}<div class="card-body py-2 d-flex justify-content-between small">
+        {% if pagina.has_previous %}<a href="?{{ querystring }}&page={{ pagina.previous_page_number }}">« Anteriores</a>{% else %}<span></span>{% endif %}
+        <span class="text-muted">Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>
+        {% if pagina.has_next %}<a href="?{{ querystring }}&page={{ pagina.next_page_number }}">Siguientes »</a>{% else %}<span></span>{% endif %}</div>{% endif %}
+      {% else %}<div class="card-body text-muted">No hay documentos con este filtro.</div>{% endif %}
     </div>
   </div>
 </div>
