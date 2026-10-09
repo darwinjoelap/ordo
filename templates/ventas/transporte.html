@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block contenido %}
+<div class="mb-3"><h1 class="h3 mb-0">Transporte</h1>
+  <div class="small text-muted">Transportistas y vehículos para las notas de despacho. Lo que registres aquí se elige con un clic al hacer la nota.</div></div>
+<div class="row g-3">
+  <div class="col-lg-6"><div class="card h-100">
+    <div class="card-header ordo-card-titulo"><i class="bi bi-person-badge me-1"></i>Transportistas</div>
+    <div class="card-body">
+      <form method="post" action="{% if t_editar %}{% url 'ventas:transportista_editar' t_editar.pk %}{% else %}{% url 'ventas:transportista_crear' %}{% endif %}" class="row g-2 mb-3">{% csrf_token %}
+        <div class="col-12 small fw-semibold">{% if t_editar %}Editar {{ t_editar.nombre }}{% else %}Nuevo transportista{% endif %}</div>
+        <div class="col-md-6"><input name="nombre" value="{{ t_editar.nombre|default:'' }}" maxlength="120" required class="form-control form-control-sm" placeholder="Nombre *" aria-label="Nombre"></div>
+        <div class="col-6 col-md-3"><input name="cedula" value="{{ t_editar.cedula|default:'' }}" maxlength="20" class="form-control form-control-sm" placeholder="Cédula" aria-label="Cédula"></div>
+        <div class="col-6 col-md-3"><input name="telefono" value="{{ t_editar.telefono|default:'' }}" maxlength="30" class="form-control form-control-sm" placeholder="Teléfono" aria-label="Teléfono"></div>
+        <div class="col-md-8"><input name="empresa_transporte" value="{{ t_editar.empresa_transporte|default:'' }}" maxlength="120" class="form-control form-control-sm" placeholder="Empresa de transporte (si es un tercero)" aria-label="Empresa de transporte"></div>
+        <div class="col-md-4 d-flex gap-1"><button class="btn btn-sm btn-success flex-grow-1"><i class="bi bi-check-lg me-1"></i>{% if t_editar %}Guardar{% else %}Agregar{% endif %}</button>{% if t_editar %}<a href="{% url 'ventas:transporte' %}" class="btn btn-sm btn-outline-secondary">Cancelar</a>{% endif %}</div>
+      </form>
+      {% if transportistas %}<div class="list-group list-group-flush">{% for t in transportistas %}
+        <div class="list-group-item px-0 d-flex justify-content-between align-items-center gap-2 {% if not t.activo %}text-muted{% endif %}">
+          <div><div class="fw-semibold">{% if not t.activo %}<s>{{ t.nombre }}</s> <span class="badge text-bg-secondary">Inactivo</span>{% else %}{{ t.nombre }}{% endif %}</div>
+            <div class="small text-muted">{{ t.cedula|default:"Sin cédula" }}{% if t.telefono %} · {{ t.telefono }}{% endif %}{% if t.empresa_transporte %} · {{ t.empresa_transporte }}{% endif %}</div></div>
+          <div class="d-flex gap-1 text-nowrap"><a href="?t={{ t.pk }}" class="btn btn-sm btn-outline-primary" aria-label="Editar {{ t.nombre }}"><i class="bi bi-pencil"></i></a>
+            <form method="post" action="{% url 'ventas:transporte_activar' 't' t.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary" title="{% if t.activo %}Desactivar{% else %}Activar{% endif %}"><i class="bi {% if t.activo %}bi-pause{% else %}bi-play{% endif %}"></i></button></form></div>
+        </div>{% endfor %}</div>
+      {% else %}<div class="text-muted small">Aún no hay transportistas. También se agregan solos al escribirlos en una nota de despacho.</div>{% endif %}
+    </div></div></div>
+
+  <div class="col-lg-6"><div class="card h-100">
+    <div class="card-header ordo-card-titulo"><i class="bi bi-truck me-1"></i>Vehículos</div>
+    <div class="card-body">
+      <form method="post" action="{% if v_editar %}{% url 'ventas:vehiculo_editar' v_editar.pk %}{% else %}{% url 'ventas:vehiculo_crear' %}{% endif %}" class="row g-2 mb-3">{% csrf_token %}
+        <div class="col-12 small fw-semibold">{% if v_editar %}Editar {{ v_editar.placa }}{% else %}Nuevo vehículo{% endif %}</div>
+        <div class="col-5 col-md-4"><input name="placa" value="{{ v_editar.placa|default:'' }}" maxlength="15" required class="form-control form-control-sm text-uppercase" placeholder="Placa *" aria-label="Placa"></div>
+        <div class="col-7 col-md-8"><input name="descripcion" value="{{ v_editar.descripcion|default:'' }}" maxlength="120" class="form-control form-control-sm" placeholder="Marca, modelo y color" aria-label="Vehículo"></div>
+        <div class="col-12 d-flex gap-1"><button class="btn btn-sm btn-success"><i class="bi bi-check-lg me-1"></i>{% if v_editar %}Guardar{% else %}Agregar{% endif %}</button>{% if v_editar %}<a href="{% url 'ventas:transporte' %}" class="btn btn-sm btn-outline-secondary">Cancelar</a>{% endif %}</div>
+      </form>
+      {% if vehiculos %}<div class="list-group list-group-flush">{% for v in vehiculos %}
+        <div class="list-group-item px-0 d-flex justify-content-between align-items-center gap-2 {% if not v.activo %}text-muted{% endif %}">
+          <div><div class="fw-semibold">{% if not v.activo %}<s>{{ v.placa }}</s> <span class="badge text-bg-secondary">Inactivo</span>{% else %}{{ v.placa }}{% endif %}</div>
+            <div class="small text-muted">{{ v.descripcion|default:"Sin descripción" }}</div></div>
+          <div class="d-flex gap-1 text-nowrap"><a href="?v={{ v.pk }}" class="btn btn-sm btn-outline-primary" aria-label="Editar {{ v.placa }}"><i class="bi bi-pencil"></i></a>
+            <form method="post" action="{% url 'ventas:transporte_activar' 'v' v.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary" title="{% if v.activo %}Desactivar{% else %}Activar{% endif %}"><i class="bi {% if v.activo %}bi-pause{% else %}bi-play{% endif %}"></i></button></form></div>
+        </div>{% endfor %}</div>
+      {% else %}<div class="text-muted small">Aún no hay vehículos.</div>{% endif %}
+    </div></div></div>
+</div>
+<p class="small text-muted mt-3">Desactivar no borra: deja de ofrecerse en las notas nuevas y las notas ya hechas no cambian.</p>
+{% endblock %}

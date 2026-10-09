@@ -132,11 +132,11 @@ class DespachoTests(Base):
             Despacho.todos.update(con_precios=True)
         self.assertContains(self.client.get(url), 'Pedro Pérez')
 
-    def test_otro_vendedor_no_lo_ve(self):
+    def test_placa_se_normaliza(self):
         p = self.venta([(self.prod, 1)])
         with self.empresa_ctx():
-            ventas.guardar_despacho(p, self.DATOS, self.vendedor)
-            self.assertEqual(ventas.transportistas_recientes()[0]['placa'], 'AB123CD')
+            d = ventas.guardar_despacho(p, {**self.DATOS, 'placa': ' ab 123 cd '}, self.vendedor)
+        self.assertEqual(d.placa, 'AB123CD')
 
 
 class SinStockPdfTests(Base):

@@ -294,6 +294,41 @@ class Abono(EmpresaModel):
         return f'{self.presupuesto.numero} · {self.monto_usd}'
 
 
+class Transportista(EmpresaModel):
+    """Chofer o persona que lleva la mercancía. Catálogo para no escribirlo en cada nota de despacho."""
+    nombre = models.CharField('Nombre', max_length=120)
+    cedula = models.CharField('Cédula', max_length=20, blank=True)
+    telefono = models.CharField('Teléfono', max_length=30, blank=True)
+    empresa_transporte = models.CharField('Empresa de transporte', max_length=120, blank=True)
+    activo = models.BooleanField('Activo', default=True)
+
+    class Meta:
+        verbose_name = 'Transportista'
+        verbose_name_plural = 'Transportistas'
+        ordering = ['nombre', 'pk']
+        base_manager_name = 'todos'
+
+    def __str__(self):
+        return self.nombre
+
+
+class Vehiculo(EmpresaModel):
+    """Vehículo de despacho. La placa no se repite dentro de la empresa."""
+    placa = models.CharField('Placa', max_length=15)
+    descripcion = models.CharField('Vehículo (marca, modelo, color)', max_length=120, blank=True)
+    activo = models.BooleanField('Activo', default=True)
+
+    class Meta:
+        verbose_name = 'Vehículo'
+        verbose_name_plural = 'Vehículos'
+        ordering = ['placa', 'pk']
+        base_manager_name = 'todos'
+        constraints = [models.UniqueConstraint(fields=['empresa', 'placa'], name='vehiculo_placa_unica')]
+
+    def __str__(self):
+        return f'{self.placa} · {self.descripcion}' if self.descripcion else self.placa
+
+
 class Despacho(EmpresaModel):
     """
     Nota de despacho de un presupuesto apartado o de una venta: quién transporta la mercancía y en qué vehículo.

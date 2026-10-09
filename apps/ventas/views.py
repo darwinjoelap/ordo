@@ -18,7 +18,7 @@ from apps.inventario.models import Producto
 from apps.core.pdf import nombre_corto, respuesta_pdf
 
 from . import servicios
-from .models import Abono, ItemPresupuesto, Presupuesto, Reserva, desglose_bs, redondear
+from .models import Abono, ItemPresupuesto, Presupuesto, Reserva, Transportista, Vehiculo, desglose_bs, redondear
 from .pdf import despacho_pdf, presupuesto_pdf
 
 E = Presupuesto.Estado
@@ -418,6 +418,8 @@ def despacho(request, pk):
         datos['con_precios'] = request.POST.get('con_precios') == '1'
         try:
             servicios.guardar_despacho(p, datos, request.user)
+            if request.POST.get('guardar_catalogo') == '1':
+                servicios.guardar_en_catalogo(datos)
         except servicios.ErrorVenta as error:
             messages.error(request, str(error))
         else:
@@ -425,7 +427,12 @@ def despacho(request, pk):
             return redirect('ventas:despacho', pk=p.pk)
     return render(request, 'ventas/despacho.html', {
         'titulo': f'Nota de despacho {p.numero}', 'p': p, 'd': d, 'datos': datos,
-        'recientes': servicios.transportistas_recientes(),
+        'catalogo': {
+            'transportistas': [{'id': t.pk, 'nombre': t.nombre, 'cedula': t.cedula, 'telefono': t.telefono,
+                                'empresa_transporte': t.empresa_transporte} for t in Transportista.objects.filter(activo=True)],
+            'vehiculos': [{'id': v.pk, 'placa': v.placa, 'vehiculo': v.descripcion} for v in Vehiculo.objects.filter(activo=True)],
+        },
+        'puede_catalogo': tiene_permiso(request, 'transporte.gestionar'),
     })
 
 

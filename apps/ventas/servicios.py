@@ -13,7 +13,7 @@ from apps.core.tenancy import usando_empresa
 from apps.inventario import servicios as inventario
 from apps.tasas.servicios import tasa_vigente
 
-from .models import (Abono, Despacho, Devolucion, ItemDevolucion, ItemPresupuesto, Presupuesto, Reserva, desglose_bs,
+from .models import (Abono, Despacho, Transportista, Vehiculo, Devolucion, ItemDevolucion, ItemPresupuesto, Presupuesto, Reserva, desglose_bs,
                      partir_iva, redondear)
 
 E = Presupuesto.Estado
@@ -652,7 +652,7 @@ def guardar_despacho(p, datos, usuario):
     if not p.despachable:
         raise ErrorVenta('La nota de despacho se emite cuando el presupuesto está apartado o la venta confirmada.')
     limpio = {c: (datos.get(c) or '').strip() for c in CAMPOS_DESPACHO}
-    limpio['placa'] = limpio['placa'].upper()
+    limpio['placa'] = normalizar_placa(limpio['placa'])
     if not limpio['transportista']:
         raise ErrorVenta('Escribe el nombre del transportista.')
     if not limpio['placa']:
@@ -673,16 +673,27 @@ def guardar_despacho(p, datos, usuario):
     return d
 
 
-def transportistas_recientes(limite=30):
-    """Transportistas ya usados (el más reciente de cada nombre + placa), para no volver a escribirlos."""
-    vistos, salida = set(), []
-    for d in Despacho.objects.order_by('-actualizado_en')[:300]:
-        clave = (d.transportista.lower(), d.placa)
-        if clave in vistos:
-            continue
-        vistos.add(clave)
-        salida.append({c: getattr(d, c) for c in ('transportista', 'cedula', 'telefono', 'empresa_transporte',
-                                                  'vehiculo', 'placa')})
-        if len(salida) >= limite:
-            break
-    return salida
+def guardar_en_catalogo(datos):
+    """
+    Agrega al catálogo el transportista y el vehículo escritos a mano en una nota de despacho
+    (si ya existen, por nombre o placa, completa los datos que les falten). No pisa datos ya cargados.
+    """
+    nombre = (datos.get('transportista') or '').strip()
+    if nombre:
+        t = Transportista.objects.filter(nombre__iexact=nombre).first() or Transportista(nombre=nombre[:120])
+        for campo in ('cedula', 'telefono', 'empresa_transporte'):
+            if not getattr(t, campo) and datos.get(campo):
+                setattr(t, campo, datos[campo].strip()[:Transportista._meta.get_field(campo).max_length])
+        t.activo = True
+        t.save()
+    placa = normalizar_placa(datos.get('placa'))
+    if placa:
+        v = Vehiculo.objects.filter(placa=placa).first() or Vehiculo(placa=placa)
+        if not v.descripcion and datos.get('vehiculo'):
+            v.descripcion = datos['vehiculo'].strip()[:120]
+        v.activo = True
+        v.save()
+
+
+def normalizar_placa(placa):
+    return ''.join((placa or '').upper().split())[:15]

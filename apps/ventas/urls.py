@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import reportes, views, views_devoluciones
+from . import reportes, views, views_devoluciones, views_transporte as transporte
 
 app_name = 'ventas'
 
@@ -15,6 +15,12 @@ urlpatterns = [
     path('devoluciones/<int:pk>/', views_devoluciones.detalle, name='devolucion'),
     path('devoluciones/<int:pk>/pdf/', views_devoluciones.pdf, name='devolucion_pdf'),
     path('<int:pk>/devolver/', views_devoluciones.devolver, name='devolver'),
+    path('transporte/', transporte.lista, name='transporte'),
+    path('transporte/transportista/', transporte.transportista_guardar, name='transportista_crear'),
+    path('transporte/transportista/<int:pk>/', transporte.transportista_guardar, name='transportista_editar'),
+    path('transporte/vehiculo/', transporte.vehiculo_guardar, name='vehiculo_crear'),
+    path('transporte/vehiculo/<int:pk>/', transporte.vehiculo_guardar, name='vehiculo_editar'),
+    path('transporte/<str:tipo>/<int:pk>/activar/', transporte.activar, name='transporte_activar'),
     path('buscar-clientes/', views.buscar_clientes, name='buscar_clientes'),
     path('<int:pk>/', views.detalle, name='detalle'),
     path('<int:pk>/buscar-productos/', views.buscar_productos, name='buscar_productos'),

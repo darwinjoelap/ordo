@@ -206,3 +206,5 @@
 
 - **Pagos parciales (abonos)**: `ventas.Abono` (moneda, tasa, monto_usd, quién); `Presupuesto.abonado_usd`, `saldo_usd`, `abono_parcial`. `servicios.registrar_abono` / `anular_abono` / `_actualizar_cobro` (pagado = abonos cubren el neto, ±0,01). `registrar_pago` queda como atajo (abona todo el saldo / anula todo). Migración 0010 convierte cada venta pagada en un abono por el total. La comisión con «requiere pago» espera al pago COMPLETO.
 - **Estado de cuenta del cliente**: `apps/clientes/estado_cuenta.py` (FILTROS, PDF horizontal, Excel), ficha del cliente con filtros y rango de fechas.
+
+- **Catálogo de transporte**: `ventas.Transportista` y `ventas.Vehiculo` (placa única por empresa), pantalla `/ventas/transporte/` (permiso `transporte.gestionar` = dueño, administrador, almacén). En la nota de despacho se eligen de listas o se escriben a mano; «Guardar en el catálogo» los agrega (`servicios.guardar_en_catalogo`). La nota guarda copia del texto: cambiar el catálogo no altera notas viejas.

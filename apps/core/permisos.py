@@ -25,7 +25,8 @@ PERMISOS = {
     'compras.gestionar': GESTION | {Rol.ALMACEN},
     # Comercial (Fase 4)
     'clientes.gestionar': GESTION | {Rol.VENDEDOR},
-    'clientes.importar': GESTION,          # carga masiva por Excel
+    'clientes.importar': GESTION,
+    'transporte.gestionar': GESTION | {Rol.ALMACEN},     # catálogo de transportistas y vehículos          # carga masiva por Excel
     'presupuestos.crear': GESTION | {Rol.VENDEDOR},
     'presupuestos.ver_todos': GESTION,
     'precios.fijar': GESTION,

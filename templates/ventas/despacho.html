@@ -13,10 +13,16 @@
   <div class="card-body">
     <div class="small text-muted mb-3">La nota lleva los productos, lotes y cantidades de este documento. Aquí solo se agregan los datos del traslado.{% if not d %} Guarda para poder abrir el PDF.{% endif %}</div>
     <div class="row g-3">
+      <div class="col-12"><div class="border rounded p-2 bg-body-tertiary">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-6"><label class="form-label small mb-1" for="sel-transportista"><i class="bi bi-person-badge me-1"></i>Transportista registrado</label>
+            <select id="sel-transportista" class="form-select form-select-sm"><option value="">— Escribir otro —</option>{% for t in catalogo.transportistas %}<option value="{{ t.id }}">{{ t.nombre }}{% if t.cedula %} · {{ t.cedula }}{% endif %}</option>{% endfor %}</select></div>
+          <div class="col-md-6"><label class="form-label small mb-1" for="sel-vehiculo"><i class="bi bi-truck me-1"></i>Vehículo registrado</label>
+            <select id="sel-vehiculo" class="form-select form-select-sm"><option value="">— Escribir otro —</option>{% for v in catalogo.vehiculos %}<option value="{{ v.id }}">{{ v.placa }}{% if v.vehiculo %} · {{ v.vehiculo }}{% endif %}</option>{% endfor %}</select></div>
+          <div class="col-12 small text-muted">{% if catalogo.transportistas or catalogo.vehiculos %}Elige uno y se llenan sus datos; si no está, escríbelo abajo.{% else %}Aún no hay transportistas ni vehículos registrados: escríbelos abajo y quedarán guardados para la próxima.{% endif %}{% if puede_catalogo %} <a href="{% url 'ventas:transporte' %}">Administrar catálogo</a>{% endif %}</div>
+        </div></div></div>
       <div class="col-md-6"><label class="form-label" for="transportista">Nombre del transportista *</label>
-        <input id="transportista" name="transportista" value="{{ datos.transportista }}" maxlength="120" required class="form-control" list="dp-recientes" autocomplete="off">
-        <datalist id="dp-recientes">{% for r in recientes %}<option value="{{ r.transportista }}">{{ r.placa }}{% if r.vehiculo %} · {{ r.vehiculo }}{% endif %}</option>{% endfor %}</datalist>
-        {% if recientes %}<div class="form-text">Al elegir uno ya usado se completan sus datos.</div>{% endif %}</div>
+        <input id="transportista" name="transportista" value="{{ datos.transportista }}" maxlength="120" required class="form-control" autocomplete="off"></div>
       <div class="col-6 col-md-3"><label class="form-label" for="cedula">Cédula</label><input id="cedula" name="cedula" value="{{ datos.cedula }}" maxlength="20" class="form-control" placeholder="V-12345678"></div>
       <div class="col-6 col-md-3"><label class="form-label" for="telefono">Teléfono</label><input id="telefono" name="telefono" value="{{ datos.telefono }}" maxlength="30" class="form-control"></div>
       <div class="col-md-6"><label class="form-label" for="vehiculo">Vehículo</label><input id="vehiculo" name="vehiculo" value="{{ datos.vehiculo }}" maxlength="120" class="form-control" placeholder="Marca, modelo y color"></div>
@@ -28,6 +34,8 @@
       <div class="col-md-6"><label class="form-label" for="direccion_entrega">Dirección de entrega</label><textarea id="direccion_entrega" name="direccion_entrega" rows="2" class="form-control">{{ datos.direccion_entrega }}</textarea>
         <div class="form-text">Vacía = la dirección del cliente.</div></div>
       <div class="col-md-6"><label class="form-label" for="observaciones">Observaciones</label><textarea id="observaciones" name="observaciones" rows="2" class="form-control" placeholder="Bultos, cadena de frío, horario de recepción…">{{ datos.observaciones }}</textarea></div>
+      <div class="col-12" id="dp-guardar-fila" hidden><div class="form-check"><input class="form-check-input" type="checkbox" id="guardar_catalogo" name="guardar_catalogo" value="1" checked>
+        <label class="form-check-label" for="guardar_catalogo">Guardar <span id="dp-nuevo"></span> en el catálogo de transporte para elegirlo la próxima vez</label></div></div>
     </div>
   </div>
   <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -35,15 +43,37 @@
     <button class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Guardar</button>
   </div>
 </form>
-{{ recientes|json_script:"dp-datos" }}
+{{ catalogo|json_script:"dp-catalogo" }}
 <script>
 (function () {
-  var lista = JSON.parse(document.getElementById('dp-datos').textContent), campo = document.getElementById('transportista');
-  campo.addEventListener('change', function () {
-    var r = lista.filter(function (x) { return x.transportista === campo.value; })[0];
-    if (!r) return;
-    ['cedula', 'telefono', 'empresa_transporte', 'vehiculo', 'placa'].forEach(function (c) { document.getElementById(c).value = r[c] || ''; });
+  var cat = JSON.parse(document.getElementById('dp-catalogo').textContent), $ = function (id) { return document.getElementById(id); };
+  var selT = $('sel-transportista'), selV = $('sel-vehiculo');
+  function igual(a, b) { return (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase(); }
+  function placa(x) { return (x || '').replace(/\s+/g, '').toUpperCase(); }
+  function revisar() {          // ¿lo escrito ya está en el catálogo? si no, se ofrece guardarlo
+    var t = cat.transportistas.filter(function (x) { return igual(x.nombre, $('transportista').value); })[0];
+    var v = cat.vehiculos.filter(function (x) { return x.placa === placa($('placa').value); })[0];
+    selT.value = t ? t.id : ''; selV.value = v ? v.id : '';
+    var nuevos = [];
+    if ($('transportista').value.trim() && !t) nuevos.push('al transportista');
+    if ($('placa').value.trim() && !v) nuevos.push('el vehículo');
+    $('dp-nuevo').textContent = nuevos.join(' y ');
+    $('dp-guardar-fila').hidden = !nuevos.length;
+  }
+  selT.addEventListener('change', function () {
+    var t = cat.transportistas.filter(function (x) { return String(x.id) === selT.value; })[0];
+    ['transportista', 'cedula', 'telefono', 'empresa_transporte'].forEach(function (c) { $(c).value = t ? (c === 'transportista' ? t.nombre : t[c] || '') : ''; });
+    if (!t) $('transportista').focus();
+    revisar();
   });
+  selV.addEventListener('change', function () {
+    var v = cat.vehiculos.filter(function (x) { return String(x.id) === selV.value; })[0];
+    $('placa').value = v ? v.placa : ''; $('vehiculo').value = v ? v.vehiculo || '' : '';
+    if (!v) $('placa').focus();
+    revisar();
+  });
+  ['transportista', 'placa'].forEach(function (c) { $(c).addEventListener('input', revisar); });
+  revisar();
 })();
 </script>
 {% endblock %}
