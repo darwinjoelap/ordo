@@ -167,6 +167,7 @@
         <div class="d-flex justify-content-between small"><span>Abonado</span><span class="text-success">{{ p.abonado_usd|usd }}</span></div>
         <div class="d-flex justify-content-between {% if p.pagado %}text-success{% else %}text-danger{% endif %} fw-semibold border-top mt-1 pt-1">
           <span>{% if p.pagado %}<i class="bi bi-check-circle-fill me-1"></i>Pagada por completo{% else %}Falta por cobrar{% endif %}</span><span>{% if not p.pagado %}{{ p.saldo_usd|usd }}{% endif %}</span></div>
+        {% if not p.pagado and tasa_de_venta and saldo_bs %}<div class="d-flex justify-content-between small text-danger"><span>En Bs (tasa fija de la venta, {{ p.tasa_bs|floatformat:"2g" }})</span><span>Bs {{ saldo_bs|floatformat:"2g" }}</span></div>{% endif %}
         {% if not p.pagado and p.neto_usd %}<div class="progress mt-1" style="height:6px" role="progressbar" aria-label="Porcentaje cobrado"><div class="progress-bar bg-success" style="width:{% widthratio p.abonado_usd p.neto_usd 100 %}%"></div></div>{% endif %}
       </div>
       {% if abonos %}
@@ -189,14 +190,14 @@
         <div class="row g-2">
           <div class="col-7"><input name="monto" id="ab-monto" inputmode="decimal" class="form-control form-control-sm" placeholder="Monto" aria-label="Monto" value="{{ p.saldo_usd|floatformat:'2' }}" required></div>
           <div class="col-5"><select name="moneda" id="ab-moneda" class="form-select form-select-sm" aria-label="Moneda"><option value="USD">USD</option><option value="BS">Bs</option></select></div>
-          <div class="col-12" id="ab-tasa-fila" hidden><div class="input-group input-group-sm"><span class="input-group-text">Tasa</span>
+          <div class="col-12" id="ab-tasa-fila" hidden><div class="input-group input-group-sm"><span class="input-group-text">Tasa {% if tasa_de_venta %}de la venta{% else %}del día{% endif %}</span>
             <input name="tasa" id="ab-tasa" inputmode="decimal" class="form-control" value="{{ tasa_hoy|floatformat:'4'|default:'' }}" aria-label="Tasa Bs por USD"><span class="input-group-text" id="ab-equivale"></span></div></div>
           <div class="col-7"><select name="metodo" class="form-select form-select-sm" required aria-label="Método de pago">
             <option value="">Método…</option>{% for v, n in metodos %}<option value="{{ v }}">{{ n }}</option>{% endfor %}</select></div>
           <div class="col-5"><input type="date" name="fecha" class="form-control form-control-sm" aria-label="Fecha del pago"></div>
           <div class="col-7"><input name="banco" list="bancos-ve" maxlength="60" class="form-control form-control-sm" placeholder="Banco emisor (opcional)" aria-label="Banco emisor"></div>
           <div class="col-5"><input name="referencia" maxlength="40" inputmode="numeric" class="form-control form-control-sm" placeholder="Referencia" aria-label="Referencia"></div>
-          <div class="col-12 small text-muted">Puede ser parcial. Falta {{ p.saldo_usd|usd }}{% if saldo_bs %} (Bs {{ saldo_bs|floatformat:"2g" }} a la tasa de hoy){% endif %}.</div>
+          <div class="col-12 small text-muted">Puede ser parcial. Falta {{ p.saldo_usd|usd }}{% if saldo_bs %} (Bs {{ saldo_bs|floatformat:"2g" }} a la tasa {% if tasa_de_venta %}de la venta{% else %}de hoy{% endif %}){% endif %}.</div>
           {% if perfil.comision_requiere_pago %}<div class="col-12 small text-warning-emphasis"><i class="bi bi-info-circle me-1"></i>La comisión del vendedor se paga solo cuando la venta está <b>pagada por completo</b>. Los abonos parciales no la liberan.</div>{% endif %}
           <div class="col-12 d-grid"><button class="btn btn-sm btn-success"><i class="bi bi-cash me-1"></i>Registrar pago</button></div>
         </div>

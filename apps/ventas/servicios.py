@@ -380,11 +380,19 @@ def _actualizar_cobro(p, usuario):
     return p
 
 
+def tasa_para_abono(p):
+    """Tasa con la que se convierten los pagos en Bs de esta venta, según Mi empresa → Comercial."""
+    if p.empresa.perfil.tasa_abonos == 'VENTA' and p.tasa_bs:
+        return p.tasa_bs
+    vigente = tasa_vigente(p.empresa)
+    return vigente.bs_por_usd if vigente else None
+
+
 @transaction.atomic
 def registrar_abono(p, monto, moneda, metodo, usuario, fecha=None, banco='', referencia='', tasa=None):
     """
     Registra un pago (parcial o el saldo completo). monto en la moneda indicada; si es Bs se convierte con `tasa`
-    (o la del día). No se acepta más de lo que falta por cobrar.
+    (o la que diga Mi empresa: la del día o la de la venta). No se acepta más de lo que falta por cobrar.
     """
     p = _bloquear(p)
     _exigir(p, *CONFIRMADAS)
@@ -400,8 +408,7 @@ def registrar_abono(p, monto, moneda, metodo, usuario, fecha=None, banco='', ref
     tasa_usada = None
     if moneda == 'BS':
         if tasa is None:
-            vigente = tasa_vigente(p.empresa)
-            tasa = vigente.bs_por_usd if vigente else None
+            tasa = tasa_para_abono(p)
         if not tasa or tasa <= 0:
             raise ErrorVenta('No hay tasa del día para convertir el abono en Bs. Indica la tasa.')
         tasa_usada = Decimal(tasa)

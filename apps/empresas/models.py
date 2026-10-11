@@ -174,6 +174,11 @@ class PerfilEmpresa(models.Model):
         'Los vendedores ven todos los clientes', default=False,
         help_text='Si está apagado, cada vendedor ve solo los clientes que creó o tiene asignados.')
     comision_requiere_pago = models.BooleanField('La comisión exige venta cobrada', default=False)
+    tasa_abonos = models.CharField(
+        'Tasa para pagos en Bs', max_length=5, default='DIA',
+        choices=[('DIA', 'Tasa del día del pago'), ('VENTA', 'Tasa de la venta')],
+        help_text='Del día: la deuda es en dólares y el cliente paga los Bs del día. '
+                  'De la venta: la deuda queda fija en Bs desde que se confirmó.')
 
     actualizado_en = models.DateTimeField(auto_now=True)
 

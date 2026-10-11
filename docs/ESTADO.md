@@ -208,3 +208,6 @@
 - **Estado de cuenta del cliente**: `apps/clientes/estado_cuenta.py` (FILTROS, PDF horizontal, Excel), ficha del cliente con filtros y rango de fechas.
 
 - **Catálogo de transporte**: `ventas.Transportista` y `ventas.Vehiculo` (placa única por empresa), pantalla `/ventas/transporte/` (permiso `transporte.gestionar` = dueño, administrador, almacén). En la nota de despacho se eligen de listas o se escriben a mano; «Guardar en el catálogo» los agrega (`servicios.guardar_en_catalogo`). La nota guarda copia del texto: cambiar el catálogo no altera notas viejas.
+
+- **Tasa de los abonos en Bs**: `PerfilEmpresa.tasa_abonos` (DIA | VENTA) en Mi empresa → Comercial; `servicios.tasa_para_abono(p)`.
+- **Cobranza**: `apps/ventas/cobranza.py` (resumen, tablero, por_cobrar con antigüedad > 30 días, PDF, Excel), `/ventas/reportes/cobranza/`. Cuenta por FECHA DEL ABONO (caja); Ventas sigue por fecha de validación. Tarjeta «Dinero ingresado» en el inicio (`core/partials/ingresos.html`).

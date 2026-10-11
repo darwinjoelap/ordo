@@ -18,6 +18,7 @@ def inicio(request):
 
     from apps.core.permisos import tiene_permiso
     from apps.inventario.models import Producto
+    from apps.ventas import cobranza
     from apps.ventas.models import Presupuesto
 
     E = Presupuesto.Estado
@@ -38,8 +39,8 @@ def inicio(request):
                               .select_related('cliente').order_by('apartado_hasta')[:5],
             'abiertos': docs.filter(estado__in=[E.BORRADOR, E.EMITIDO]).count(),
             'ultimos': docs.select_related('cliente').order_by('-actualizado_en')[:6],
-            'por_cobrar': docs.filter(Q(estado=E.POR_PAGAR) | Q(estado=E.VALIDADA, pagado=False)).aggregate(
-                n=Count('pk'), usd=Sum(F('total_usd') - F('devuelto_usd'))),
+            'por_cobrar': cobranza.por_cobrar(docs),
+            'ingresos': cobranza.tablero(docs),
             'por_entregar': docs.filter(estado__in=Presupuesto.CONFIRMADAS, entregado=False).count(),
         })
     if tiene_permiso(request, 'comisiones.ver_propias'):

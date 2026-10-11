@@ -16,7 +16,7 @@ GRUPOS = {
                                   'datos_bancarios', 'firma']),
     'comercial': ('Comercial', ['iva_porcentaje', 'dias_validez_presupuesto', 'dias_apartado', 'modo_precio',
                                 'margen_minimo_pct', 'margen_maximo_pct', 'requiere_validacion',
-                                'vendedores_ven_todos_los_clientes', 'comision_requiere_pago']),
+                                'vendedores_ven_todos_los_clientes', 'comision_requiere_pago', 'tasa_abonos']),
 }
 
 
@@ -41,6 +41,7 @@ class PerfilEmpresaForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for nombre in ('quitar_logo', 'quitar_firma'):
             self.fields[nombre].widget.attrs['class'] = 'form-check-input'
+        self.fields['tasa_abonos'].required = False
         for nombre in ('razon_social', 'rif'):          # los administra la plataforma (panel de empresas)
             self.fields[nombre].disabled = True
             self.fields[nombre].help_text = 'Lo actualiza el equipo de Ordo. Escríbenos si hay que corregirlo.'
@@ -56,6 +57,9 @@ class PerfilEmpresaForm(forms.ModelForm):
     def grupos(self):
         """[(clave, titulo, [bound fields])] para pintar las pestañas."""
         return [(clave, titulo, [self[c] for c in campos]) for clave, (titulo, campos) in GRUPOS.items()]
+
+    def clean_tasa_abonos(self):
+        return self.cleaned_data.get('tasa_abonos') or 'DIA'      # un formulario viejo sin el campo no falla
 
     def _validar_archivo(self, campo, etiqueta):
         archivo = self.cleaned_data.get(campo)

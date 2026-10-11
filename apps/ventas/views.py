@@ -192,6 +192,7 @@ def detalle(request, pk):
             comision.lista_ajustes = list(AjusteComision.objects.filter(comision=comision).select_related('devolucion'))
             comision.neto = comision.monto_usd + sum(a.monto_usd for a in comision.lista_ajustes)
     from .models import Devolucion
+    tasa_abono = servicios.tasa_para_abono(p) if p.confirmada else None
     return render(request, 'ventas/detalle.html', {
         'comision': comision,
         'devoluciones': Devolucion.objects.filter(presupuesto=p).order_by('creada_en') if p.es_venta else [],
@@ -204,8 +205,9 @@ def detalle(request, pk):
         'precio_editable': perfil.modo_precio != 'FIJO' or tiene_permiso(request, 'precios.fijar'),
         'metodos': [m for m in Presupuesto.MetodoPago.choices if m[0] != 'MIXTO'], 'bancos': BANCOS,
         'abonos': list(Abono.objects.filter(presupuesto=p).select_related('registrado_por')),
-        'tasa_hoy': _tasa_hoy(request),
-        'saldo_bs': redondear(p.saldo_usd * _tasa_hoy(request)) if _tasa_hoy(request) and not p.pagado else None,
+        'tasa_hoy': tasa_abono,
+        'tasa_de_venta': perfil.tasa_abonos == 'VENTA' and bool(p.tasa_bs),
+        'saldo_bs': redondear(p.saldo_usd * tasa_abono) if tasa_abono and not p.pagado else None,
     })
 
 

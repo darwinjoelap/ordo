@@ -176,3 +176,75 @@ class EstadoCuentaTests(Base):
         self.client.force_login(self.vendedor)
         ids, _ = self.numeros('todos')
         self.assertNotIn(otra.pk, ids)
+
+
+class TasaDeLaVentaTests(Base):
+    def setUp(self):
+        super().setUp()
+        self.perfil.requiere_validacion = True
+        self.perfil.save()
+
+    def confirmada(self):
+        with self.empresa_ctx():
+            p = ventas.crear(self.cliente, self.vendedor, self.empresa)
+            ventas.agregar_item(p, self.prod, 5, None, self.perfil, True)
+            p = ventas.confirmar(p, self.vendedor, self.empresa)
+            Presupuesto.objects.filter(pk=p.pk).update(tasa_bs=Decimal('100'))
+            return Presupuesto.objects.get(pk=p.pk)
+
+    def test_del_dia_por_defecto(self):
+        p = self.confirmada()
+        with self.empresa_ctx():
+            tasas.registrar(Decimal('200'), TasaCambio.Fuente.MANUAL)
+            p = ventas.registrar_abono(p, Decimal('2000'), 'BS', 'PAGO_MOVIL', self.vendedor)
+        self.assertEqual(Abono.todos.get().monto_usd, Decimal('10.00'))
+
+    def test_con_la_tasa_de_la_venta(self):
+        self.perfil.tasa_abonos = 'VENTA'
+        self.perfil.save()
+        p = self.confirmada()
+        with self.empresa_ctx():
+            tasas.registrar(Decimal('200'), TasaCambio.Fuente.MANUAL)
+            p = ventas.registrar_abono(p, Decimal('2000'), 'BS', 'PAGO_MOVIL', self.vendedor)
+            self.assertEqual((Abono.objects.get().monto_usd, Abono.objects.get().tasa_bs), (Decimal('20.00'), Decimal('100')))
+            p = ventas.registrar_abono(p, Decimal('9600'), 'BS', 'PAGO_MOVIL', self.vendedor)      # 116 × 100 − 2000
+            self.assertTrue(p.pagado)
+        self.client.force_login(self.dueno)
+        self.assertContains(self.client.get(reverse('empresas:mi_empresa')), 'name="tasa_abonos"')
+
+
+class CobranzaTests(Base):
+    def setUp(self):
+        super().setUp()
+        from datetime import timedelta
+        from django.utils import timezone
+        self.hoy = timezone.localdate()
+        self.p = self.venta([(self.prod, 5)])                          # 116
+        self.p2 = self.venta([(self.equipo, 1)], vendedor=self.vendedor2)   # 232
+        with self.empresa_ctx():
+            ventas.registrar_abono(self.p, Decimal('16'), 'USD', 'ZELLE', self.dueno,
+                                   fecha=self.hoy.replace(day=1) - timedelta(days=1))      # mes pasado
+            ventas.registrar_abono(self.p, Decimal('5000'), 'BS', 'PAGO_MOVIL', self.dueno, tasa=Decimal('100'))
+            ventas.registrar_abono(self.p2, Decimal('32'), 'USD', 'EFECTIVO_USD', self.dueno)
+
+    def test_cuenta_por_fecha_del_pago(self):
+        self.client.force_login(self.dueno)
+        r = self.client.get(reverse('ventas:cobranza'))
+        tot = r.context['tot']
+        self.assertEqual((tot['usd'], tot['divisas'], tot['bs'], tot['n']), (Decimal('82.00'), Decimal('32.00'), Decimal('5000.00'), 2))
+        self.assertContains(r, 'en el mes en que se cobró')
+        r = self.client.get(reverse('ventas:cobranza'), {'metodo': 'ZELLE', 'desde': '2000-01-01'})
+        self.assertEqual(r.context['tot']['usd'], Decimal('16.00'))
+        self.assertTrue(self.client.get(reverse('ventas:cobranza_pdf')).content.startswith(b'%PDF'))
+        self.assertTrue(self.client.get(reverse('ventas:cobranza_excel')).content.startswith(b'PK'))
+
+    def test_vendedor_solo_lo_suyo(self):
+        self.client.force_login(self.vendedor)
+        self.assertEqual(self.client.get(reverse('ventas:cobranza')).context['tot']['usd'], Decimal('50.00'))
+
+    def test_tablero(self):
+        self.client.force_login(self.dueno)
+        r = self.client.get(reverse('core:inicio'))
+        self.assertContains(r, 'Dinero ingresado este mes')
+        self.assertEqual(r.context['ingresos']['usd'], Decimal('82.00'))
+        self.assertEqual(r.context['por_cobrar']['usd'], Decimal('116.00') + Decimal('232.00') - Decimal('16') - Decimal('50') - Decimal('32'))
