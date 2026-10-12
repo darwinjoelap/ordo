@@ -48,3 +48,42 @@ def lista_precios_pdf(productos, empresa, mostrar_existencia=False, tasa=None):
     pie = pie_empresa(empresa)
     doc.build(e, onFirstPage=pie, onLaterPages=pie)
     return buffer.getvalue()
+
+
+def traslado_pdf(t, items, empresa):
+    """Comprobante de traslado entre almacenes, con firmas de quien entrega y quien recibe."""
+    perfil = empresa.perfil
+    color = colors.HexColor(perfil.color_principal or '#053D74')
+    buffer = BytesIO()
+    doc = documento(buffer, titulo_pdf=f'Traslado {t.numero}')
+    cuando = timezone.localtime(t.fecha)
+    e = encabezado_empresa(empresa, titulo='TRASLADO ENTRE ALMACENES', subtitulo='<br/>'.join([
+        f'<font size="12"><b>N° {t.numero}</b></font>', '', f'Fecha: {cuando:%d/%m/%Y %H:%M}',
+        f'Registró: {t.usuario.nombre_visible}']))
+    e += [Paragraph(f'<b>Desde:</b> {t.origen.nombre if t.origen_id else "Sin almacén"} &nbsp;&nbsp; '
+                    f'<b>Hacia:</b> {t.destino.nombre}', ESTILO_CELDA)]
+    if t.notas:
+        e.append(Paragraph(f'<b>Notas:</b> {t.notas}', ESTILO_CELDA))
+    e.append(Spacer(1, 4 * mm))
+    filas = [['Código', 'Producto', 'Lote', 'Vence', 'Cantidad']]
+    for i in items:
+        lote = i.lote_origen
+        filas.append([i.producto.codigo, Paragraph(i.producto.nombre, ESTILO_CELDA), lote.numero_lote or '—',
+                      f'{lote.fecha_vencimiento:%d/%m/%Y}' if lote.fecha_vencimiento else '—',
+                      f'{i.cantidad} {i.producto.unidad.abreviatura}'])
+    filas.append(['', f'{len(items)} línea(s)', '', 'Total', str(sum(i.cantidad for i in items))])
+    tabla = Table(filas, colWidths=[28 * mm, 82 * mm, 28 * mm, 22 * mm, 26 * mm], repeatRows=1)
+    tabla.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), color), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'), ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+        ('ALIGN', (4, 0), (4, -1), 'RIGHT'), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#F3F4F6')]),
+        ('LINEABOVE', (0, -1), (-1, -1), 1, color), ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+    ]))
+    firma = lambda titulo: Paragraph(f'<br/><br/><br/>______________________________<br/><b>{titulo}</b><br/>'  # noqa: E731
+                                     'Nombre: ____________________<br/>C.I.: ________________', ESTILO_CELDA)
+    firmas = Table([[firma('Entrega'), firma('Recibe')]], colWidths=[93 * mm, 93 * mm])
+    e += [tabla, Spacer(1, 8 * mm), firmas]
+    pie = pie_empresa(empresa)
+    doc.build(e, onFirstPage=pie, onLaterPages=pie)
+    return buffer.getvalue()

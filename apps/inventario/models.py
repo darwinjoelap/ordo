@@ -87,19 +87,28 @@ UNIDADES_INICIALES = [
 # ── Producto ──────────────────────────────────────────────────────────────────
 
 class ProductoQuerySet(EmpresaQuerySet):
-    def con_stock(self):
+    def con_stock(self, almacen=None):
         """
         Anota en UNA consulta: anot_stock_total, anot_stock_apartado, anot_stock_vencido (libre en lotes
         vencidos), anot_stock_disponible (sin apartado ni vencido) y anot_tiene_vencidos.
+        almacen: None = todo · un Almacen = solo ese · 'SIN' = solo el stock sin almacén.
         """
         hoy = timezone.localdate()
         vencidos = Lote.todos.filter(producto=OuterRef('pk'), fecha_vencimiento__lt=hoy, cantidad_actual__gt=0)
+        donde = Q()
+        if almacen == 'SIN':
+            donde = Q(lotes__almacen__isnull=True)
+            vencidos = vencidos.filter(almacen__isnull=True)
+        elif almacen is not None:
+            donde = Q(lotes__almacen=almacen)
+            vencidos = vencidos.filter(almacen=almacen)
         return self.annotate(
-            anot_stock_total=Coalesce(Sum('lotes__cantidad_actual'), Value(0), output_field=IntegerField()),
-            anot_stock_apartado=Coalesce(Sum('lotes__cantidad_apartada'), Value(0), output_field=IntegerField()),
+            anot_stock_total=Coalesce(Sum('lotes__cantidad_actual', filter=donde), Value(0), output_field=IntegerField()),
+            anot_stock_apartado=Coalesce(Sum('lotes__cantidad_apartada', filter=donde), Value(0),
+                                         output_field=IntegerField()),
             anot_stock_vencido=Coalesce(
                 Sum(F('lotes__cantidad_actual') - F('lotes__cantidad_apartada'),
-                    filter=Q(lotes__fecha_vencimiento__lt=hoy)), Value(0), output_field=IntegerField()),
+                    filter=donde & Q(lotes__fecha_vencimiento__lt=hoy)), Value(0), output_field=IntegerField()),
             anot_tiene_vencidos=Exists(vencidos),
         ).annotate(anot_stock_disponible=F('anot_stock_total') - F('anot_stock_apartado') - F('anot_stock_vencido'))
 
@@ -235,6 +244,25 @@ class Producto(EmpresaModel):
 
 # ── Lotes y kardex ────────────────────────────────────────────────────────────
 
+class Almacen(EmpresaModel):
+    """Depósito físico (multialmacén, Mi empresa → Comercial). El stock sin almacén se ve como «Sin almacén»."""
+    nombre = models.CharField('Nombre', max_length=80)
+    direccion = models.CharField('Dirección', max_length=200, blank=True)
+    responsable = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='+', verbose_name='Responsable')
+    principal = models.BooleanField('Principal', default=False)
+    activo = models.BooleanField('Activo', default=True)
+
+    class Meta:
+        verbose_name = 'Almacén'
+        verbose_name_plural = 'Almacenes'
+        ordering = ['-principal', 'nombre', 'pk']
+        base_manager_name = 'todos'
+
+    def __str__(self):
+        return self.nombre
+
+
 class Lote(EmpresaModel):
     producto = models.ForeignKey(Producto, on_delete=models.PROTECT, related_name='lotes', verbose_name='Producto')
     numero_lote = models.CharField('Número de lote', max_length=50, blank=True)
@@ -247,6 +275,9 @@ class Lote(EmpresaModel):
                                   related_name='lotes', verbose_name='Proveedor')
     fecha_ingreso = models.DateField('Fecha de ingreso', default=timezone.localdate)
     notas = models.TextField('Notas', blank=True)
+    # Multialmacén: vacío = «Sin almacén» (todo el stock anterior a activarlo). Se reparte con traslados.
+    almacen = models.ForeignKey(Almacen, on_delete=models.PROTECT, null=True, blank=True, related_name='lotes',
+                                verbose_name='Almacén')
 
     class Meta:
         verbose_name = 'Lote'
@@ -292,6 +323,8 @@ class MovimientoInventario(EmpresaModel):
         LIBERACION = 'LIBERACION', 'Liberación de apartado'
         VENTA = 'VENTA', 'Venta'
         DEVOLUCION = 'DEVOLUCION', 'Devolución de cliente'
+        TRASLADO_SAL = 'TRASLADO_SAL', 'Traslado (sale)'
+        TRASLADO_ENT = 'TRASLADO_ENT', 'Traslado (entra)'
 
     lote = models.ForeignKey(Lote, on_delete=models.PROTECT, related_name='movimientos', verbose_name='Lote')
     tipo = models.CharField('Tipo', max_length=12, choices=Tipo.choices)
@@ -342,3 +375,34 @@ class ImportacionProductos(EmpresaModel):
 
     def __str__(self):
         return f'{self.nombre_archivo} ({self.get_estado_display()})'
+
+
+class Traslado(EmpresaModel):
+    """Movimiento de mercancía entre almacenes. origen vacío = «Sin almacén» (para ponerse a punto)."""
+    numero = models.CharField('Número', max_length=30)
+    origen = models.ForeignKey(Almacen, on_delete=models.PROTECT, null=True, blank=True, related_name='+',
+                               verbose_name='Desde')
+    destino = models.ForeignKey(Almacen, on_delete=models.PROTECT, related_name='+', verbose_name='Hacia')
+    fecha = models.DateTimeField('Fecha', auto_now_add=True)
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='+')
+    notas = models.CharField('Notas', max_length=250, blank=True)
+
+    class Meta:
+        verbose_name = 'Traslado'
+        verbose_name_plural = 'Traslados'
+        ordering = ['-fecha', '-pk']
+        base_manager_name = 'todos'
+
+    def __str__(self):
+        return self.numero
+
+
+class ItemTraslado(EmpresaModel):
+    traslado = models.ForeignKey(Traslado, on_delete=models.CASCADE, related_name='items')
+    producto = models.ForeignKey(Producto, on_delete=models.PROTECT, related_name='+')
+    lote_origen = models.ForeignKey(Lote, on_delete=models.PROTECT, related_name='+')
+    lote_destino = models.ForeignKey(Lote, on_delete=models.PROTECT, related_name='+')
+    cantidad = models.PositiveIntegerField()
+
+    class Meta:
+        base_manager_name = 'todos'

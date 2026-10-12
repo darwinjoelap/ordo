@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+<a href="{% url 'inventario:traslados' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Traslados</a>
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mt-2 mb-3">
+  <div><h1 class="h3 mb-1">{{ t.numero }}</h1><div class="small text-muted">{{ t.origen.nombre|default:"Sin almacén" }} → <b>{{ t.destino.nombre }}</b> · {{ t.fecha|date:"d/m/Y H:i" }} · {{ t.usuario.nombre_visible }}</div>
+    {% if t.notas %}<div class="small">{{ t.notas }}</div>{% endif %}</div>
+  <a href="{% url 'inventario:traslado_pdf' t.pk %}" target="_blank" data-pdf class="btn btn-outline-primary btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+</div>
+<div class="card"><div class="table-responsive"><table class="table table-sm align-middle mb-0">
+  <thead class="table-light"><tr><th>Producto</th><th>Lote</th><th>Vence</th><th class="text-end">Cantidad</th></tr></thead>
+  <tbody>{% for i in items %}<tr><td><a href="{% url 'inventario:detalle' i.producto_id %}">{{ i.producto.nombre }}</a><div class="small text-muted">{{ i.producto.codigo }}</div></td>
+    <td class="small">{{ i.lote_origen.numero_lote|default:"—" }}</td><td class="small">{{ i.lote_origen.fecha_vencimiento|date:"d/m/Y"|default:"—" }}</td>
+    <td class="text-end">{{ i.cantidad|miles }} {{ i.producto.unidad.abreviatura }}</td></tr>{% endfor %}</tbody>
+</table></div></div>
+{% endblock %}

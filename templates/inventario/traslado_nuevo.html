@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+<a href="{% url 'inventario:almacenes' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Almacenes</a>
+<h1 class="h3 mt-2 mb-1">Nuevo traslado</h1>
+<p class="small text-muted">Solo se mueve lo disponible: lo apartado para una venta se queda donde está. Cada traslado queda en el kardex como salida de un almacén y entrada en el otro.</p>
+<form method="get" class="card card-body mb-3"><div class="row g-2 align-items-end">
+  <div class="col-md-4"><label class="form-label small mb-1" for="origen">Desde</label><select id="origen" name="origen" class="form-select form-select-sm" onchange="this.form.submit()">
+    <option value="SIN" {% if origen_txt == 'SIN' %}selected{% endif %}>Sin almacén{% if not hay_sin %} (vacío){% endif %}</option>
+    {% for a in almacenes %}<option value="{{ a.pk }}" {% if origen_txt == a.pk|stringformat:'s' %}selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></div>
+  <div class="col-md-6"><label class="form-label small mb-1" for="q">Buscar</label><input id="q" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Producto, código o lote"></div>
+  <div class="col-md-2 d-grid"><button class="btn btn-sm btn-outline-primary"><i class="bi bi-search"></i></button></div>
+</div></form>
+<form method="post" class="card">{% csrf_token %}<input type="hidden" name="origen" value="{{ origen_txt }}">
+  {% if lotes %}
+  <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+    <thead class="table-light"><tr><th>Producto</th><th class="d-none d-md-table-cell">Lote</th><th class="d-none d-md-table-cell">Vence</th><th class="text-end">Disp.</th><th class="text-end" style="width:5.5rem">Mover</th></tr></thead>
+    <tbody>{% for l in lotes %}<tr>
+      <td><div class="fw-semibold">{{ l.producto.nombre }}</div><div class="small text-muted">{{ l.producto.codigo }}<span class="d-md-none">{% if l.numero_lote %} · Lote {{ l.numero_lote }}{% endif %}{% if l.fecha_vencimiento %} · vence {{ l.fecha_vencimiento|date:"d/m/Y" }}{% endif %}</span></div></td>
+      <td class="small d-none d-md-table-cell">{{ l.numero_lote|default:"—" }}</td><td class="small d-none d-md-table-cell">{{ l.fecha_vencimiento|date:"d/m/Y"|default:"—" }}</td>
+      <td class="text-end">{{ l.cantidad_disponible|miles }} <span class="small text-muted">{{ l.producto.unidad.abreviatura }}</span></td>
+      <td><input type="number" name="cant_{{ l.pk }}" min="0" max="{{ l.cantidad_disponible }}" class="form-control form-control-sm text-end" aria-label="Trasladar {{ l.producto.nombre }}"></td>
+    </tr>{% endfor %}</tbody></table></div>
+  <div class="card-body border-top row g-2 align-items-end">
+    <div class="col-md-4"><label class="form-label small mb-1" for="destino">Hacia *</label><select id="destino" name="destino" class="form-select form-select-sm" required>
+      {% for a in almacenes %}{% if origen_txt != a.pk|stringformat:'s' %}<option value="{{ a.pk }}">{{ a.nombre }}</option>{% endif %}{% endfor %}</select></div>
+    <div class="col-md-5"><label class="form-label small mb-1" for="notas">Notas</label><input id="notas" name="notas" maxlength="250" class="form-control form-control-sm"></div>
+    <div class="col-md-3 d-grid"><button class="btn btn-success btn-sm"><i class="bi bi-arrow-left-right me-1"></i>Registrar traslado</button></div>
+    <div class="col-12 small text-muted">Escribe la cantidad solo en las líneas que se mueven. {% if lotes|length == 300 %}Se muestran 300 líneas: usa el buscador para encontrar otras.{% endif %}</div>
+  </div>
+  {% else %}<div class="card-body text-muted">No hay existencia disponible en este origen{% if q %} con esa búsqueda{% endif %}.</div>{% endif %}
+</form>
+{% endblock %}

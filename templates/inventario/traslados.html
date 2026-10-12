@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+<a href="{% url 'inventario:almacenes' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Almacenes</a>
+<div class="d-flex justify-content-between align-items-center mt-2 mb-3"><h1 class="h3 mb-0">Traslados</h1>
+  <a href="{% url 'inventario:traslado_nuevo' %}" class="btn btn-primary btn-sm"><i class="bi bi-arrow-left-right me-1"></i>Nuevo traslado</a></div>
+<div class="card">{% if traslados %}<div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0">
+  <thead class="table-light"><tr><th>Número</th><th>Desde → Hacia</th><th class="text-end">Unidades</th><th class="d-none d-md-table-cell">Registró</th></tr></thead>
+  <tbody>{% for t in traslados %}<tr onclick="location.href='{% url 'inventario:traslado' t.pk %}'" role="button">
+    <td class="fw-semibold">{{ t.numero }}<div class="small text-muted">{{ t.fecha|date:"d/m/Y H:i" }}</div></td>
+    <td class="small">{{ t.origen.nombre|default:"Sin almacén" }} → {{ t.destino.nombre }}</td>
+    <td class="text-end">{{ t.unidades|default:0|miles }} <span class="small text-muted">({{ t.n }})</span></td>
+    <td class="small d-none d-md-table-cell">{{ t.usuario.nombre_visible }}</td></tr>{% endfor %}</tbody></table></div>
+  {% else %}<div class="card-body text-muted">Aún no hay traslados.</div>{% endif %}</div>
+{% endblock %}

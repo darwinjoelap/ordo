@@ -23,6 +23,9 @@
       </tbody>
     </table>
   </div></div>
-  <div class="text-end"><button class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Registrar recepción</button></div>
+  <div class="d-flex justify-content-end align-items-end gap-2 flex-wrap">
+    {% if almacenes %}<div><label class="form-label small mb-1" for="almacen">Recibir en el almacén</label>
+      <select id="almacen" name="almacen" class="form-select form-select-sm">{% for a in almacenes %}<option value="{{ a.pk }}" {% if a.principal %}selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></div>{% endif %}
+    <button class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Registrar recepción</button></div>
 </form>
 {% endblock %}

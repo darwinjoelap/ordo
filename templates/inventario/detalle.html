@@ -27,16 +27,19 @@
     {% if ver_costos %}<div class="small text-muted">Costo {{ producto.precio_costo_usd|usd }}</div>{% endif %}</div></div>
 </div>
 
+{% if por_almacen %}<div class="card mb-3"><div class="card-header bg-white fw-semibold"><i class="bi bi-building me-1"></i>Existencia por almacén</div>
+  <div class="card-body d-flex flex-wrap gap-3">{% for a in por_almacen %}<div class="border rounded px-3 py-2"><div class="small text-muted">{{ a.nombre }}</div><div class="fw-bold">{{ a.disponible|miles }} <span class="small text-muted fw-normal">disp. de {{ a.total|miles }}</span></div></div>{% endfor %}</div></div>{% endif %}
 <div class="card mb-3">
   <div class="card-header bg-white fw-semibold">Lotes con existencia</div>
   {% if lotes %}
   <div class="table-responsive">
     <table class="table table-sm align-middle mb-0">
-      <thead class="table-light"><tr><th>Lote</th><th>Vence</th><th class="text-end">Existencia</th><th class="text-end">Apartado</th><th class="text-end">Disponible</th>{% if ver_costos %}<th class="text-end d-none d-md-table-cell">Costo</th>{% endif %}<th class="d-none d-md-table-cell">Proveedor</th>{% if puede_gestionar %}<th></th>{% endif %}</tr></thead>
+      <thead class="table-light"><tr><th>Lote</th>{% if por_almacen is not None %}<th>Almacén</th>{% endif %}<th>Vence</th><th class="text-end">Existencia</th><th class="text-end">Apartado</th><th class="text-end">Disponible</th>{% if ver_costos %}<th class="text-end d-none d-md-table-cell">Costo</th>{% endif %}<th class="d-none d-md-table-cell">Proveedor</th>{% if puede_gestionar %}<th></th>{% endif %}</tr></thead>
       <tbody>
       {% for l in lotes %}
         <tr class="{% if l.esta_vencido %}table-danger{% elif l.dias_para_vencer is not None and l.dias_para_vencer <= 30 %}table-warning{% endif %}">
           <td>{{ l.numero_lote|default:"—" }}</td>
+          {% if por_almacen is not None %}<td class="small">{{ l.almacen.nombre|default:"Sin almacén" }}</td>{% endif %}
           <td>{% if l.fecha_vencimiento %}{{ l.fecha_vencimiento|date:"d/m/Y" }}{% if l.esta_vencido %} <span class="badge text-bg-danger">Vencido</span>{% endif %}{% else %}—{% endif %}</td>
           <td class="text-end">{{ l.cantidad_actual|miles }}</td>
           <td class="text-end">{{ l.cantidad_apartada|miles }}</td>
@@ -63,7 +66,7 @@
         <tr>
           <td class="small">{{ m.fecha|date:"d/m/Y H:i" }}</td>
           <td><span class="badge text-bg-light border">{{ m.get_tipo_display }}</span></td>
-          <td class="small">{{ m.lote.numero_lote|default:"—" }}</td>
+          <td class="small">{{ m.lote.numero_lote|default:"—" }}{% if por_almacen is not None %}<div class="text-muted">{{ m.lote.almacen.nombre|default:"Sin almacén" }}</div>{% endif %}</td>
           <td class="text-end fw-semibold {% if m.cantidad < 0 %}text-danger{% else %}text-success{% endif %}">{% if m.cantidad > 0 %}+{% endif %}{{ m.cantidad }}</td>
           <td class="text-end">{{ m.saldo_actual|miles }}</td>
           <td class="d-none d-md-table-cell small">{{ m.usuario }}</td>

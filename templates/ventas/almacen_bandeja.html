@@ -2,7 +2,7 @@
 {% block contenido %}
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
   <div><h1 class="h3 mb-0">Despacho</h1><div class="small text-muted">Ventas confirmadas por entregar. Registra cada entrega y quién la recibe.</div></div>
-  <form method="get" style="max-width:320px" class="flex-grow-1"><div class="input-group input-group-sm"><input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Número o cliente"><button class="btn btn-outline-secondary" aria-label="Buscar"><i class="bi bi-search"></i></button></div></form>
+  <form method="get" style="max-width:320px" class="flex-grow-1"><div class="input-group input-group-sm">{% if almacenes %}<select name="almacen" class="form-select" style="max-width:11rem" aria-label="Almacén" onchange="this.form.submit()"><option value="">Todos los almacenes</option>{% for a in almacenes %}<option value="{{ a.pk }}" {% if almacen == a.pk|stringformat:'s' %}selected{% endif %}>{{ a.nombre }}</option>{% endfor %}<option value="SIN" {% if almacen == 'SIN' %}selected{% endif %}>Sin almacén definido</option></select>{% endif %}<input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Número o cliente"><button class="btn btn-outline-secondary" aria-label="Buscar"><i class="bi bi-search"></i></button></div></form>
 </div>
 
 <div class="card mb-3">
@@ -10,7 +10,7 @@
   {% if pendientes %}<div class="list-group list-group-flush">{% for p in pendientes %}
     <a href="{% url 'ventas:despachar' p.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-2">
       <div><div class="fw-semibold">{{ p.numero }} · {{ p.cliente.nombre }}</div>
-        <div class="small text-muted">Vendedor: {{ p.vendedor.nombre_visible }} · confirmada {{ p.confirmado_en|date:"d/m/Y H:i" }}</div></div>
+        <div class="small text-muted">{% if perfil.multialmacen %}<i class="bi bi-building"></i> {{ p.almacen.nombre|default:"Cualquier almacén" }} · {% endif %}Vendedor: {{ p.vendedor.nombre_visible }} · confirmada {{ p.confirmado_en|date:"d/m/Y H:i" }}</div></div>
       <span class="badge {% if p.estado_despacho == 'PARCIAL' %}text-bg-info{% else %}text-bg-warning{% endif %}">{% if p.estado_despacho == 'PARCIAL' %}Entrega parcial{% else %}Por despachar{% endif %}</span>
     </a>{% endfor %}</div>
   {% else %}<div class="card-body text-muted">No hay ventas por despachar.</div>{% endif %}

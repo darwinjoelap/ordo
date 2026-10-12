@@ -24,6 +24,11 @@ def _activo(request):
         raise Http404('La gestión de despacho por almacén no está activa.')
 
 
+def _almacenes_inv(request):
+    from apps.inventario.almacenes import opciones
+    return opciones(request)
+
+
 def venta_para_despacho(request, pk):
     """Almacén ve cualquier venta confirmada; el vendedor, solo las suyas (las que ya ve)."""
     if tiene_permiso(request, 'despacho.gestionar'):
@@ -41,9 +46,12 @@ def bandeja(request):
     _activo(request)
     q = request.GET.get('q', '').strip()
     base = Presupuesto.objects.all()
+    almacen = request.GET.get('almacen', '')
+    if request.empresa.perfil.multialmacen and almacen:
+        base = base.filter(almacen__isnull=True) if almacen == 'SIN' else base.filter(almacen_id=almacen)
     if q:
         base = base.filter(Q(numero__icontains=q) | Q(cliente__nombre__icontains=q))
-    pendientes = list(srv.bandeja(base))
+    pendientes = list(srv.bandeja(base).select_related('almacen'))
     con_entregas = set(Entrega.objects.filter(presupuesto__in=pendientes).values_list('presupuesto_id', flat=True))
     for p in pendientes:
         p.estado_despacho = 'PARCIAL' if p.pk in con_entregas else 'PENDIENTE'
@@ -53,6 +61,7 @@ def bandeja(request):
     recientes = Entrega.objects.select_related('presupuesto__cliente', 'entregado_por').order_by('-entregado_en')[:15]
     return render(request, 'ventas/almacen_bandeja.html', {
         'titulo': 'Despacho', 'pendientes': pendientes, 'transito': transito, 'recientes': recientes, 'q': q,
+        'almacenes': _almacenes_inv(request), 'almacen': almacen,
     })
 
 

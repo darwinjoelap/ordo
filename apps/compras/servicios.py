@@ -55,7 +55,7 @@ def cambiar_estado(orden, nuevo):
 
 
 @transaction.atomic
-def recibir(orden, recepciones, usuario):
+def recibir(orden, recepciones, usuario, almacen=None):
     """
     recepciones: [{'item': ItemOrdenCompra, 'cantidad': int, 'numero_lote': str, 'fecha_vencimiento': date|None,
                    'costo': Decimal}]
@@ -75,7 +75,7 @@ def recibir(orden, recepciones, usuario):
         try:
             inventario.ingresar(item.producto, cantidad, r['costo'], usuario, numero_lote=r['numero_lote'],
                                 fecha_vencimiento=r['fecha_vencimiento'], proveedor=orden.proveedor,
-                                notas=f'Recepción {orden.numero}', sumar_a_existente=True)
+                                notas=f'Recepción {orden.numero}', sumar_a_existente=True, almacen=almacen)
         except inventario.ErrorInventario as e:
             raise ErrorCompra(f'{item.producto.nombre}: {e}')
         ItemOrdenCompra.objects.filter(pk=item.pk).update(cantidad_recibida=F('cantidad_recibida') + cantidad)

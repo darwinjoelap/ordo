@@ -61,6 +61,9 @@ def mi_empresa(request):
         form = PerfilEmpresaForm(request.POST, request.FILES, instance=perfil)
         if form.is_valid():
             perfil = form.save()
+            if perfil.multialmacen:
+                from apps.inventario.almacenes import asegurar_principal
+                asegurar_principal()
             nuevo_logo = perfil.logo.name if perfil.logo else ''
             if nuevo_logo != logo_anterior:
                 generar_logo_pdf(perfil)

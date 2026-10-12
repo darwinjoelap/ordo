@@ -67,7 +67,8 @@ def lotes_por_item(p, items):
             resultado[i.pk] = {'lotes': [(r.lote.numero_lote, r.lote.fecha_vencimiento, r.cantidad) for r in reales[i.pk]],
                                'falta': 0, 'referencial': False}
             continue
-        lotes = (Lote.todos.filter(producto=prod, cantidad_actual__gt=F('cantidad_apartada'))
+        lotes = (Lote.todos.filter(producto=prod, cantidad_actual__gt=F('cantidad_apartada'),
+                                   **({'almacen_id': p.almacen_id} if p.almacen_id else {}))
                  .exclude(fecha_vencimiento__lt=hoy)
                  .order_by(F('fecha_vencimiento').asc(nulls_last=True), 'fecha_ingreso', 'pk'))
         asignados, pendiente = [], i.cantidad

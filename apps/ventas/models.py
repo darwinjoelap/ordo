@@ -129,6 +129,9 @@ class Presupuesto(EmpresaModel):
                                             related_name='+', verbose_name='Pago registrado por')
     pago_registrado_en = models.DateTimeField('Pago registrado el', null=True, blank=True)
     entregado = models.BooleanField('Entregado', default=False)
+    # Multialmacén: de dónde sale la mercancía. Vacío = de cualquier almacén (FEFO en todos)
+    almacen = models.ForeignKey('inventario.Almacen', on_delete=models.PROTECT, null=True, blank=True,
+                                related_name='+', verbose_name='Almacén')
     fecha_entrega = models.DateField('Fecha de entrega', null=True, blank=True)
 
     # Facturación fiscal (la factura se emite fuera de Ordo; aquí se registran sus datos)

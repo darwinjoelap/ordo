@@ -442,6 +442,13 @@ def _leer_lote(f, d, p, error):
 @transaction.atomic
 def aplicar(resultado, usuario):
     """Crea/actualiza todo. Si algo falla, no queda nada a medias."""
+    from .almacenes import asegurar_principal
+    almacen = None
+    from apps.core.tenancy import empresa_actual
+    empresa = empresa_actual()
+    if empresa is not None and empresa.perfil.multialmacen:      # existencia inicial: al almacén principal
+        asegurar_principal()
+        almacen = servicios.principal()
     if not resultado.valido:
         raise ValueError('El archivo tiene errores.')
     cache_cat = {c.nombre.lower(): c for c in Categoria.objects.all()}
@@ -481,7 +488,7 @@ def aplicar(resultado, usuario):
         producto = Producto.objects.create(codigo=p.codigo, **campos)
         creados += 1
         for _, cantidad, lote, venc in p.lotes:
-            servicios.ingresar(producto, cantidad, d['costo_usd'], usuario, numero_lote=lote,
+            servicios.ingresar(producto, cantidad, d['costo_usd'], usuario, numero_lote=lote, almacen=almacen,
                                fecha_vencimiento=venc, proveedor=prov, notas='Existencia inicial (importación)')
             lotes += 1
     return {'creados': creados, 'actualizados': actualizados, 'lotes': lotes}

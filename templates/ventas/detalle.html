@@ -9,7 +9,7 @@
     <div class="text-muted small">
       <a href="{% url 'clientes:detalle' p.cliente_id %}">{{ p.cliente.nombre }}</a>{% if p.cliente.rif %} · {{ p.cliente.rif }}{% endif %}
       · {{ p.fecha|date:"d/m/Y" }}{% if p.editable %} · válido hasta {{ p.valido_hasta|date:"d/m/Y" }}{% endif %}
-      · Vendedor: {{ p.vendedor.nombre_visible }}
+      · Vendedor: {{ p.vendedor.nombre_visible }}{% if perfil.multialmacen %} · <i class="bi bi-building"></i> {{ p.almacen.nombre|default:'Cualquier almacén' }}{% endif %}
       {% if p.tasa_bs %} · Tasa {{ p.tasa_bs|floatformat:"2g" }} Bs/USD{% if tasa_referencial %} (de hoy, referencial){% endif %}{% endif %}
     </div>
   </div>
@@ -90,6 +90,11 @@
       {% if p.editable %}
       <div class="card card-body mb-3">
         <div class="row g-3">
+          {% if almacenes %}<div class="col-12"><label class="form-label small" for="almacen">Sale del almacén</label>
+            <select id="almacen" name="almacen" class="form-select form-select-sm" onchange="this.form.requestSubmit()">
+              <option value="" {% if not p.almacen_id %}selected{% endif %}>Cualquier almacén (el lote que venza primero)</option>
+              {% for a in almacenes %}<option value="{{ a.pk }}" {% if p.almacen_id == a.pk %}selected{% endif %}>{{ a.nombre }}{% if a.principal %} (principal){% endif %}</option>{% endfor %}
+            </select><div class="form-text">La existencia y el aviso «sin stock» se calculan para este almacén.</div></div>{% endif %}
           {% if precio_editable %}<div class="col-sm-4"><label class="form-label small" for="descuento">Descuento (%)</label><input id="descuento" type="text" inputmode="decimal" name="descuento_pct" value="{{ p.descuento_pct|floatformat:'-2' }}" class="form-control form-control-sm"></div>{% endif %}
           {% if precio_editable %}<div class="col-sm-8 d-flex align-items-end"><input type="hidden" name="iva_enviado" value="1">
             <div class="form-check form-switch mb-1"><input class="form-check-input" type="checkbox" role="switch" name="sin_iva" value="1" id="sin_iva" {% if not p.iva_pct %}checked{% endif %} onchange="this.form.requestSubmit()">

@@ -144,6 +144,13 @@ def buscar_productos(request, pk):
         'modo': perfil.modo_precio})
 
 
+def _almacenes(perfil):
+    if not perfil.multialmacen:
+        return []
+    from apps.inventario.models import Almacen
+    return list(Almacen.objects.filter(activo=True))
+
+
 def _entrega_ctx(p, perfil):
     if not perfil.despacho_por_almacen or not p.confirmada:
         return {}
@@ -190,7 +197,8 @@ def detalle(request, pk):
     stock = {}
     if p.editable:      # aviso «Sin stock» mientras se arma el presupuesto (apartado ya tiene su reserva)
         stock = {pr.pk: pr.stock_disponible for pr in
-                 Producto.objects.filter(pk__in=[i.producto_id for i in items]).con_stock()}
+                 Producto.objects.filter(pk__in=[i.producto_id for i in items])
+                 .con_stock(p.almacen if request.empresa.perfil.multialmacen and p.almacen_id else None)}
     for i in items:
         i.subtotal_bs = montos_bs['lineas'][i.pk] if montos_bs else None
         i.disponible = stock.get(i.producto_id)
@@ -223,6 +231,7 @@ def detalle(request, pk):
         'abonos': list(Abono.objects.filter(presupuesto=p).select_related('registrado_por')),
         'tasa_hoy': tasa_abono,
         'tasa_de_venta': perfil.tasa_abonos == 'VENTA' and bool(p.tasa_bs),
+        'almacenes': _almacenes(perfil),
         **_entrega_ctx(p, perfil),
         'saldo_bs': redondear(p.saldo_usd * tasa_abono) if tasa_abono and not p.pagado else None,
     })
@@ -281,6 +290,12 @@ def actualizar(request, pk):
         servicios.actualizar_items(p, cambios, quitar, perfil, tiene_permiso(request, 'precios.fijar'),
                                    descuento, sin_iva=sin_iva,
                                    observaciones=observaciones if perfil.observaciones_por_producto else None)
+        if perfil.multialmacen and 'almacen' in request.POST:
+            from apps.inventario.models import Almacen
+            valor = request.POST.get('almacen')
+            nuevo = Almacen.objects.filter(pk=valor, activo=True).first() if valor else None
+            if (nuevo.pk if nuevo else None) != p.almacen_id:
+                servicios.cambiar_almacen(p, nuevo)
         p.notas = request.POST.get('notas', p.notas)
         p.condiciones = request.POST.get('condiciones', p.condiciones)
         p.save(update_fields=['notas', 'condiciones'])

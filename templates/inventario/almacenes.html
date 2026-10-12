@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+<a href="{% url 'inventario:lista' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Inventario</a>
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2 mb-3">
+  <div><h1 class="h3 mb-0">Almacenes</h1><div class="small text-muted">Dónde está la mercancía. Mueve existencia entre almacenes con un traslado.</div></div>
+  <div class="d-flex gap-2"><a href="{% url 'inventario:traslados' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-clock-history me-1"></i>Traslados</a>
+    <a href="{% url 'inventario:traslado_nuevo' %}" class="btn btn-primary btn-sm"><i class="bi bi-arrow-left-right me-1"></i>Nuevo traslado</a></div>
+</div>
+
+{% if sin.unidades %}
+<div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div><i class="bi bi-exclamation-triangle me-1"></i><b>{{ sin.unidades|miles }} unidades ({{ sin.productos }} producto{{ sin.productos|pluralize }}) están «Sin almacén».</b>
+    Es la existencia que había antes de activar multialmacén. Trasládala para ponerte a punto: nada se borra.</div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'inventario:traslado_nuevo' %}?origen=SIN" class="btn btn-sm btn-outline-dark">Elegir qué mover</a>
+    <form method="post" action="{% url 'inventario:traslado_nuevo' %}?origen=SIN" class="d-flex gap-1" onsubmit="return confirm('¿Mover TODO lo disponible sin almacén al almacén elegido?')">{% csrf_token %}
+      <input type="hidden" name="origen" value="SIN"><input type="hidden" name="todo" value="1">
+      <select name="destino" class="form-select form-select-sm" aria-label="Destino">{% for a in almacenes %}{% if a.activo %}<option value="{{ a.pk }}" {% if a.principal %}selected{% endif %}>{{ a.nombre }}</option>{% endif %}{% endfor %}</select>
+      <button class="btn btn-sm btn-dark text-nowrap">Mover todo</button></form>
+  </div>
+</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-7"><div class="card">
+    <div class="card-header ordo-card-titulo"><i class="bi bi-building me-1"></i>Almacenes</div>
+    <div class="list-group list-group-flush">{% for a in almacenes %}
+      <div class="list-group-item d-flex justify-content-between align-items-center gap-2 {% if not a.activo %}text-muted{% endif %}">
+        <div><div class="fw-semibold">{{ a.nombre }}{% if a.principal %} <span class="badge text-bg-primary">Principal</span>{% endif %}{% if not a.activo %} <span class="badge text-bg-secondary">Inactivo</span>{% endif %}</div>
+          <div class="small text-muted">{{ a.resumen.unidades|default:0|miles }} unidades · {{ a.resumen.productos|default:0 }} productos{% if a.resumen.apartadas %} · {{ a.resumen.apartadas|miles }} apartadas{% endif %}{% if a.responsable %} · Responsable: {{ a.responsable.nombre_visible }}{% endif %}</div>
+          {% if a.direccion %}<div class="small text-muted"><i class="bi bi-geo-alt me-1"></i>{{ a.direccion }}</div>{% endif %}</div>
+        <div class="d-flex gap-1 text-nowrap">
+          <a href="{% url 'inventario:lista' %}?almacen={{ a.pk }}" class="btn btn-sm btn-outline-secondary" title="Ver existencia"><i class="bi bi-box-seam"></i></a>
+          <a href="?editar={{ a.pk }}" class="btn btn-sm btn-outline-primary" aria-label="Editar {{ a.nombre }}"><i class="bi bi-pencil"></i></a>
+          <form method="post" action="{% url 'inventario:almacen_activar' a.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary" title="{% if a.activo %}Desactivar{% else %}Activar{% endif %}"><i class="bi {% if a.activo %}bi-pause{% else %}bi-play{% endif %}"></i></button></form>
+        </div>
+      </div>{% endfor %}
+      {% if sin.unidades %}<div class="list-group-item text-muted"><div class="fw-semibold">Sin almacén</div><div class="small">{{ sin.unidades|miles }} unidades · {{ sin.productos }} productos</div></div>{% endif %}
+    </div>
+  </div></div>
+  <div class="col-lg-5"><form method="post" action="{% if editar %}{% url 'inventario:almacen_editar' editar.pk %}{% else %}{% url 'inventario:almacen_crear' %}{% endif %}" class="card">{% csrf_token %}
+    <div class="card-header ordo-card-titulo">{% if editar %}Editar {{ editar.nombre }}{% else %}Nuevo almacén{% endif %}</div>
+    <div class="card-body row g-2">
+      <div class="col-12"><label class="form-label small mb-1" for="nombre">Nombre *</label><input id="nombre" name="nombre" value="{{ editar.nombre|default:'' }}" maxlength="80" required class="form-control form-control-sm" placeholder="Depósito Acarigua"></div>
+      <div class="col-12"><label class="form-label small mb-1" for="direccion">Dirección</label><input id="direccion" name="direccion" value="{{ editar.direccion|default:'' }}" maxlength="200" class="form-control form-control-sm"></div>
+      <div class="col-12"><label class="form-label small mb-1" for="responsable">Responsable</label><select id="responsable" name="responsable" class="form-select form-select-sm"><option value="">—</option>{% for u in usuarios %}<option value="{{ u.pk }}" {% if editar.responsable_id == u.pk %}selected{% endif %}>{{ u.nombre_visible }}</option>{% endfor %}</select></div>
+      <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" id="principal" name="principal" value="1" {% if editar.principal %}checked{% endif %}><label class="form-check-label small" for="principal">Principal (recibe por defecto ingresos, compras y ventas)</label></div></div>
+      <div class="col-12 d-flex gap-2"><button class="btn btn-sm btn-success"><i class="bi bi-check-lg me-1"></i>{% if editar %}Guardar{% else %}Agregar{% endif %}</button>{% if editar %}<a href="{% url 'inventario:almacenes' %}" class="btn btn-sm btn-outline-secondary">Cancelar</a>{% endif %}</div>
+    </div></form>
+    {% if traslados %}<div class="card mt-3"><div class="card-header ordo-card-titulo">Últimos traslados</div><div class="list-group list-group-flush">
+      {% for t in traslados %}<a href="{% url 'inventario:traslado' t.pk %}" class="list-group-item list-group-item-action small"><b>{{ t.numero }}</b> · {{ t.origen.nombre|default:"Sin almacén" }} → {{ t.destino.nombre }}<div class="text-muted">{{ t.fecha|date:"d/m/Y H:i" }} · {{ t.usuario.nombre_visible }}</div></a>{% endfor %}
+    </div></div>{% endif %}
+  </div>
+</div>
+{% endblock %}

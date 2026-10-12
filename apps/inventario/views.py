@@ -10,7 +10,7 @@ from django.urls import reverse
 from apps.core.permisos import requiere, tiene_permiso
 from apps.core.pdf import nombre_corto, respuesta_pdf
 
-from . import servicios
+from . import almacenes, servicios
 from .forms import (AjusteForm, CategoriaForm, IngresoForm, MarcaForm, ProductoForm, SubcategoriaForm,
                     UnidadForm)
 from .models import Categoria, Lote, Marca, MovimientoInventario, Producto, Subcategoria, Unidad
@@ -30,7 +30,10 @@ def lista(request):
     # El formulario siempre envía "q": si llega sin "activos", la casilla se desmarcó
     solo_activos = g.get('activos', '0' if 'q' in g else '1') == '1'
 
-    productos = Producto.objects.select_related('categoria', 'subcategoria', 'marca', 'unidad').con_stock()
+    almacen_txt = g.get('almacen', '') if almacenes.activo(request) else ''
+    from .models import Almacen
+    almacen_sel = 'SIN' if almacen_txt == 'SIN' else (Almacen.objects.filter(pk=almacen_txt).first() if almacen_txt.isdigit() else None)
+    productos = Producto.objects.select_related('categoria', 'subcategoria', 'marca', 'unidad').con_stock(almacen_sel)
     if solo_activos:
         productos = productos.filter(activo=True)
     productos = productos.buscar(q)
@@ -48,7 +51,12 @@ def lista(request):
         productos = productos.filter(anot_stock_disponible__lte=0)
     productos = productos.order_by(Lower('nombre'), 'pk')
 
-    total_unidades = Lote.objects.filter(producto__in=productos.values('pk')).aggregate(
+    lotes_total = Lote.objects.filter(producto__in=productos.values('pk'))
+    if almacen_sel == 'SIN':
+        lotes_total = lotes_total.filter(almacen__isnull=True)
+    elif almacen_sel is not None:
+        lotes_total = lotes_total.filter(almacen=almacen_sel)
+    total_unidades = lotes_total.aggregate(
         t=Sum('cantidad_actual'))['t'] or 0
     pagina = Paginator(productos, POR_PAGINA).get_page(g.get('page'))
     params = g.copy()
@@ -62,10 +70,19 @@ def lista(request):
         'subcategorias': Subcategoria.objects.select_related('categoria'),
         'marcas': Marca.objects.filter(activa=True),
         'f': {'q': q, 'categoria': categoria_id, 'subcategoria': subcategoria_id, 'marca': marca_id,
-              'alerta': alerta, 'activos': solo_activos},
+              'alerta': alerta, 'activos': solo_activos, 'almacen': almacen_txt},
+        'almacenes': almacenes.opciones(request), 'almacen_sel': almacen_sel,
         'total_unidades': total_unidades,
         'ver_costos': tiene_permiso(request, 'inventario.ver_costos'),
     })
+
+
+def _por_almacen(producto):
+    from django.db.models import Sum as S
+    filas = (Lote.objects.filter(producto=producto, cantidad_actual__gt=0).values('almacen__nombre')
+             .annotate(total=S('cantidad_actual'), apartado=S('cantidad_apartada')).order_by('almacen__nombre'))
+    return [{'nombre': f['almacen__nombre'] or 'Sin almacén', 'total': f['total'],
+             'disponible': f['total'] - f['apartado']} for f in filas]
 
 
 @login_required
@@ -73,13 +90,14 @@ def lista(request):
 def detalle(request, pk):
     producto = get_object_or_404(
         Producto.objects.select_related('categoria', 'subcategoria', 'marca', 'unidad', 'proveedor_habitual')
-        .prefetch_related('lotes__proveedor'), pk=pk)
+        .prefetch_related('lotes__proveedor', 'lotes__almacen'), pk=pk)
     movimientos = (MovimientoInventario.objects.filter(lote__producto=producto)
-                   .select_related('lote', 'usuario')[:50])
+                   .select_related('lote__almacen', 'usuario')[:50])
     return render(request, 'inventario/detalle.html', {
         'titulo': producto.nombre,
         'producto': producto,
         'lotes': [l for l in producto.lotes.all() if l.cantidad_actual > 0],
+        'por_almacen': _por_almacen(producto) if almacenes.activo(request) else None,
         'movimientos': movimientos,
         'ver_costos': tiene_permiso(request, 'inventario.ver_costos'),
         'puede_gestionar': tiene_permiso(request, 'inventario.gestionar'),
@@ -146,7 +164,7 @@ def ingreso(request):
                     producto, d['cantidad'], d['costo_unitario'], request.user,
                     numero_lote=d['numero_lote'], fecha_vencimiento=d['fecha_vencimiento'],
                     proveedor=d['proveedor'], notas=d['notas'],
-                    sumar_a_existente=request.POST.get('confirmar_suma') == '1')
+                    sumar_a_existente=request.POST.get('confirmar_suma') == '1', almacen=almacenes.elegido(request))
             except servicios.LoteExistente as e:
                 lote_existente = e.lote
             except servicios.ErrorInventario as e:
@@ -167,6 +185,7 @@ def ingreso(request):
         form = IngresoForm(initial=inicial)
     return render(request, 'inventario/ingreso.html', {
         'titulo': 'Ingreso de mercancía', 'form': form, 'producto': producto, 'lote_existente': lote_existente,
+        'almacenes': almacenes.opciones(request), 'almacen_post': request.POST.get('almacen', ''),
     })
 
 

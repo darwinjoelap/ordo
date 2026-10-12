@@ -85,7 +85,29 @@ def crear(cliente, vendedor, empresa):
         cliente=cliente, vendedor=vendedor, fecha=hoy,
         valido_hasta=hoy + timedelta(days=perfil.dias_validez_presupuesto or 7),
         iva_pct=perfil.iva_porcentaje, condiciones=perfil.condiciones_presupuesto,
+        almacen=almacen_por_defecto(perfil),
     )
+
+
+def almacen_por_defecto(perfil):
+    """
+    Multialmacén: el principal. Mientras quede stock «Sin almacén» (recién activado, aún sin trasladar), vacío =
+    de cualquier almacén, para no bloquear las ventas durante la puesta a punto.
+    """
+    if not perfil.multialmacen:
+        return None
+    from apps.inventario.models import Lote
+    if Lote.objects.filter(almacen__isnull=True, cantidad_actual__gt=0).exists():
+        return None
+    return inventario.principal()
+
+
+def cambiar_almacen(p, almacen):
+    """Solo mientras se arma el presupuesto (antes de apartar)."""
+    _exigir(p, E.BORRADOR, E.EMITIDO)
+    p.almacen = almacen
+    p.save(update_fields=['almacen'])
+    return p
 
 
 def asignar_numero(p):
@@ -241,7 +263,8 @@ def apartar(p, usuario, empresa):
     for item in ItemPresupuesto.objects.filter(presupuesto=p).select_related('producto'):
         try:
             for r in inventario.apartar_fefo(item.producto, item.cantidad, usuario, referencia_tipo='Presupuesto',
-                                             referencia_id=p.pk, motivo=f'Apartado {p.numero}'):
+                                             referencia_id=p.pk, motivo=f'Apartado {p.numero}',
+                                             almacen=p.almacen if empresa.perfil.multialmacen else None):
                 Reserva.objects.create(item=item, lote=r.lote, cantidad=r.cantidad)
         except inventario.StockInsuficiente as e:
             errores.append(str(e))

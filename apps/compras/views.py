@@ -9,6 +9,7 @@ from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from apps.inventario import almacenes as almacenes_inv
 from apps.core.permisos import requiere
 from apps.inventario.models import Producto
 from apps.proveedores.models import Proveedor
@@ -162,7 +163,7 @@ def recibir(request, pk):
                                 'numero_lote': p.get(f'lote_{i.pk}', '').strip()})
         if not errores:
             try:
-                servicios.recibir(orden, recepciones, request.user)
+                servicios.recibir(orden, recepciones, request.user, almacen=almacenes_inv.elegido(request))
             except servicios.ErrorCompra as e:
                 messages.error(request, str(e))
             else:
@@ -176,7 +177,7 @@ def recibir(request, pk):
         'vence': p.get(f'vence_{i.pk}', ''), 'costo': p.get(f'costo_{i.pk}', i.costo_unitario_usd),
     } for i in items]
     return render(request, 'compras/recibir.html', {'titulo': f'Recibir {orden.numero}', 'orden': orden,
-                                                    'filas': filas})
+                                                    'filas': filas, 'almacenes': almacenes_inv.opciones(request)})
 
 
 @login_required

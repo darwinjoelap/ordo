@@ -12,7 +12,7 @@
     <div class="col-12 col-md-4 d-flex gap-2">
       <input type="search" name="q" value="{{ f.q }}" class="form-control" placeholder="Buscar por código o nombre…">
       <button type="button" class="btn btn-outline-secondary d-md-none position-relative" data-bs-toggle="collapse" data-bs-target="#mas-filtros" aria-label="Más filtros">
-        <i class="bi bi-sliders"></i>{% if f.categoria or f.subcategoria or f.marca or f.alerta %}<span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger rounded-circle"></span>{% endif %}
+        <i class="bi bi-sliders"></i>{% if f.categoria or f.subcategoria or f.marca or f.alerta or f.almacen %}<span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger rounded-circle"></span>{% endif %}
       </button>
     </div>
     <div class="col-12 col-md-8 collapse d-md-block" id="mas-filtros"><div class="row g-2">
@@ -42,6 +42,13 @@
         <option value="vencidos" {% if f.alerta == 'vencidos' %}selected{% endif %}>Con vencidos</option>
       </select>
     </div>
+    {% if almacenes %}<div class="col-6 col-md-3">
+      <select name="almacen" class="form-select" aria-label="Almacén">
+        <option value="">Todos los almacenes</option>
+        {% for a in almacenes %}<option value="{{ a.pk }}" {% if f.almacen == a.pk|stringformat:'s' %}selected{% endif %}>{{ a.nombre }}</option>{% endfor %}
+        <option value="SIN" {% if f.almacen == 'SIN' %}selected{% endif %}>Sin almacén</option>
+      </select>
+    </div>{% endif %}
     </div></div>
     <div class="col-12 d-flex align-items-center gap-3">
       <div class="form-check mb-0">

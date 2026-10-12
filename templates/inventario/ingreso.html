@@ -29,6 +29,8 @@
       {% if producto.maneja_vencimiento or form.fecha_vencimiento.value %}
         <div class="col-6">{% include 'partials/campo.html' with campo=form.fecha_vencimiento %}</div>
       {% else %}{{ form.fecha_vencimiento.as_hidden }}{% endif %}
+      {% if almacenes %}<div class="col-md-6"><label class="form-label" for="almacen">Almacén</label>
+        <select id="almacen" name="almacen" class="form-select">{% for a in almacenes %}<option value="{{ a.pk }}" {% if almacen_post == a.pk|stringformat:'s' or not almacen_post and a.principal %}selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></div>{% endif %}
       <div class="col-12">{% include 'partials/campo.html' with campo=form.notas %}</div>
     </div>
     <div class="d-flex gap-2 justify-content-end mt-3 flex-wrap">

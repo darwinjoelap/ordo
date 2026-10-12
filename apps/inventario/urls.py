@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_importacion as imp
+from . import almacenes, views, views_importacion as imp
 
 app_name = 'inventario'
 
@@ -20,4 +20,12 @@ urlpatterns = [
     path('importar/<int:pk>/confirmar/', imp.importar_confirmar, name='importar_confirmar'),
     path('exportar.xlsx', imp.exportar, name='exportar'),
     path('lista-precios/', views.lista_precios, name='lista_precios'),
+    path('almacenes/', almacenes.lista, name='almacenes'),
+    path('almacenes/nuevo/', almacenes.guardar, name='almacen_crear'),
+    path('almacenes/<int:pk>/', almacenes.guardar, name='almacen_editar'),
+    path('almacenes/<int:pk>/activar/', almacenes.activar, name='almacen_activar'),
+    path('traslados/', almacenes.traslados, name='traslados'),
+    path('traslados/nuevo/', almacenes.traslado_nuevo, name='traslado_nuevo'),
+    path('traslados/<int:pk>/', almacenes.traslado, name='traslado'),
+    path('traslados/<int:pk>/pdf/', almacenes.traslado_pdf, name='traslado_pdf'),
 ]

@@ -174,6 +174,10 @@ class PerfilEmpresa(models.Model):
         'Los vendedores ven todos los clientes', default=False,
         help_text='Si está apagado, cada vendedor ve solo los clientes que creó o tiene asignados.')
     comision_requiere_pago = models.BooleanField('La comisión exige venta cobrada', default=False)
+    multialmacen = models.BooleanField(
+        'Varios almacenes', default=False,
+        help_text='Stock por almacén y traslados entre ellos. Lo que ya existe queda en «Sin almacén» hasta '
+                  'que lo traslades; no se borra ni se mueve nada.')
     despacho_por_almacen = models.BooleanField(
         'Gestión de despacho por almacén', default=False,
         help_text='Almacén ve las ventas confirmadas, registra cada entrega (quién recibe, cédula, firma) y deja '
