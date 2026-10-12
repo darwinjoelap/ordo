@@ -215,3 +215,5 @@
 - **Unidad en presupuestos**: bajo la cantidad en pantalla editable y en el PDF.
 - **Observación por producto**: `PerfilEmpresa.observaciones_por_producto` + `ItemPresupuesto.observacion` (300); se edita en el presupuesto (BORRADOR/EMITIDO) y sale en el PDF (presupuesto y despacho) junto a la marca.
 - **Columnas Lote / F. Venc.**: si ningún producto del documento maneja lote ni vencimiento, no salen en el PDF (`pdf._sin_columnas_lote`); en documentos mixtos, la celda queda en blanco.
+
+- **Despacho por almacén** (`PerfilEmpresa.despacho_por_almacen`, permiso `despacho.gestionar` = dueño/admin/almacén): `apps/ventas/entregas.py` (registrar, confirmar_cliente, anular, estado), modelos `Entrega` + `ItemEntrega`, bandeja `/ventas/despacho/`, `/ventas/<pk>/despachar/`, constancia PDF `pdf.entrega_pdf`. Entregas parciales; si recibe el vendedor queda en tránsito hasta que confirme la entrega al cliente. Firma opcional en pantalla (data URL PNG). El stock NO se mueve aquí (sale al validar). Con la gestión activa, «Marcar entregado» manual queda bloqueado. Fase B (multialmacén) pendiente.

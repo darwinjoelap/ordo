@@ -1,0 +1,20 @@
+{# Firma a mano en pantalla (opcional). Uso: {% include 'ventas/partials/firma.html' with campo='firma' id='f1' %} #}
+<div class="ordo-firma" data-campo="{{ id }}">
+  <div class="d-flex justify-content-between align-items-center"><label class="form-label small mb-1">Firma (opcional)</label>
+    <button type="button" class="btn btn-link btn-sm p-0" data-limpiar>Borrar</button></div>
+  <canvas width="600" height="180" class="border rounded bg-white w-100" style="touch-action:none;height:110px" aria-label="Área para firmar"></canvas>
+  <input type="hidden" name="{{ campo }}" id="{{ id }}">
+</div>
+<script>
+(function () {
+  var caja = document.querySelector('.ordo-firma[data-campo="{{ id }}"]'), lienzo = caja.querySelector('canvas'),
+      campo = document.getElementById('{{ id }}'), ctx = lienzo.getContext('2d'), dibujando = false, algo = false;
+  ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#111';
+  function punto(e) { var r = lienzo.getBoundingClientRect(); return [(e.clientX - r.left) * lienzo.width / r.width, (e.clientY - r.top) * lienzo.height / r.height]; }
+  lienzo.addEventListener('pointerdown', function (e) { dibujando = true; lienzo.setPointerCapture(e.pointerId); var p = punto(e); ctx.beginPath(); ctx.moveTo(p[0], p[1]); });
+  lienzo.addEventListener('pointermove', function (e) { if (!dibujando) return; var p = punto(e); ctx.lineTo(p[0], p[1]); ctx.stroke(); algo = true; });
+  function fin() { if (!dibujando) return; dibujando = false; if (algo) campo.value = lienzo.toDataURL('image/png'); }
+  lienzo.addEventListener('pointerup', fin); lienzo.addEventListener('pointercancel', fin);
+  caja.querySelector('[data-limpiar]').addEventListener('click', function () { ctx.clearRect(0, 0, lienzo.width, lienzo.height); campo.value = ''; algo = false; });
+})();
+</script>

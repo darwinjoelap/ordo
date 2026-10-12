@@ -43,6 +43,10 @@ def inicio(request):
             'ingresos': cobranza.tablero(docs),
             'por_entregar': docs.filter(estado__in=Presupuesto.CONFIRMADAS, entregado=False).count(),
         })
+    if tiene_permiso(request, 'despacho.gestionar') and request.empresa.perfil.despacho_por_almacen:
+        from apps.ventas import entregas
+        todas = Presupuesto.objects.all()
+        ctx['despacho'] = {'pendientes': entregas.bandeja(todas).count(), 'transito': entregas.transito_de(todas).count()}
     if tiene_permiso(request, 'comisiones.ver_propias'):
         from apps.comisiones.models import AjusteComision, Comision
         ctx['mi_comision_mes'] = sum(

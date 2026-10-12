@@ -13,7 +13,7 @@ from apps.core.tenancy import usando_empresa
 from apps.inventario import servicios as inventario
 from apps.tasas.servicios import tasa_vigente
 
-from .models import (Abono, Despacho, Transportista, Vehiculo, Devolucion, ItemDevolucion, ItemPresupuesto, Presupuesto, Reserva, desglose_bs,
+from .models import (Abono, Despacho, Entrega, Transportista, Vehiculo, Devolucion, ItemDevolucion, ItemPresupuesto, Presupuesto, Reserva, desglose_bs,
                      partir_iva, redondear)
 
 E = Presupuesto.Estado
@@ -294,6 +294,8 @@ def desconfirmar(p, usuario, empresa):
     """Una venta «Por cobrar» que no se va a cobrar vuelve a Apartado (desde ahí se puede liberar o cancelar)."""
     p = _bloquear(p)
     _exigir(p, E.POR_PAGAR)
+    if Entrega.todos.filter(presupuesto=p).exists():
+        raise ErrorVenta('Ya tiene entregas registradas: no puede volver a apartado.')
     if p.entregado:
         raise ErrorVenta('Ya está marcada como entregada: desmarca la entrega antes de devolverla a apartado.')
     p.estado = E.APARTADO

@@ -220,6 +220,14 @@
       </script>
       {% endif %}
       {% endif %}
+      {% if perfil.despacho_por_almacen and p.estado != 'APARTADO' %}
+      <div class="border-top pt-2">
+        <div class="d-flex justify-content-between align-items-center mb-2"><span class="small fw-semibold"><i class="bi bi-truck me-1"></i>Entrega</span>
+          <span class="badge text-bg-{{ estado_entrega.1 }}">{{ estado_entrega.0 }}</span></div>
+        <div class="small text-muted mb-2">Almacén registra las entregas. {% if 'despacho.gestionar' in permisos %}<a href="{% url 'ventas:despachar' p.pk %}">Ir a despacho</a>{% endif %}</div>
+        {% include 'ventas/partials/bitacora_entregas.html' with entregas=entregas puede_anular=False %}
+      </div>
+      {% else %}
       <form method="post" action="{% url 'ventas:pago_entrega' p.pk %}">{% csrf_token %}
         {% if p.entregado %}
           <div class="small mb-2 text-success"><i class="bi bi-truck me-1"></i>Entregado {{ p.fecha_entrega|date:"d/m/Y" }}</div>
@@ -228,6 +236,7 @@
           <input type="hidden" name="entregado" value="1"><button class="btn btn-sm btn-outline-success"><i class="bi bi-truck me-1"></i>Marcar entregado</button>
         {% endif %}
       </form>
+      {% endif %}
     </div>
     {% endif %}
 

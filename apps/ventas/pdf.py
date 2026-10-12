@@ -547,3 +547,76 @@ def despacho_pdf(d, empresa):
     pie = pie_empresa(empresa)
     doc.build(e, onFirstPage=pie, onLaterPages=pie)
     return buffer.getvalue()
+
+
+def _imagen_firma(data_url, ancho=50 * mm, alto=18 * mm):
+    if not data_url:
+        return None
+    try:
+        import base64
+        img = Image(BytesIO(base64.b64decode(data_url.split(',', 1)[1])))
+        escala = min(ancho / img.drawWidth, alto / img.drawHeight)
+        img.drawWidth, img.drawHeight = img.drawWidth * escala, img.drawHeight * escala
+        return img
+    except Exception:
+        return None
+
+
+def entrega_pdf(entrega, empresa):
+    """Constancia de entrega: qué salió de almacén, quién lo entregó y quién lo recibió (con firma si la hay)."""
+    from django.utils import timezone
+
+    from .entregas import resumen_items
+    p = entrega.presupuesto
+    perfil = empresa.perfil
+    color = colors.HexColor(perfil.color_principal or '#053D74')
+    buffer = BytesIO()
+    doc = documento(buffer, titulo_pdf=f'Constancia de entrega {entrega.numero}')
+    cuando = timezone.localtime(entrega.entregado_en)
+    e = encabezado_empresa(empresa, titulo='CONSTANCIA DE ENTREGA', subtitulo='<br/>'.join([
+        f'<font size="12"><b>N° {entrega.numero}</b></font>', '', f'Venta: {p.numero}', f'Fecha: {cuando:%d/%m/%Y %H:%M}']))
+    c = p.cliente
+    e += [Paragraph(f'<b>Cliente:</b> {c.nombre} · RIF/Cédula: {c.rif or "—"}', E_NORMAL),
+          Paragraph(f'<b>Vendedor:</b> {p.vendedor.nombre_visible}', E_NORMAL), Spacer(1, 4 * mm)]
+    hi = _estilo('c_hi', textColor=colors.white, fontName='Helvetica-Bold')
+    hc = _estilo('c_hc', textColor=colors.white, fontName='Helvetica-Bold', alignment=TA_CENTER)
+    filas = [[Paragraph('Cód.', hi), Paragraph('Producto', hi), Paragraph('Cantidad', hc), Paragraph('Und.', hc)]]
+    for item, cant in resumen_items(entrega):
+        filas.append([Paragraph(item.producto.codigo, E_NORMAL),
+                      _celda_descripcion(item.producto, False, item.observacion if perfil.observaciones_por_producto else ''),
+                      Paragraph(str(cant), E_CENTRO), Paragraph(item.producto.unidad.abreviatura, E_CENTRO)])
+    t = Table(filas, colWidths=[28 * mm, 112 * mm, 24 * mm, 22 * mm], repeatRows=1)
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), color), ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, GRIS_CLARO]),
+        ('BOX', (0, 0), (-1, -1), 0.5, GRIS_BORDE), ('INNERGRID', (0, 0), (-1, -1), 0.25, GRIS_BORDE),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'), ('TOPPADDING', (0, 0), (-1, -1), 3), ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]))
+    e += [t, Spacer(1, 4 * mm)]
+    if entrega.observaciones:
+        e += [Paragraph(f'<b>Observaciones:</b> {entrega.observaciones}', E_PEQUENO), Spacer(1, 3 * mm)]
+
+    def bloque(titulo, nombre, cedula, firma, fecha):
+        partes = [Paragraph(f'<b>{titulo}</b>', E_NORMAL)]
+        img = _imagen_firma(firma)
+        partes.append(img if img else Paragraph('<br/><br/>______________________________', E_NORMAL))
+        partes.append(Paragraph(f'{nombre}<br/>C.I.: {cedula or "—"}<br/>{fecha}', E_PEQUENO))
+        return partes
+    entrego = bloque('Entregó (almacén)', entrega.entregado_por.nombre_visible, '', '', f'{cuando:%d/%m/%Y %H:%M}')
+    recibio = bloque(f'Recibió ({entrega.get_recibe_display().lower()})', entrega.recibe_nombre, entrega.recibe_cedula,
+                     entrega.recibe_firma, f'{cuando:%d/%m/%Y %H:%M}')
+    celdas = [[entrego, recibio]]
+    if entrega.recibe == entrega.Recibe.VENDEDOR:
+        if entrega.cliente_en:
+            fc = timezone.localtime(entrega.cliente_en)
+            celdas[0].append(bloque('Recibió el cliente', entrega.cliente_nombre, entrega.cliente_cedula,
+                                    entrega.cliente_firma, f'{fc:%d/%m/%Y %H:%M}'))
+        else:
+            celdas[0].append([Paragraph('<b>Recibió el cliente</b>', E_NORMAL),
+                              Paragraph('<font color="#B02A37">Pendiente: en tránsito con el vendedor.</font>', E_PEQUENO)])
+    firmas = Table(celdas, colWidths=[186 * mm / len(celdas[0])] * len(celdas[0]))
+    firmas.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP'), ('BOX', (0, 0), (-1, -1), 0.5, GRIS_BORDE),
+                                ('INNERGRID', (0, 0), (-1, -1), 0.5, GRIS_BORDE), ('LEFTPADDING', (0, 0), (-1, -1), 6)]))
+    e.append(KeepTogether([firmas]))
+    pie = pie_empresa(empresa)
+    doc.build(e, onFirstPage=pie, onLaterPages=pie)
+    return buffer.getvalue()

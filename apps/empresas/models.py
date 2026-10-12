@@ -174,6 +174,10 @@ class PerfilEmpresa(models.Model):
         'Los vendedores ven todos los clientes', default=False,
         help_text='Si está apagado, cada vendedor ve solo los clientes que creó o tiene asignados.')
     comision_requiere_pago = models.BooleanField('La comisión exige venta cobrada', default=False)
+    despacho_por_almacen = models.BooleanField(
+        'Gestión de despacho por almacén', default=False,
+        help_text='Almacén ve las ventas confirmadas, registra cada entrega (quién recibe, cédula, firma) y deja '
+                  'bitácora. El vendedor ya no marca «entregado» por su cuenta.')
     observaciones_por_producto = models.BooleanField(
         'Observaciones por producto en presupuestos', default=False,
         help_text='Agrega un campo de texto bajo cada producto (p. ej. dosis recomendada). Sale en el PDF junto a la marca.')

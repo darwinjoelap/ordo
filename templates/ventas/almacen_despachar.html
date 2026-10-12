@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block contenido %}
+{% if 'despacho.gestionar' in permisos %}<a href="{% url 'ventas:bandeja_despacho' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Despacho</a>{% endif %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mt-2 mb-3">
+  <div><h1 class="h3 mb-1">{{ p.numero }} <span class="badge text-bg-{{ estado.1 }} align-middle fs-6">{{ estado.0 }}</span></h1>
+    <div class="small text-muted">{{ p.cliente.nombre }}{% if p.cliente.rif %} · {{ p.cliente.rif }}{% endif %} · Vendedor: {{ p.vendedor.nombre_visible }}{% if p.cliente.telefono %} · Tel. {{ p.cliente.telefono }}{% endif %}</div>
+    {% if p.cliente.direccion %}<div class="small text-muted"><i class="bi bi-geo-alt me-1"></i>{{ p.cliente.direccion }}</div>{% endif %}</div>
+  <a href="{% url 'ventas:despacho' p.pk %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-truck me-1"></i>Nota de despacho</a>
+</div>
+<div class="row g-3">
+  <div class="col-lg-7">
+    <form method="post" class="card">{% csrf_token %}
+      <div class="card-header ordo-card-titulo"><i class="bi bi-box-seam me-1"></i>Productos</div>
+      <div class="table-responsive"><table class="table align-middle mb-0">
+        <thead class="table-light"><tr><th>Producto</th><th class="text-center">Venta</th><th class="text-center">Ya</th>{% if puede and hay_pendiente %}<th class="text-center" style="width:5.5rem">Entregar</th>{% endif %}</tr></thead>
+        <tbody>{% for i, hecho, pend in lineas %}<tr>
+          <td><div class="fw-semibold">{{ i.producto.nombre }}</div><div class="small text-muted text-break">{{ i.producto.codigo }}{% if i.producto.marca_id %} · {{ i.producto.marca.nombre }}{% endif %}</div>
+            {% if i.observacion and perfil.observaciones_por_producto %}<div class="small text-muted fst-italic">{{ i.observacion }}</div>{% endif %}</td>
+          <td class="text-center">{{ i.cantidad }} <span class="small text-muted">{{ i.producto.unidad.abreviatura }}</span></td>
+          <td class="text-center {% if pend == 0 %}text-success fw-semibold{% endif %}">{{ hecho }}</td>
+          {% if puede and hay_pendiente %}<td>{% if pend %}<input type="number" name="cant_{{ i.pk }}" min="0" max="{{ pend }}" value="{{ pend }}" class="form-control form-control-sm text-center" aria-label="Entregar ahora {{ i.producto.nombre }}">{% else %}<div class="text-center text-muted small">—</div>{% endif %}</td>{% endif %}
+        </tr>{% endfor %}</tbody>
+      </table></div>
+      {% if puede and hay_pendiente %}
+      <div class="card-body border-top">
+        <div class="small text-muted mb-2">Las cantidades vienen con lo pendiente; bájalas si entregas solo una parte.</div>
+        <div class="row g-2">
+          <div class="col-md-4"><label class="form-label small mb-1" for="recibe">Recibe</label><select id="recibe" name="recibe" class="form-select form-select-sm" required>{% for v, n in recibe %}<option value="{{ v }}">{{ n }}</option>{% endfor %}</select></div>
+          <div class="col-md-5"><label class="form-label small mb-1" for="nombre">Nombre de quien recibe</label><input id="nombre" name="nombre" maxlength="120" class="form-control form-control-sm"></div>
+          <div class="col-md-3"><label class="form-label small mb-1" for="cedula">Cédula</label><input id="cedula" name="cedula" maxlength="20" class="form-control form-control-sm"></div>
+          <div class="col-12 small text-primary" id="aviso-vendedor" hidden><i class="bi bi-info-circle me-1"></i>Se lo llevará {{ p.vendedor.nombre_visible }}: queda <b>en tránsito</b> hasta que confirme la entrega al cliente.</div>
+          <div class="col-12"><input name="observaciones" maxlength="300" class="form-control form-control-sm" placeholder="Observaciones (bultos, estado de la mercancía…)" aria-label="Observaciones"></div>
+          <div class="col-12">{% include 'ventas/partials/firma.html' with campo='firma' id='firma-recibe' %}</div>
+          <div class="col-12 d-grid"><button class="btn btn-success"><i class="bi bi-check2-square me-1"></i>Registrar entrega</button></div>
+        </div>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+  <div class="col-lg-5">
+    <div class="card"><div class="card-header ordo-card-titulo"><i class="bi bi-journal-check me-1"></i>Bitácora de entregas</div>
+      <div class="card-body">{% include 'ventas/partials/bitacora_entregas.html' with volver='despacho' %}</div></div>
+  </div>
+</div>
+<script>
+(function () {
+  var sel = document.getElementById('recibe'); if (!sel) return;
+  var nombre = document.getElementById('nombre'), cedula = document.getElementById('cedula'), aviso = document.getElementById('aviso-vendedor');
+  function cambiar() {
+    var vendedor = sel.value === 'VENDEDOR'; aviso.hidden = !vendedor;
+    nombre.placeholder = vendedor ? '{{ p.vendedor.nombre_visible|escapejs }}' : ''; nombre.required = !vendedor; cedula.required = !vendedor;
+  }
+  sel.addEventListener('change', cambiar); cambiar();
+})();
+</script>
+{% endblock %}

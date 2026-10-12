@@ -37,6 +37,9 @@
     {% if 'compras.gestionar' in permisos %}
       <a href="{% url 'compras:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'compras' %}active{% endif %}"><i class="bi bi-truck"></i> Compras</a>
     {% endif %}
+    {% if 'despacho.gestionar' in permisos and perfil.despacho_por_almacen %}
+      <a href="{% url 'ventas:bandeja_despacho' %}" class="nav-link {% if request.resolver_match.url_name == 'bandeja_despacho' or request.resolver_match.url_name == 'despachar' %}active{% endif %}"><i class="bi bi-box-arrow-right"></i> Despacho</a>
+    {% endif %}
     {% if 'transporte.gestionar' in permisos %}
       <a href="{% url 'ventas:transporte' %}" class="nav-link {% if request.resolver_match.url_name == 'transporte' %}active{% endif %}"><i class="bi bi-truck"></i> Transporte</a>
     {% endif %}

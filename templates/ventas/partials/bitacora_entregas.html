@@ -1,0 +1,30 @@
+{# Bitácora de entregas de una venta. Requiere: p, entregas; opcional: puede_anular, volver ('despacho'). #}
+{% for e in entregas %}
+<div class="border rounded p-2 mb-2 small">
+  <div class="d-flex justify-content-between align-items-start gap-2">
+    <div><b>{{ e.numero }}</b> · {{ e.entregado_en|date:"d/m/Y H:i" }}
+      <div>Entregó: {{ e.entregado_por.nombre_visible }}</div>
+      <div>Recibió: <b>{{ e.recibe_nombre }}</b>{% if e.recibe_cedula %} · C.I. {{ e.recibe_cedula }}{% endif %} <span class="text-muted">({{ e.get_recibe_display|lower }})</span>{% if e.recibe_firma %} · <i class="bi bi-pen"></i> firmó{% endif %}</div>
+      {% if e.observaciones %}<div class="text-muted">{{ e.observaciones }}</div>{% endif %}
+      {% if e.recibe == 'VENDEDOR' %}{% if e.cliente_en %}<div class="text-success"><i class="bi bi-check2-circle me-1"></i>Entregado al cliente el {{ e.cliente_en|date:"d/m/Y H:i" }}: {{ e.cliente_nombre }} · C.I. {{ e.cliente_cedula }}</div>
+      {% else %}<div class="text-primary fw-semibold"><i class="bi bi-person-walking me-1"></i>En tránsito: falta confirmar la entrega al cliente</div>{% endif %}{% endif %}
+    </div>
+    <div class="d-flex gap-1 text-nowrap">
+      <a href="{% url 'ventas:constancia_entrega' p.pk e.pk %}" target="_blank" data-pdf class="btn btn-sm btn-outline-secondary" aria-label="Constancia {{ e.numero }}"><i class="bi bi-file-earmark-pdf"></i></a>
+      {% if puede_anular %}<form method="post" action="{% url 'ventas:anular_entrega' p.pk e.pk %}" onsubmit="return confirm('¿Anular la entrega {{ e.numero }}? Sus cantidades vuelven a estar por despachar.')">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" aria-label="Anular {{ e.numero }}"><i class="bi bi-x-lg"></i></button></form>{% endif %}
+    </div>
+  </div>
+  {% if e.en_transito and e.recibe_usuario_id == request.user.pk or e.en_transito and puede_anular %}
+  <form method="post" action="{% url 'ventas:confirmar_cliente' p.pk e.pk %}" class="border-top mt-2 pt-2">{% csrf_token %}
+    {% if volver %}<input type="hidden" name="volver" value="{{ volver }}">{% endif %}
+    <div class="fw-semibold mb-1">Confirmar entrega al cliente</div>
+    <div class="row g-2">
+      <div class="col-7"><input name="nombre" required maxlength="120" class="form-control form-control-sm" placeholder="Quién recibió en el cliente" aria-label="Nombre"></div>
+      <div class="col-5"><input name="cedula" required maxlength="20" class="form-control form-control-sm" placeholder="Cédula" aria-label="Cédula"></div>
+      <div class="col-12">{% include 'ventas/partials/firma.html' with campo='firma' id=e.numero %}</div>
+      <div class="col-12 d-grid"><button class="btn btn-sm btn-success"><i class="bi bi-check2-circle me-1"></i>Confirmar entrega al cliente</button></div>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% empty %}<div class="text-muted small">Aún no hay entregas registradas.</div>{% endfor %}

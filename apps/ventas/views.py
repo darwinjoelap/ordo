@@ -3,6 +3,7 @@ from decimal import Decimal, InvalidOperation
 from urllib.parse import urlencode
 
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Count, Q, Sum
@@ -10,6 +11,7 @@ from django.db.models.functions import Lower
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from apps.clientes.permisos import clientes_visibles
@@ -142,6 +144,20 @@ def buscar_productos(request, pk):
         'modo': perfil.modo_precio})
 
 
+def _entrega_ctx(p, perfil):
+    if not perfil.despacho_por_almacen or not p.confirmada:
+        return {}
+    from . import entregas as srv
+    from .models import Entrega
+    return {'estado_entrega': srv.ETIQUETAS[srv.estado(p)],
+            'entregas': Entrega.objects.filter(presupuesto=p).select_related('entregado_por')}
+
+
+def _almacen(request):
+    """Almacén con la gestión de despacho activa: entra a la nota de despacho de cualquier venta confirmada."""
+    return tiene_permiso(request, 'despacho.gestionar') and request.empresa.perfil.despacho_por_almacen
+
+
 def _tasa_hoy(request):
     from apps.tasas.servicios import tasa_vigente
     t = tasa_vigente(request.empresa)
@@ -207,6 +223,7 @@ def detalle(request, pk):
         'abonos': list(Abono.objects.filter(presupuesto=p).select_related('registrado_por')),
         'tasa_hoy': tasa_abono,
         'tasa_de_venta': perfil.tasa_abonos == 'VENTA' and bool(p.tasa_bs),
+        **_entrega_ctx(p, perfil),
         'saldo_bs': redondear(p.saldo_usd * tasa_abono) if tasa_abono and not p.pagado else None,
     })
 
@@ -359,6 +376,8 @@ def pago_entrega(request, pk):
                                      monto=Decimal(monto) if monto else None,
                                      moneda=request.POST.get('moneda_pago', ''), usuario=request.user)
         if 'entregado' in request.POST:
+            if request.empresa.perfil.despacho_por_almacen:
+                raise servicios.ErrorVenta('La entrega la registra almacén (gestión de despacho activa).')
             servicios.registrar_entrega(p, request.POST.get('entregado') == '1')
         messages.success(request, 'Actualizado.')
     except servicios.ErrorVenta as e:
@@ -405,10 +424,14 @@ def facturacion(request, pk):
 
 
 @login_required
-@requiere('presupuestos.crear')
 def despacho(request, pk):
     """Datos del transportista y del vehículo para la nota de despacho (una por presupuesto/venta)."""
-    p = _presupuesto(request, pk)
+    from .views_almacen import venta_para_despacho
+    p = venta_para_despacho(request, pk) if _almacen(request) else None
+    if p is None:
+        if not tiene_permiso(request, 'presupuestos.crear'):
+            raise PermissionDenied
+        p = _presupuesto(request, pk)
     from .models import Despacho
     d = Despacho.objects.filter(presupuesto=p).first()
     if not p.despachable:
@@ -416,7 +439,7 @@ def despacho(request, pk):
         return redirect('ventas:detalle', pk=p.pk)
     datos = {c: getattr(d, c) for c in servicios.CAMPOS_DESPACHO} if d else {'direccion_entrega': p.cliente.direccion or ''}
     datos['fecha'] = d.fecha if d else timezone.localdate()
-    datos['con_precios'] = d.con_precios if d else True
+    datos['con_precios'] = d.con_precios if d else not _almacen(request)     # almacén: sin precios por defecto
     if request.method == 'POST':
         datos = {c: request.POST.get(c, '') for c in servicios.CAMPOS_DESPACHO}
         datos['fecha'] = _fecha_o_none(request.POST.get('fecha')) or timezone.localdate()
@@ -438,14 +461,20 @@ def despacho(request, pk):
             'vehiculos': [{'id': v.pk, 'placa': v.placa, 'vehiculo': v.descripcion} for v in Vehiculo.objects.filter(activo=True)],
         },
         'puede_catalogo': tiene_permiso(request, 'transporte.gestionar'),
+        'volver': reverse('ventas:despachar', args=[p.pk]) if _almacen(request) else reverse('ventas:detalle', args=[p.pk]),
     })
 
 
 @login_required
-@requiere('presupuestos.crear')
 def despacho_pdf_vista(request, pk):
     from .models import Despacho
-    p = _presupuesto(request, pk)
+    from .views_almacen import venta_para_despacho
+    if _almacen(request):
+        p = venta_para_despacho(request, pk)
+    elif tiene_permiso(request, 'presupuestos.crear'):
+        p = _presupuesto(request, pk)
+    else:
+        raise PermissionDenied
     d = get_object_or_404(Despacho.objects.select_related('presupuesto__cliente', 'presupuesto__vendedor'), presupuesto=p)
     return respuesta_pdf(despacho_pdf(d, request.empresa), f'Despacho-{p.numero}', nombre_corto(p.cliente.nombre), d.fecha)
 

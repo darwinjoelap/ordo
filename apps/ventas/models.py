@@ -295,6 +295,59 @@ class Abono(EmpresaModel):
         return f'{self.presupuesto.numero} · {self.monto_usd}'
 
 
+class Entrega(EmpresaModel):
+    """
+    Bitácora de despacho: cada vez que almacén entrega mercancía de una venta (total o parcial).
+    Si la recibe el VENDEDOR, queda «en tránsito» hasta que el vendedor confirme que la entregó al cliente.
+    """
+
+    class Recibe(models.TextChoices):
+        CLIENTE = 'CLIENTE', 'Cliente'
+        VENDEDOR = 'VENDEDOR', 'Vendedor'
+        TRANSPORTISTA = 'TRANSPORTISTA', 'Transportista'
+
+    presupuesto = models.ForeignKey(Presupuesto, on_delete=models.CASCADE, related_name='entregas')
+    numero = models.CharField('Número', max_length=40)
+    entregado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='+')
+    entregado_en = models.DateTimeField('Entregado el', default=timezone.now)
+    recibe = models.CharField('Recibe', max_length=13, choices=Recibe.choices)
+    recibe_usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+                                       related_name='+')
+    recibe_nombre = models.CharField('Nombre de quien recibe', max_length=120)
+    recibe_cedula = models.CharField('Cédula', max_length=20, blank=True)
+    recibe_firma = models.TextField('Firma (imagen)', blank=True)
+    observaciones = models.CharField('Observaciones', max_length=300, blank=True)
+    # Solo cuando recibe el vendedor: la entrega final al cliente
+    cliente_en = models.DateTimeField('Entregado al cliente el', null=True, blank=True)
+    cliente_nombre = models.CharField('Recibió (cliente)', max_length=120, blank=True)
+    cliente_cedula = models.CharField('Cédula (cliente)', max_length=20, blank=True)
+    cliente_firma = models.TextField('Firma del cliente (imagen)', blank=True)
+    cliente_confirmado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True,
+                                               blank=True, related_name='+')
+
+    class Meta:
+        verbose_name = 'Entrega'
+        verbose_name_plural = 'Entregas'
+        ordering = ['entregado_en', 'pk']
+        base_manager_name = 'todos'
+
+    def __str__(self):
+        return self.numero
+
+    @property
+    def en_transito(self):
+        return self.recibe == self.Recibe.VENDEDOR and self.cliente_en is None
+
+
+class ItemEntrega(EmpresaModel):
+    entrega = models.ForeignKey(Entrega, on_delete=models.CASCADE, related_name='lineas')
+    item = models.ForeignKey(ItemPresupuesto, on_delete=models.PROTECT, related_name='entregas')
+    cantidad = models.PositiveIntegerField()
+
+    class Meta:
+        base_manager_name = 'todos'
+
+
 class Transportista(EmpresaModel):
     """Chofer o persona que lleva la mercancía. Catálogo para no escribirlo en cada nota de despacho."""
     nombre = models.CharField('Nombre', max_length=120)

@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+  <div><h1 class="h3 mb-0">Despacho</h1><div class="small text-muted">Ventas confirmadas por entregar. Registra cada entrega y quién la recibe.</div></div>
+  <form method="get" style="max-width:320px" class="flex-grow-1"><div class="input-group input-group-sm"><input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Número o cliente"><button class="btn btn-outline-secondary" aria-label="Buscar"><i class="bi bi-search"></i></button></div></form>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header ordo-card-titulo"><i class="bi bi-box-seam me-1"></i>Por despachar ({{ pendientes|length }})</div>
+  {% if pendientes %}<div class="list-group list-group-flush">{% for p in pendientes %}
+    <a href="{% url 'ventas:despachar' p.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-2">
+      <div><div class="fw-semibold">{{ p.numero }} · {{ p.cliente.nombre }}</div>
+        <div class="small text-muted">Vendedor: {{ p.vendedor.nombre_visible }} · confirmada {{ p.confirmado_en|date:"d/m/Y H:i" }}</div></div>
+      <span class="badge {% if p.estado_despacho == 'PARCIAL' %}text-bg-info{% else %}text-bg-warning{% endif %}">{% if p.estado_despacho == 'PARCIAL' %}Entrega parcial{% else %}Por despachar{% endif %}</span>
+    </a>{% endfor %}</div>
+  {% else %}<div class="card-body text-muted">No hay ventas por despachar.</div>{% endif %}
+</div>
+
+<div class="card mb-3">
+  <div class="card-header ordo-card-titulo"><i class="bi bi-person-walking me-1"></i>En tránsito con vendedores ({{ transito|length }})</div>
+  {% if transito %}<div class="list-group list-group-flush">{% for e in transito %}
+    <a href="{% url 'ventas:despachar' e.presupuesto_id %}" class="list-group-item list-group-item-action">
+      <div class="fw-semibold">{{ e.numero }} · {{ e.presupuesto.cliente.nombre }}</div>
+      <div class="small text-muted">Recibió {{ e.recibe_nombre }} el {{ e.entregado_en|date:"d/m/Y H:i" }} · falta que confirme la entrega al cliente</div></a>{% endfor %}</div>
+  {% else %}<div class="card-body text-muted small">Nada en tránsito.</div>{% endif %}
+</div>
+
+<div class="card">
+  <div class="card-header ordo-card-titulo"><i class="bi bi-journal-check me-1"></i>Últimas entregas</div>
+  {% if recientes %}<div class="table-responsive"><table class="table table-sm align-middle mb-0">
+    <thead class="table-light"><tr><th>Entrega</th><th>Cliente</th><th>Recibió</th><th class="d-none d-md-table-cell">Entregó</th><th></th></tr></thead><tbody>
+    {% for e in recientes %}<tr><td><a href="{% url 'ventas:despachar' e.presupuesto_id %}" class="fw-semibold">{{ e.numero }}</a><div class="small text-muted">{{ e.entregado_en|date:"d/m/Y H:i" }}</div></td>
+      <td class="small">{{ e.presupuesto.cliente.nombre }}</td>
+      <td class="small">{{ e.recibe_nombre }} <span class="text-muted">({{ e.get_recibe_display|lower }})</span></td>
+      <td class="small d-none d-md-table-cell">{{ e.entregado_por.nombre_visible }}</td>
+      <td class="text-end"><a href="{% url 'ventas:constancia_entrega' e.presupuesto_id e.pk %}" target="_blank" data-pdf class="btn btn-sm btn-outline-secondary" aria-label="Constancia {{ e.numero }}"><i class="bi bi-file-earmark-pdf"></i></a></td></tr>{% endfor %}
+  </tbody></table></div>
+  {% else %}<div class="card-body text-muted small">Aún no hay entregas registradas.</div>{% endif %}
+</div>
+{% endblock %}
