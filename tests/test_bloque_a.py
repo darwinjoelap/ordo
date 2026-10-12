@@ -149,7 +149,7 @@ class LotesEnPdfTests(Base):
         p = self.presupuesto_emitido(1, producto=self.equipo)
         items, info = self.info(p)
         self.assertNotIn(items[0].pk, info)
-        self.assertEqual(_celdas_lote(items[0].producto, None)[0].text, 'N/A')
+        self.assertEqual(_celdas_lote(items[0].producto, None), ('', ''))
 
     def test_un_solo_lote_sin_parentesis(self):
         p = self.presupuesto_emitido(3)

@@ -103,11 +103,26 @@ E_LOTE = _estilo('p_lote', fontSize=8, leading=10, textColor=GRIS_TEXTO)
 E_PEQUENO = _estilo('p_pequeno', fontSize=8, leading=10, textColor=GRIS_TEXTO)
 
 
-def _celda_descripcion(producto, exento=False):
-    """Nombre con la marca como sublínea. (E) = exento de IVA, como pide el SENIAT en los documentos de venta."""
+def _sin_columnas_lote(items, lotes, filas, anchos):
+    """
+    Si ningún producto del documento maneja lote ni vencimiento, quita esas dos columnas (índices 2 y 3)
+    y le da su ancho a la descripción.
+    """
+    if any(i.producto.maneja_lotes or i.producto.maneja_vencimiento or lotes.get(i.pk) for i in items):
+        return filas, anchos
+    anchos = [anchos[0], anchos[1] + anchos[2] + anchos[3]] + anchos[4:]
+    return [f[:2] + f[4:] for f in filas], anchos
+
+
+def _celda_descripcion(producto, exento=False, observacion=''):
+    """
+    Nombre con la marca y la observación del ítem (p. ej. dosis) como sublínea, en el mismo estilo.
+    (E) = exento de IVA, como pide el SENIAT en los documentos de venta.
+    """
     texto = producto.nombre + (' <b>(E)</b>' if exento else '')
-    if producto.marca_id:
-        texto += f'<br/><font size="7" color="#6C757D"><i>{producto.marca.nombre}</i></font>'
+    sub = ' · '.join(x for x in [producto.marca.nombre if producto.marca_id else '', observacion] if x)
+    if sub:
+        texto += f'<br/><font size="7" color="#6C757D"><i>{sub}</i></font>'
     return Paragraph(texto, E_NORMAL)
 
 
@@ -117,8 +132,8 @@ def _celdas_lote(producto, info, avisar_falta=True):
     Con más de un lote, la cantidad de cada uno va entre paréntesis.
     avisar_falta=False (Mi empresa → Documentos) omite el «SIN STOCK» en rojo.
     """
-    if not info:
-        return Paragraph('N/A', E_LOTE), Paragraph('N/A', E_LOTE)
+    if not info:                         # producto sin lote ni vencimiento: celdas en blanco
+        return '', ''
     lotes, varios = info['lotes'], len(info['lotes']) > 1
     numeros = [(numero or '—') + (f' ({cant})' if varios else '') for numero, _, cant in lotes]
     fechas = [f'{vence:%d/%m/%Y}' if vence else '—' for _, vence, _ in lotes]
@@ -192,8 +207,8 @@ def presupuesto_pdf(p, empresa, moneda='ambas', tasa_referencial=False):
     marcar_e = bool(p.iva_pct) and any(i.exento_iva for i in items)     # venta sin IVA: no hay nada que distinguir
     for i in items:
         lote, venc = _celdas_lote(i.producto, lotes.get(i.pk), not perfil.ocultar_sin_stock)
-        fila = [Paragraph(i.producto.codigo, E_NORMAL), _celda_descripcion(i.producto, marcar_e and i.exento_iva), lote, venc,
-                Paragraph(f'{i.cantidad}', E_CENTRO)]
+        fila = [Paragraph(i.producto.codigo, E_NORMAL), _celda_descripcion(i.producto, marcar_e and i.exento_iva, i.observacion if perfil.observaciones_por_producto else ''), lote, venc,
+                Paragraph(f'{i.cantidad}<br/><font size="6.5" color="#6C757D">{i.producto.unidad.abreviatura}</font>', E_CENTRO)]
         precio_bs = redondear(i.precio_usd * p.tasa_bs) if p.tasa_bs else None
         if moneda == 'ambas':
             fila += [Paragraph(usd(i.precio_usd), E_DER), Paragraph(usd(i.subtotal_usd), E_DER),
@@ -203,6 +218,7 @@ def presupuesto_pdf(p, empresa, moneda='ambas', tasa_referencial=False):
         else:
             fila += [Paragraph(usd(i.precio_usd), E_DER), Paragraph(usd(i.subtotal_usd), E_DER)]
         filas.append(fila)
+    filas, anchos = _sin_columnas_lote(items, lotes, filas, anchos)
     t = Table(filas, colWidths=[a * mm for a in anchos], repeatRows=1)
     t.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), color),
@@ -473,11 +489,12 @@ def despacho_pdf(d, empresa):
     filas = [cab]
     for i in items:
         lote, venc = _celdas_lote(i.producto, lotes.get(i.pk), not perfil.ocultar_sin_stock)
-        fila = [Paragraph(i.producto.codigo, E_NORMAL), _celda_descripcion(i.producto, marcar_e and i.exento_iva), lote, venc,
+        fila = [Paragraph(i.producto.codigo, E_NORMAL), _celda_descripcion(i.producto, marcar_e and i.exento_iva, i.observacion if perfil.observaciones_por_producto else ''), lote, venc,
                 Paragraph(f'{i.cantidad}', E_CENTRO), Paragraph(i.producto.unidad.abreviatura, E_CENTRO)]
         if d.con_precios:
             fila += [Paragraph(usd(i.precio_usd), E_DER), Paragraph(usd(i.subtotal_usd), E_DER)]
         filas.append(fila)
+    filas, anchos = _sin_columnas_lote(items, lotes, filas, anchos)
     t = Table(filas, colWidths=[a * mm for a in anchos], repeatRows=1)
     t.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), color), ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, GRIS_CLARO]),

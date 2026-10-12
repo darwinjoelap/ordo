@@ -152,8 +152,9 @@ def agregar_item(p, producto, cantidad, precio, perfil, puede_fijar_precio):
 
 
 @transaction.atomic
-def actualizar_items(p, cambios, quitar, perfil, puede_fijar_precio, descuento_pct=None, sin_iva=None):
-    """cambios: {item_id: (cantidad, precio)} · quitar: [item_id] · sin_iva: True = venta exenta, False = IVA de la empresa"""
+def actualizar_items(p, cambios, quitar, perfil, puede_fijar_precio, descuento_pct=None, sin_iva=None, observaciones=None):
+    """cambios: {item_id: (cantidad, precio)} · quitar: [item_id] · sin_iva: True = venta exenta, False = IVA de la empresa
+    observaciones: {item_id: texto} (solo si la empresa las tiene activas)"""
     _exigir(p, E.BORRADOR, E.EMITIDO)
     for item in ItemPresupuesto.objects.filter(presupuesto=p).select_related('producto'):
         if item.pk in quitar:
@@ -165,7 +166,11 @@ def actualizar_items(p, cambios, quitar, perfil, puede_fijar_precio, descuento_p
                 raise ErrorVenta(f'{item.producto.nombre}: la cantidad debe ser mayor que cero.')
             item.precio_usd, item.fuera_de_rango = resolver_precio(perfil, item.producto, precio, puede_fijar_precio)
             item.cantidad = cantidad
-            item.save(update_fields=['cantidad', 'precio_usd', 'fuera_de_rango'])
+            campos = ['cantidad', 'precio_usd', 'fuera_de_rango']
+            if observaciones is not None and item.pk in observaciones:
+                item.observacion = ' '.join((observaciones[item.pk] or '').split())[:300]
+                campos.append('observacion')
+            item.save(update_fields=campos)
     if descuento_pct is not None:
         if not (0 <= descuento_pct <= 100):
             raise ErrorVenta('El descuento debe estar entre 0 y 100 %.')

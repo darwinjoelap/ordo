@@ -10,6 +10,8 @@ from apps.tasas.models import TasaCambio
 from apps.ventas import servicios as ventas
 from apps.ventas.models import ItemPresupuesto
 
+from .test_fase5 import Base as BaseVentas
+
 from .test_fase5 import HOY, Base
 
 
@@ -122,3 +124,62 @@ class OrdenAlfabeticoTests(Base):
         with mock.patch.object(modulo, 'desglose_bs', wraps=modulo.desglose_bs) as espia:
             self.assertTrue(self.client.get(reverse('ventas:pdf', args=[p.pk])).content.startswith(b'%PDF'))
             self.assertEqual([i.producto.nombre for i in espia.call_args.args[1]], ['Centrífuga', 'Glucosa'])
+
+
+class UnidadYObservacionTests(BaseVentas):
+    def setUp(self):
+        super().setUp()
+        from apps.ventas import servicios as ventas
+        with self.empresa_ctx():
+            self.p = ventas.crear(self.cliente, self.vendedor, self.empresa)
+            ventas.agregar_item(self.p, self.prod, 3, None, self.perfil, True)
+            self.item = self.p.items.get()
+        self.client.force_login(self.vendedor)
+        self.url = reverse('ventas:detalle', args=[self.p.pk])
+
+    def textos_pdf(self):
+        from unittest import mock
+        from apps.ventas import pdf as pdf_ventas
+        textos, real = [], pdf_ventas.Paragraph
+        with mock.patch.object(pdf_ventas, 'Paragraph', side_effect=lambda t, *a, **k: (textos.append(str(t)), real(t, *a, **k))[1]):
+            self.client.get(reverse('ventas:pdf', args=[self.p.pk]))
+        return textos
+
+    def test_unidad_en_pantalla_y_pdf(self):
+        unidad = self.prod.unidad.abreviatura
+        self.assertContains(self.client.get(self.url), f'<div class="small text-muted text-end">{unidad}</div>', html=False)
+        self.assertTrue(any(t.startswith('3<br/>') and unidad in t for t in self.textos_pdf()))
+
+    def test_observacion_desactivada_no_aparece(self):
+        self.assertNotContains(self.client.get(self.url), f'name="obs_{self.item.pk}"')
+
+    def test_observacion_por_producto(self):
+        self.perfil.observaciones_por_producto = True
+        self.perfil.save()
+        self.assertContains(self.client.get(self.url), f'name="obs_{self.item.pk}"')
+        self.client.post(reverse('ventas:actualizar', args=[self.p.pk]),
+                         {f'cantidad_{self.item.pk}': '3', f'obs_{self.item.pk}': '  1 L   por hectárea  '})
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.observacion, '1 L por hectárea')
+        self.assertTrue(any('1 L por hectárea' in t and '<i>' in t for t in self.textos_pdf()))
+        self.client.post(reverse('ventas:actualizar', args=[self.p.pk]), {f'cantidad_{self.item.pk}': '4'})
+        self.item.refresh_from_db()
+        self.assertEqual((self.item.cantidad, self.item.observacion), (4, '1 L por hectárea'))   # sin el campo no se borra
+
+
+class ColumnasLoteTests(BaseVentas):
+    def tabla(self, producto):
+        from unittest import mock
+        from apps.ventas import pdf as pdf_ventas
+        with self.empresa_ctx():
+            p = ventas.crear(self.cliente, self.vendedor, self.empresa)
+            ventas.agregar_item(p, producto, 1, None, self.perfil, True)
+        anchos = []
+        real = pdf_ventas.Table
+        with mock.patch.object(pdf_ventas, 'Table', side_effect=lambda f, *a, **k: (anchos.append(len(f[0])), real(f, *a, **k))[1]):
+            pdf_ventas.presupuesto_pdf(p, self.empresa)
+        return anchos
+
+    def test_sin_lote_ni_vencimiento_no_salen_las_columnas(self):
+        self.assertIn(5, self.tabla(self.equipo))        # Cód, Descripción, Cant, P. Unit, Subtotal (sin tasa: solo USD)
+        self.assertIn(7, self.tabla(self.prod))          # + Lote y F. Venc.

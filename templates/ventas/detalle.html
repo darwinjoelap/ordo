@@ -66,10 +66,11 @@
                 <div class="fw-semibold">{{ i.producto.nombre }}{% if i.exento_iva and p.iva_pct %} <span class="badge text-bg-info fw-normal" title="Exento de IVA">E</span>{% endif %}</div>
                 <div class="small text-muted">{{ i.producto.codigo }}{% if i.precio_usd != i.precio_base_usd %} · lista {{ i.precio_base_usd|usd }}{% endif %}{% if i.fuera_de_rango %} · <span class="text-warning-emphasis">fuera de rango</span>{% endif %}</div>
                 {% if i.disponible is not None %}{% if i.disponible <= 0 %}<div class="small text-danger fw-bold"><i class="bi bi-exclamation-circle me-1"></i>SIN STOCK</div>{% elif i.disponible < i.cantidad %}<div class="small text-danger fw-semibold"><i class="bi bi-exclamation-circle me-1"></i>Solo hay {{ i.disponible|miles }} disponibles</div>{% endif %}{% endif %}
+                {% if perfil.observaciones_por_producto %}{% if p.editable %}<input name="obs_{{ i.pk }}" value="{{ i.observacion }}" maxlength="300" class="form-control form-control-sm mt-1 fst-italic" placeholder="Observación (ej.: dosis por hectárea)" title="{{ i.observacion }}" aria-label="Observación de {{ i.producto.nombre }}">{% elif i.observacion %}<div class="small text-muted fst-italic"><i class="bi bi-chat-left-text me-1"></i>{{ i.observacion }}</div>{% endif %}{% endif %}
                 {% for r in i.lista_reservas %}<div class="small text-muted"><i class="bi bi-lock"></i> Lote {{ r.lote.numero_lote|default:r.lote.pk }}{% if r.lote.fecha_vencimiento %} (vence {{ r.lote.fecha_vencimiento|date:"d/m/Y" }}){% endif %}: {{ r.cantidad }}</div>{% endfor %}
               </td>
               {% if p.editable %}
-                <td data-etq="Cantidad"><input type="number" min="1" name="cantidad_{{ i.pk }}" value="{{ i.cantidad }}" class="form-control form-control-sm text-end"></td>
+                <td data-etq="Cantidad"><input type="number" min="1" name="cantidad_{{ i.pk }}" value="{{ i.cantidad }}" class="form-control form-control-sm text-end" aria-label="Cantidad"><div class="small text-muted text-end">{{ i.producto.unidad.abreviatura }}</div></td>
                 <td data-etq="Precio USD">{% if precio_editable %}<input type="text" inputmode="decimal" name="precio_{{ i.pk }}" value="{{ i.precio_usd }}" class="form-control form-control-sm text-end">{% else %}<div class="text-end">{{ i.precio_usd|usd }}</div>{% endif %}</td>
               {% else %}
                 <td class="text-end" data-etq="Cantidad">{{ i.cantidad|miles }} {{ i.producto.unidad.abreviatura }}</td>

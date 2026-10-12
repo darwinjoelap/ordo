@@ -211,3 +211,7 @@
 
 - **Tasa de los abonos en Bs**: `PerfilEmpresa.tasa_abonos` (DIA | VENTA) en Mi empresa → Comercial; `servicios.tasa_para_abono(p)`.
 - **Cobranza**: `apps/ventas/cobranza.py` (resumen, tablero, por_cobrar con antigüedad > 30 días, PDF, Excel), `/ventas/reportes/cobranza/`. Cuenta por FECHA DEL ABONO (caja); Ventas sigue por fecha de validación. Tarjeta «Dinero ingresado» en el inicio (`core/partials/ingresos.html`).
+
+- **Unidad en presupuestos**: bajo la cantidad en pantalla editable y en el PDF.
+- **Observación por producto**: `PerfilEmpresa.observaciones_por_producto` + `ItemPresupuesto.observacion` (300); se edita en el presupuesto (BORRADOR/EMITIDO) y sale en el PDF (presupuesto y despacho) junto a la marca.
+- **Columnas Lote / F. Venc.**: si ningún producto del documento maneja lote ni vencimiento, no salen en el PDF (`pdf._sin_columnas_lote`); en documentos mixtos, la celda queda en blanco.

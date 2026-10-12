@@ -174,6 +174,9 @@ class PerfilEmpresa(models.Model):
         'Los vendedores ven todos los clientes', default=False,
         help_text='Si está apagado, cada vendedor ve solo los clientes que creó o tiene asignados.')
     comision_requiere_pago = models.BooleanField('La comisión exige venta cobrada', default=False)
+    observaciones_por_producto = models.BooleanField(
+        'Observaciones por producto en presupuestos', default=False,
+        help_text='Agrega un campo de texto bajo cada producto (p. ej. dosis recomendada). Sale en el PDF junto a la marca.')
     tasa_abonos = models.CharField(
         'Tasa para pagos en Bs', max_length=5, default='DIA',
         choices=[('DIA', 'Tasa del día del pago'), ('VENTA', 'Tasa de la venta')],

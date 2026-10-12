@@ -242,7 +242,7 @@ def agregar_item(request, pk):
 @require_POST
 def actualizar(request, pk):
     p = _presupuesto(request, pk)
-    cambios, quitar = {}, []
+    cambios, quitar, observaciones = {}, [], {}
     try:
         for item in ItemPresupuesto.objects.filter(presupuesto=p):
             if request.POST.get(f'quitar_{item.pk}'):
@@ -252,6 +252,8 @@ def actualizar(request, pk):
             precio_txt = request.POST.get(f'precio_{item.pk}')
             precio = Decimal(precio_txt.replace(',', '.')) if precio_txt else item.precio_usd
             cambios[item.pk] = (cantidad, precio)
+            if f'obs_{item.pk}' in request.POST:
+                observaciones[item.pk] = request.POST.get(f'obs_{item.pk}', '')
         descuento = request.POST.get('descuento_pct')
         descuento = Decimal(descuento.replace(',', '.')) if descuento else None
         if descuento and not tiene_permiso(request, 'precios.fijar') and request.empresa.perfil.modo_precio == 'FIJO':
@@ -260,7 +262,8 @@ def actualizar(request, pk):
         puede_iva = perfil.modo_precio != 'FIJO' or tiene_permiso(request, 'precios.fijar')
         sin_iva = (request.POST.get('sin_iva') == '1') if puede_iva and 'iva_enviado' in request.POST else None
         servicios.actualizar_items(p, cambios, quitar, perfil, tiene_permiso(request, 'precios.fijar'),
-                                   descuento, sin_iva=sin_iva)
+                                   descuento, sin_iva=sin_iva,
+                                   observaciones=observaciones if perfil.observaciones_por_producto else None)
         p.notas = request.POST.get('notas', p.notas)
         p.condiciones = request.POST.get('condiciones', p.condiciones)
         p.save(update_fields=['notas', 'condiciones'])

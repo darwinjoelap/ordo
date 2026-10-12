@@ -237,6 +237,7 @@ class ItemPresupuesto(EmpresaModel):
     costo_usd = models.DecimalField('Costo de referencia', max_digits=12, decimal_places=2, default=0)
     fuera_de_rango = models.BooleanField(default=False)
     exento_iva = models.BooleanField('Exento de IVA', default=False)   # copia del producto al agregarlo
+    observacion = models.CharField('Observación', max_length=300, blank=True)   # p. ej. dosis por hectárea
     orden = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
