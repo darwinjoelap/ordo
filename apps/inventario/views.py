@@ -124,7 +124,8 @@ def producto_form(request, pk=None):
             inicial['tipo'] = Producto.Tipo.SERVICIO
         form = ProductoForm(instance=producto, initial=inicial, maneja_servicios=request.empresa.perfil.maneja_servicios)
     return render(request, 'inventario/producto_form.html', {
-        'titulo': f'Editar {producto.nombre}' if producto else 'Nuevo producto',
+        'titulo': f'Editar {producto.nombre}' if producto else
+                  ('Nuevo servicio' if request.GET.get('tipo') == Producto.Tipo.SERVICIO else 'Nuevo producto'),
         'form': form, 'producto': producto,
         'hay_categorias': Categoria.objects.exists(),
     })

@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
 {% block contenido %}
 <a href="{% if producto %}{% url 'inventario:detalle' producto.pk %}{% else %}{% url 'inventario:lista' %}{% endif %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Volver</a>
-<h1 class="h3 mt-2 mb-3">{{ titulo }}</h1>
+<h1 class="h3 mt-2 mb-3" id="titulo-ficha">{{ titulo }}</h1>
 {% if not hay_categorias %}
-  <div class="alert alert-info">Primero crea al menos una <a href="{% url 'inventario:catalogo' 'categorias' %}">categoría</a>.</div>
+  <div class="alert alert-info js-solo-producto">Primero crea al menos una <a href="{% url 'inventario:catalogo' 'categorias' %}">categoría</a>.</div>
 {% endif %}
 <form method="post" class="card card-body" style="max-width: 900px">
   {% csrf_token %}
@@ -13,10 +13,11 @@
     <div class="col-md-4">{% include 'partials/campo.html' with campo=form.codigo %}</div>
     <div class="col-md-8">{% include 'partials/campo.html' with campo=form.nombre %}</div>
     <div class="col-md-4">{% include 'partials/campo.html' with campo=form.categoria %}</div>
-    <div class="col-md-4">{% include 'partials/campo.html' with campo=form.subcategoria %}</div>
-    <div class="col-md-4">{% include 'partials/campo.html' with campo=form.marca %}</div>
+    <div class="col-md-4 js-solo-producto">{% include 'partials/campo.html' with campo=form.subcategoria %}</div>
+    <div class="col-md-4 js-solo-producto">{% include 'partials/campo.html' with campo=form.marca %}</div>
     <div class="col-md-4">{% include 'partials/campo.html' with campo=form.unidad %}</div>
     <div class="col-md-8 js-solo-producto">{% include 'partials/campo.html' with campo=form.proveedor_habitual %}</div>
+    <div class="w-100 m-0 p-0 d-none js-solo-servicio"></div>
     <div class="col-6 col-md-3">{% include 'partials/campo.html' with campo=form.precio_costo_usd %}</div>
     <div class="col-6 col-md-3">{% include 'partials/campo.html' with campo=form.precio_venta_usd %}</div>
     <div class="col-6 col-md-3 js-solo-producto">{% include 'partials/campo.html' with campo=form.stock_minimo %}</div>
@@ -37,8 +38,13 @@
   function aplicar() {
     var servicio = tipo.value === 'SERVICIO';
     document.querySelectorAll('.js-solo-producto').forEach(function (el) { el.classList.toggle('d-none', servicio); });
-    var desc = document.querySelector('label[for="{{ form.descripcion.id_for_label }}"]');
-    if (desc) desc.textContent = servicio ? 'Descripción técnica' : 'Descripción';
+    document.querySelectorAll('.js-solo-servicio').forEach(function (el) { el.classList.toggle('d-none', !servicio); });
+    function etiqueta(id, texto) { var l = document.querySelector('label[for="' + id + '"]'); if (l && l.firstChild) l.firstChild.nodeValue = texto + ' '; }
+    etiqueta('{{ form.descripcion.id_for_label }}', servicio ? 'Descripción técnica' : 'Descripción');
+    etiqueta('{{ form.unidad.id_for_label }}', servicio ? 'Se cobra por (unidad)' : 'Unidad');
+    var cat = document.querySelector('label[for="{{ form.categoria.id_for_label }}"]');
+    if (cat) cat.innerHTML = servicio ? 'Categoría (opcional)' : 'Categoría <span class="text-danger">*</span>';
+    {% if not producto %}document.getElementById('titulo-ficha').textContent = servicio ? 'Nuevo servicio' : 'Nuevo producto';{% endif %}
   }
   tipo.addEventListener('change', aplicar); aplicar();
 })();

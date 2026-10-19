@@ -214,3 +214,21 @@ class PantallasTests(ServiciosBase):
         r = self.client.get(reverse('inventario:lista') + '?tipo=SERVICIO')
         self.assertContains(r, 'Fumigación aérea')
         self.assertContains(self.client.get(reverse('inventario:detalle', args=[self.fumigacion.pk])), 'Descripción técnica')
+
+
+class FichaServicioTests(ServiciosBase):
+    def test_ficha_de_servicio_sin_campos_de_producto(self):
+        self.client.force_login(self.dueno)
+        url = reverse('inventario:producto_crear')
+        self.assertContains(self.client.get(url + '?tipo=SERVICIO'), 'Nuevo servicio')
+        r = self.client.post(url, {'tipo': 'SERVICIO', 'codigo': 'srv-9', 'nombre': 'Poda', 'unidad': self.ha.pk,
+                                   'marca': '', 'precio_costo_usd': '1', 'precio_venta_usd': '5', 'factor_venta_dias': '30',
+                                   'stock_minimo': '7', 'maneja_lotes': 'on', 'descripcion': 'Poda técnica', 'activo': 'on'})
+        self.assertEqual(r.status_code, 302)
+        with self.empresa_ctx():
+            s = Producto.objects.get(codigo='SRV-9')
+            self.assertEqual((s.categoria.nombre, s.stock_minimo, s.maneja_lotes, s.marca), ('Servicios', 0, False, None))
+        r = self.client.post(url, {'tipo': 'PRODUCTO', 'codigo': 'P-9', 'nombre': 'X', 'unidad': self.ha.pk,
+                                   'precio_costo_usd': '1', 'precio_venta_usd': '5', 'factor_venta_dias': '30',
+                                   'stock_minimo': '0', 'activo': 'on'})
+        self.assertContains(r, 'Este campo es obligatorio')          # el producto sí exige categoría
