@@ -24,7 +24,7 @@
             <td>{% if i.maximo %}<input type="number" min="0" max="{{ i.maximo }}" name="cantidad_{{ i.pk }}" value="{{ i.pedido }}"
                    class="form-control form-control-sm text-end cantidad" data-max="{{ i.maximo }}" data-precio="{{ i.precio_usd|stringformat:'s' }}"
                    aria-label="Unidades a devolver de {{ i.producto.nombre }}">{% else %}<div class="text-end small text-muted">Devuelto</div>{% endif %}</td>
-            <td class="text-center">{% if i.maximo %}<input type="checkbox" class="form-check-input" name="reingresa_{{ i.pk }}" value="1" {% if i.reingresa %}checked{% endif %}
+            <td class="text-center">{% if i.producto.es_servicio %}<span class="small text-muted">Servicio</span>{% elif i.maximo %}<input type="checkbox" class="form-check-input" name="reingresa_{{ i.pk }}" value="1" {% if i.reingresa %}checked{% endif %}
                    title="Desmarca si está dañado o vencido" aria-label="{{ i.producto.nombre }} vuelve al inventario">{% endif %}</td>
           </tr>
         {% endfor %}

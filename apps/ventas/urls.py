@@ -1,6 +1,7 @@
 from django.urls import path
 
-from . import reportes, views, views_almacen as almacen, views_cobranza, views_devoluciones, views_transporte as transporte
+from . import reportes, views, views_almacen as almacen, views_cobranza, views_devoluciones, views_servicios
+from . import views_transporte as transporte
 
 app_name = 'ventas'
 
@@ -23,6 +24,12 @@ urlpatterns = [
     path('<int:pk>/entrega/<int:entrega_id>/cliente/', almacen.confirmar_cliente, name='confirmar_cliente'),
     path('<int:pk>/entrega/<int:entrega_id>/anular/', almacen.anular_entrega, name='anular_entrega'),
     path('<int:pk>/entrega/<int:entrega_id>/pdf/', almacen.constancia_pdf, name='constancia_entrega'),
+    path('servicios/', views_servicios.agenda, name='agenda_servicios'),
+    path('servicios/reporte/', views_servicios.reporte, name='reporte_servicios'),
+    path('servicios/reporte/pdf/', views_servicios.reporte_pdf, name='reporte_servicios_pdf'),
+    path('servicios/reporte/excel/', views_servicios.reporte_excel, name='reporte_servicios_excel'),
+    path('servicios/<int:pk>/', views_servicios.servicio, name='servicio'),
+    path('servicios/<int:pk>/pdf/', views_servicios.constancia_pdf, name='constancia_servicio'),
     path('transporte/', transporte.lista, name='transporte'),
     path('transporte/transportista/', transporte.transportista_guardar, name='transportista_crear'),
     path('transporte/transportista/<int:pk>/', transporte.transportista_guardar, name='transportista_editar'),

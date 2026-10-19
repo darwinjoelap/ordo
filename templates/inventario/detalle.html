@@ -11,13 +11,22 @@
   </div>
   {% if puede_gestionar %}
   <div class="d-flex gap-2 flex-wrap">
-    <a href="{% url 'inventario:ingreso' %}?producto={{ producto.pk }}" class="btn btn-success btn-sm"><i class="bi bi-box-arrow-in-down me-1"></i>Ingreso</a>
-    <a href="{% url 'inventario:ajuste' %}?producto={{ producto.pk }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-sliders me-1"></i>Ajuste</a>
+{% if not producto.es_servicio %}    <a href="{% url 'inventario:ingreso' %}?producto={{ producto.pk }}" class="btn btn-success btn-sm"><i class="bi bi-box-arrow-in-down me-1"></i>Ingreso</a>
+    <a href="{% url 'inventario:ajuste' %}?producto={{ producto.pk }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-sliders me-1"></i>Ajuste</a>{% endif %}
     <a href="{% url 'inventario:producto_editar' producto.pk %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil me-1"></i>Editar</a>
   </div>
   {% endif %}
 </div>
 
+{% if producto.es_servicio %}
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3"><div class="card card-body py-3"><div class="small text-muted">Tipo</div><div class="fs-5 fw-bold"><i class="bi bi-tools me-1"></i>Servicio</div><div class="small text-muted">Sin inventario · por {{ producto.unidad.nombre|lower }}</div></div></div>
+  <div class="col-6 col-md-3"><div class="card card-body py-3"><div class="small text-muted">Precio de venta</div><div class="fs-4 fw-bold">{{ producto.precio_venta_usd|usd }}</div>
+    {% if ver_costos %}<div class="small text-muted">Costo {{ producto.precio_costo_usd|usd }}</div>{% endif %}</div></div>
+</div>
+<div class="card mb-3"><div class="card-header bg-white fw-semibold">Descripción técnica</div>
+  <div class="card-body small" style="white-space:pre-line">{{ producto.descripcion|default:"Sin descripción. Edita el servicio para agregarla: sale en el presupuesto debajo del nombre." }}</div></div>
+{% else %}
 <div class="row g-3 mb-3">
   <div class="col-6 col-md-3"><div class="card card-body py-3"><div class="small text-muted">Existencia</div><div class="fs-4 fw-bold">{{ producto.stock_total|miles }} <small class="fs-6 text-muted">{{ producto.unidad.abreviatura }}</small></div></div></div>
   <div class="col-6 col-md-3"><div class="card card-body py-3"><div class="small text-muted">Apartado</div><div class="fs-4 fw-bold text-warning">{{ producto.stock_apartado|miles }}</div></div></div>
@@ -78,4 +87,5 @@
   </div>
   {% else %}<div class="card-body text-muted">Sin movimientos.</div>{% endif %}
 </div>
+{% endif %}
 {% endblock %}

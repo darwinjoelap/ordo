@@ -29,7 +29,7 @@ def lista_precios_pdf(productos, empresa, mostrar_existencia=False, tasa=None):
         filas = [['Código', 'Producto', 'Marca'] + (['Disponible'] if mostrar_existencia else []) + ['Precio USD'] + (['Precio Bs'] if tasa else [])]
         for p in grupo:
             filas.append([p.codigo, Paragraph(p.nombre, ESTILO_CELDA), p.marca.nombre if p.marca else '']
-                         + ([f'{p.stock_disponible} {p.unidad.abreviatura}'] if mostrar_existencia else [])
+                         + ([('Servicio' if p.es_servicio else f'{p.stock_disponible} {p.unidad.abreviatura}')] if mostrar_existencia else [])
                          + [usd(p.precio_venta_usd)]
                          + ([bs(redondear(p.precio_venta_usd * tasa.bs_por_usd))] if tasa else []))
         anchos = [26 * mm, 92 * mm, 28 * mm] + ([22 * mm] if mostrar_existencia else []) + [24 * mm] \

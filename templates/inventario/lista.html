@@ -3,11 +3,18 @@
 
 {% block contenido %}
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-  <h1 class="h3 mb-0">Inventario</h1>
+  <h1 class="h3 mb-0">{% if ver_servicios %}Servicios{% else %}Inventario{% endif %}</h1>
   {% include 'inventario/_submenu.html' %}
 </div>
+{% if perfil.maneja_servicios %}
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item"><a class="nav-link {% if not ver_servicios %}active{% endif %}" href="{% url 'inventario:lista' %}"><i class="bi bi-box-seam me-1"></i>Productos</a></li>
+  <li class="nav-item"><a class="nav-link {% if ver_servicios %}active{% endif %}" href="{% url 'inventario:lista' %}?tipo=SERVICIO"><i class="bi bi-tools me-1"></i>Servicios</a></li>
+</ul>
+{% endif %}
 
 <form method="get" class="card card-body mb-3">
+  {% if ver_servicios %}<input type="hidden" name="tipo" value="SERVICIO">{% endif %}
   <div class="row g-2 align-items-end">
     <div class="col-12 col-md-4 d-flex gap-2">
       <input type="search" name="q" value="{{ f.q }}" class="form-control" placeholder="Buscar por código o nombre…">
@@ -87,14 +94,16 @@
             </div>
           </td>
           <td class="d-none d-md-table-cell small text-muted">{{ p.categoria.nombre }}{% if p.subcategoria %}<br>{{ p.subcategoria.nombre }}{% endif %}</td>
-          <td class="text-end text-nowrap"><span class="fw-bold stock-{{ p.semaforo }}">{{ p.stock_disponible|miles }}</span> <small class="text-muted">{{ p.unidad.abreviatura }}</small></td>
+          {% if p.es_servicio %}<td class="text-end text-nowrap"><span class="badge text-bg-light border fw-normal"><i class="bi bi-tools me-1"></i>Servicio</span> <small class="text-muted">{{ p.unidad.abreviatura }}</small></td>
+          <td class="d-none d-sm-table-cell"></td><td class="d-none d-md-table-cell"></td>
+          {% else %}<td class="text-end text-nowrap"><span class="fw-bold stock-{{ p.semaforo }}">{{ p.stock_disponible|miles }}</span> <small class="text-muted">{{ p.unidad.abreviatura }}</small></td>
           <td class="text-end d-none d-sm-table-cell">{% if p.stock_apartado %}<span class="text-warning fw-semibold">{{ p.stock_apartado|miles }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
           <td class="text-center d-none d-md-table-cell">
             {% if p.stock_disponible <= 0 %}<span class="badge text-bg-danger">Agotado</span>
             {% elif p.semaforo == 'purple' %}<span class="badge ordo-badge-vencido">Con vencidos</span>
             {% elif p.dias_estimados is not None %}<span class="badge text-bg-{{ p.semaforo }}">~{{ p.dias_estimados|miles }} d</span>
             {% endif %}
-          </td>
+          </td>{% endif %}
           {% if ver_costos %}<td class="text-end d-none d-lg-table-cell small text-nowrap">{{ p.precio_costo_usd|usd }}</td>{% endif %}
           <td class="text-end fw-semibold text-nowrap">{{ p.precio_venta_usd|usd }}</td>
         </tr>
@@ -104,7 +113,7 @@
   </div>
 </div>
 {% include 'partials/paginacion.html' %}
-<p class="small text-muted mt-2">{{ pagina.paginator.count|miles }} producto{{ pagina.paginator.count|pluralize }} · {{ total_unidades|miles }} unidades en existencia</p>
+<p class="small text-muted mt-2">{% if ver_servicios %}{{ pagina.paginator.count|miles }} servicio{{ pagina.paginator.count|pluralize }}{% else %}{{ pagina.paginator.count|miles }} producto{{ pagina.paginator.count|pluralize }} · {{ total_unidades|miles }} unidades en existencia{% endif %}</p>
 {% else %}
 <div class="card card-body text-center text-muted py-5">
   <i class="bi bi-box-seam fs-1"></i>

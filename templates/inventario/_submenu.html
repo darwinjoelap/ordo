@@ -8,5 +8,6 @@
     <a href="{% url 'inventario:catalogo' 'categorias' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-tags me-1"></i>Catálogo</a>
     <a href="{% url 'inventario:importar' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-file-earmark-excel me-1"></i>Importar</a>
     <a href="{% url 'inventario:producto_crear' %}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Producto</a>
+    {% if perfil.maneja_servicios %}<a href="{% url 'inventario:producto_crear' %}?tipo=SERVICIO" class="btn btn-primary btn-sm"><i class="bi bi-tools me-1"></i>Servicio</a>{% endif %}
   {% endif %}
 </div>

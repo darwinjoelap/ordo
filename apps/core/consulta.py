@@ -33,7 +33,7 @@ def consulta_datos(request):
     productos = [{
         'c': p.codigo, 'n': p.nombre, 'p': str(p.precio_venta_usd), 'd': p.stock_disponible,
         'u': p.unidad.abreviatura, 'g': p.categoria.nombre, 'm': p.marca.nombre if p.marca_id else '',
-    } for p in Producto.objects.filter(activo=True).con_stock().select_related('unidad', 'categoria', 'marca')
+    } for p in Producto.objects.filter(activo=True).fisicos().con_stock().select_related('unidad', 'categoria', 'marca')
         .order_by('nombre')]
     clientes = []
     if tiene_permiso(request, 'clientes.gestionar'):

@@ -35,6 +35,9 @@ PERMISOS = {
     'ventas.devolver': GESTION,
     'ventas.facturar': GESTION,
     'reportes.ver': GESTION,
+    # Servicios (Mi empresa → Servicios): agenda, programar y marcar realizado (el vendedor, solo sus ventas)
+    'servicios.gestionar': GESTION | {Rol.VENDEDOR},
+    'servicios.deshacer': GESTION,          # corregir un «realizado» marcado por error
     # Comisiones (Fase 5)
     'comisiones.ver_propias': {Rol.VENDEDOR} | GESTION,
     'comisiones.liquidar': GESTION,

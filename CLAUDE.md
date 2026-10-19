@@ -45,6 +45,7 @@ python manage.py runserver
 - `apps/ventas` devoluciones — `servicios.devolver()` (emite `venta_devuelta`), `views_devoluciones.py`; comisiones
   crea `AjusteComision` negativo que se liquida con `liquidar()`
 - `apps/ventas/reportes.py` — reporte de facturación (PDF/Excel) y analítica (`calcular()`); `pdf.lotes_por_item()`
+- `apps/ventas/agenda.py` + `views_servicios.py` + `pdf_servicios.py` — servicios (Producto.tipo=SERVICIO, sin stock): agenda, programar/realizado, constancia, reporte. `Producto.objects.fisicos()` en todo lo que mueve o muestra stock
 - `apps/comisiones` — % por vendedor/categoría, Comision (1 por venta validada, vía señal), Liquidacion; `servicios.py`
 - `apps/core/management/commands/tareas_programadas.py` — cron diario (vence apartados + tasa BCV)
 - `apps/compras` — órdenes de compra, recepción (`servicios.py`), panel de pedido (`sugerencias.py`), PDF

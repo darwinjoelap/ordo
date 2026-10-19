@@ -63,6 +63,8 @@ def ingresar(producto, cantidad, costo_unitario, usuario, *, numero_lote='', fec
       - sin `sumar_a_existente` → LoteExistente (la vista pide confirmación)
       - con `sumar_a_existente` → suma al lote existente
     """
+    if producto.es_servicio:
+        raise ErrorInventario('Un servicio no tiene inventario: no se le registran ingresos.')
     if cantidad <= 0:
         raise ErrorInventario('La cantidad debe ser mayor que cero.')
     if producto.maneja_lotes and not numero_lote:
@@ -129,6 +131,8 @@ def apartar_fefo(producto, cantidad, usuario, *, referencia_tipo='', referencia_
     almacen: si se indica, solo de ese almacén (multialmacén). Devuelve la lista de Reserva(lote, cantidad).
     Todo o nada.
     """
+    if producto.es_servicio:          # un servicio no aparta nada: se vende sin stock
+        return []
     if cantidad <= 0:
         raise ErrorInventario('La cantidad debe ser mayor que cero.')
     filtro = {'almacen': almacen} if almacen is not None else {}

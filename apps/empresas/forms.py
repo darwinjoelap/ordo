@@ -19,6 +19,7 @@ GRUPOS = {
                                 'vendedores_ven_todos_los_clientes', 'comision_requiere_pago', 'tasa_abonos',
                                 'observaciones_por_producto', 'despacho_por_almacen',
                                 'multialmacen']),
+    'servicios': ('Servicios', ['maneja_servicios', 'recordatorio_servicios', 'mensaje_servicio']),
 }
 
 

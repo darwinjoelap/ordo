@@ -9,7 +9,7 @@
     {% if empresa %}
     <div class="nav-seccion">Comercial</div>
     {% if 'presupuestos.crear' in permisos %}
-      <a href="{% url 'ventas:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'ventas' and request.resolver_match.url_name not in 'por_validar devoluciones devolucion reportes reporte_facturacion reporte_apartados' %}active{% endif %}"><i class="bi bi-file-earmark-text"></i> Presupuestos</a>
+      <a href="{% url 'ventas:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'ventas' and request.resolver_match.url_name not in 'por_validar devoluciones devolucion reportes reporte_facturacion reporte_apartados agenda_servicios servicio reporte_servicios cobranza' %}active{% endif %}"><i class="bi bi-file-earmark-text"></i> Presupuestos</a>
     {% endif %}
     {% if 'ventas.validar' in permisos %}
       <a href="{% url 'ventas:por_validar' %}" class="nav-link {% if request.resolver_match.url_name == 'por_validar' %}active{% endif %}"><i class="bi bi-bag-check"></i> Por validar</a>
@@ -22,6 +22,9 @@
     {% endif %}
     {% if 'finanzas.ver' in permisos %}
       <a href="{% url 'finanzas:equilibrio' %}" class="nav-link {% if request.resolver_match.app_name == 'finanzas' %}active{% endif %}"><i class="bi bi-graph-up-arrow"></i> Punto de equilibrio</a>
+    {% endif %}
+    {% if 'servicios.gestionar' in permisos and perfil.maneja_servicios %}
+      <a href="{% url 'ventas:agenda_servicios' %}" class="nav-link {% if request.resolver_match.url_name in 'agenda_servicios servicio reporte_servicios' %}active{% endif %}"><i class="bi bi-tools"></i> Servicios{% if servicios_aviso %}{% if servicios_aviso.hoy or servicios_aviso.atrasados %} <span class="badge rounded-pill {% if servicios_aviso.atrasados %}text-bg-danger{% else %}text-bg-primary{% endif %} ms-auto" title="Hoy: {{ servicios_aviso.hoy }} · Atrasados: {{ servicios_aviso.atrasados }}">{{ servicios_aviso.hoy|add:servicios_aviso.atrasados }}</span>{% endif %}{% endif %}</a>
     {% endif %}
     {% if 'clientes.gestionar' in permisos %}
       <a href="{% url 'clientes:lista' %}" class="nav-link {% if request.resolver_match.app_name == 'clientes' %}active{% endif %}"><i class="bi bi-people"></i> Clientes</a>

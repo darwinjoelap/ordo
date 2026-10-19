@@ -157,8 +157,11 @@ def agregar_item(p, producto, cantidad, precio, perfil, puede_fijar_precio):
     _exigir(p, E.BORRADOR, E.EMITIDO)
     if cantidad <= 0:
         raise ErrorVenta('La cantidad debe ser mayor que cero.')
+    if producto.es_servicio and not perfil.maneja_servicios:
+        raise ErrorVenta('Los servicios están desactivados en Mi empresa.')
     precio, fuera = resolver_precio(perfil, producto, precio, puede_fijar_precio)
-    item = ItemPresupuesto.objects.filter(presupuesto=p, producto=producto).first()
+    # Un servicio NO se suma a la línea existente: cada línea es una ejecución con su propia fecha
+    item = None if producto.es_servicio else ItemPresupuesto.objects.filter(presupuesto=p, producto=producto).first()
     if item:
         item.cantidad += cantidad
         item.precio_usd, item.fuera_de_rango, item.exento_iva = precio, fuera, producto.exento_iva
@@ -168,15 +171,18 @@ def agregar_item(p, producto, cantidad, precio, perfil, puede_fijar_precio):
             presupuesto=p, producto=producto, cantidad=cantidad, precio_base_usd=producto.precio_venta_usd,
             precio_usd=precio, costo_usd=producto.precio_costo_usd, fuera_de_rango=fuera,
             exento_iva=producto.exento_iva,
+            descripcion_tecnica=producto.descripcion.strip() if producto.es_servicio else '',
             orden=ItemPresupuesto.objects.filter(presupuesto=p).count())
     recalcular_totales(p)
     return item
 
 
 @transaction.atomic
-def actualizar_items(p, cambios, quitar, perfil, puede_fijar_precio, descuento_pct=None, sin_iva=None, observaciones=None):
+def actualizar_items(p, cambios, quitar, perfil, puede_fijar_precio, descuento_pct=None, sin_iva=None, observaciones=None,
+                     servicios_datos=None):
     """cambios: {item_id: (cantidad, precio)} · quitar: [item_id] · sin_iva: True = venta exenta, False = IVA de la empresa
-    observaciones: {item_id: texto} (solo si la empresa las tiene activas)"""
+    observaciones: {item_id: texto} (solo si la empresa las tiene activas)
+    servicios_datos: {item_id: {'descripcion': texto, 'fecha': date|None}} (solo líneas de servicio)"""
     _exigir(p, E.BORRADOR, E.EMITIDO)
     for item in ItemPresupuesto.objects.filter(presupuesto=p).select_related('producto'):
         if item.pk in quitar:
@@ -192,6 +198,14 @@ def actualizar_items(p, cambios, quitar, perfil, puede_fijar_precio, descuento_p
             if observaciones is not None and item.pk in observaciones:
                 item.observacion = ' '.join((observaciones[item.pk] or '').split())[:300]
                 campos.append('observacion')
+            if servicios_datos and item.pk in servicios_datos and item.producto.es_servicio:
+                datos = servicios_datos[item.pk]
+                if 'descripcion' in datos:
+                    item.descripcion_tecnica = (datos['descripcion'] or '').strip()[:2000]
+                    campos.append('descripcion_tecnica')
+                if 'fecha' in datos:
+                    item.fecha_servicio = datos['fecha']
+                    campos.append('fecha_servicio')
             item.save(update_fields=campos)
     if descuento_pct is not None:
         if not (0 <= descuento_pct <= 100):
@@ -533,6 +547,8 @@ def _lotes_para_devolver(item, cantidad):
     Reparte `cantidad` entre los lotes de donde salió el ítem (empieza por el último que se tomó).
     Ventas sin reservas (p. ej. migradas): todo al lote más reciente del producto, o None si no tiene lotes.
     """
+    if item.producto.es_servicio:          # un servicio no salió de ningún lote ni vuelve al inventario
+        return [(None, cantidad)]
     from django.db.models import Sum
     from apps.inventario.models import Lote
     previas = {r['lote_id']: r['t'] for r in
@@ -610,7 +626,7 @@ def devolver(p, usuario, lineas, motivo, fecha=None, reembolso=None):
         maximo = item.cantidad - ya.get(item.pk, 0)
         if cantidad > maximo:
             raise ErrorVenta(f'"{item.producto.nombre}": se pueden devolver como máximo {maximo}.')
-        pedidas[item.pk] = (cantidad, bool(reingresa))
+        pedidas[item.pk] = (cantidad, bool(reingresa) and not item.producto.es_servicio)
     if not pedidas:
         raise ErrorVenta('Indica al menos una cantidad a devolver.')
 

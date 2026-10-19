@@ -11,7 +11,7 @@ import base64
 from collections import defaultdict
 
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Exists, OuterRef, Sum
 from django.utils import timezone
 
 from .models import Entrega, ItemEntrega, ItemPresupuesto, Presupuesto
@@ -34,7 +34,8 @@ def pendientes(p):
     """[(item, entregado, pendiente)] en el orden del documento."""
     ya = entregado_por_item(p)
     salida = []
-    for i in ItemPresupuesto.objects.filter(presupuesto=p).select_related('producto__unidad', 'producto__marca') \
+    for i in ItemPresupuesto.objects.filter(presupuesto=p, producto__tipo='PRODUCTO') \
+            .select_related('producto__unidad', 'producto__marca') \
             .order_by('producto__nombre', 'pk'):
         hecho = ya.get(i.pk, 0)
         salida.append((i, hecho, max(i.cantidad - hecho, 0)))
@@ -153,7 +154,9 @@ def anular(entrega):
 
 def bandeja(qs):
     """Ventas confirmadas aún no entregadas, con su estado de despacho."""
-    return qs.filter(estado__in=Presupuesto.CONFIRMADAS, entregado=False).select_related('cliente', 'vendedor') \
+    con_mercancia = ItemPresupuesto.objects.filter(presupuesto=OuterRef('pk'), producto__tipo='PRODUCTO')
+    return qs.filter(estado__in=Presupuesto.CONFIRMADAS, entregado=False).filter(Exists(con_mercancia)) \
+        .select_related('cliente', 'vendedor') \
         .order_by('confirmado_en', 'pk')
 
 

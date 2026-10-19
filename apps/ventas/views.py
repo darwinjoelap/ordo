@@ -135,8 +135,10 @@ def buscar_productos(request, pk):
     q = request.GET.get('q', '').strip()
     productos = []
     if len(q) >= 2:
-        productos = (Producto.objects.filter(activo=True).buscar(q).con_stock().select_related('unidad')
-                     .order_by('nombre')[:12])
+        productos = Producto.objects.filter(activo=True).buscar(q)
+        if not request.empresa.perfil.maneja_servicios:
+            productos = productos.fisicos()
+        productos = productos.con_stock().select_related('unidad').order_by('nombre')[:12]
     perfil = request.empresa.perfil
     filas = [(pr, *servicios.rango_precio(perfil, pr)) for pr in productos]
     return render(request, 'ventas/partials/productos.html', {
@@ -190,14 +192,16 @@ def _tasa_referencial(request, p):
 @requiere('presupuestos.crear')
 def detalle(request, pk):
     p = _presupuesto(request, pk)
-    items = list(ItemPresupuesto.objects.filter(presupuesto=p).select_related('producto__unidad')
+    items = list(ItemPresupuesto.objects.filter(presupuesto=p).select_related('producto__unidad', 'responsable')
                  .order_by(Lower('producto__nombre'), 'pk'))
+    for i in items:
+        i.presupuesto = p             # el estado del servicio lo lee sin otra consulta
     tasa_referencial = _tasa_referencial(request, p)
     montos_bs = desglose_bs(p, items)
     stock = {}
     if p.editable:      # aviso «Sin stock» mientras se arma el presupuesto (apartado ya tiene su reserva)
         stock = {pr.pk: pr.stock_disponible for pr in
-                 Producto.objects.filter(pk__in=[i.producto_id for i in items])
+                 Producto.objects.filter(pk__in=[i.producto_id for i in items if not i.producto.es_servicio])
                  .con_stock(p.almacen if request.empresa.perfil.multialmacen and p.almacen_id else None)}
     for i in items:
         i.subtotal_bs = montos_bs['lineas'][i.pk] if montos_bs else None
@@ -234,6 +238,9 @@ def detalle(request, pk):
         'almacenes': _almacenes(perfil),
         **_entrega_ctx(p, perfil),
         'saldo_bs': redondear(p.saldo_usd * tasa_abono) if tasa_abono and not p.pagado else None,
+        'hay_servicios': any(i.producto.es_servicio for i in items),
+        'solo_servicios': bool(items) and all(i.producto.es_servicio for i in items),
+        'gestiona_servicios': perfil.maneja_servicios and tiene_permiso(request, 'servicios.gestionar'),
     })
 
 
@@ -249,8 +256,9 @@ def agregar_item(request, pk):
         precio = Decimal(precio) if precio is not None else None
         item = servicios.agregar_item(p, producto, cantidad, precio, request.empresa.perfil,
                                       tiene_permiso(request, 'precios.fijar'))
-        disponible = Producto.objects.filter(pk=producto.pk).con_stock().first().stock_disponible
-        if disponible < item.cantidad:
+        disponible = None if producto.es_servicio else \
+            Producto.objects.filter(pk=producto.pk).con_stock().first().stock_disponible
+        if disponible is not None and disponible < item.cantidad:
             messages.warning(request, f'{producto.nombre}: sin stock suficiente (disponible: {max(disponible, 0)}).')
         if item.fuera_de_rango:
             messages.warning(request, f'{producto.nombre}: precio fuera del rango permitido. La venta quedará marcada para revisión.')
@@ -268,7 +276,7 @@ def agregar_item(request, pk):
 @require_POST
 def actualizar(request, pk):
     p = _presupuesto(request, pk)
-    cambios, quitar, observaciones = {}, [], {}
+    cambios, quitar, observaciones, servicios_datos = {}, [], {}, {}
     try:
         for item in ItemPresupuesto.objects.filter(presupuesto=p):
             if request.POST.get(f'quitar_{item.pk}'):
@@ -280,6 +288,13 @@ def actualizar(request, pk):
             cambios[item.pk] = (cantidad, precio)
             if f'obs_{item.pk}' in request.POST:
                 observaciones[item.pk] = request.POST.get(f'obs_{item.pk}', '')
+            if f'desc_{item.pk}' in request.POST or f'fecha_{item.pk}' in request.POST:
+                datos = {}
+                if f'desc_{item.pk}' in request.POST:
+                    datos['descripcion'] = request.POST.get(f'desc_{item.pk}', '')
+                if f'fecha_{item.pk}' in request.POST:
+                    datos['fecha'] = _fecha_o_none(request.POST.get(f'fecha_{item.pk}'))
+                servicios_datos[item.pk] = datos
         descuento = request.POST.get('descuento_pct')
         descuento = Decimal(descuento.replace(',', '.')) if descuento else None
         if descuento and not tiene_permiso(request, 'precios.fijar') and request.empresa.perfil.modo_precio == 'FIJO':
@@ -289,7 +304,8 @@ def actualizar(request, pk):
         sin_iva = (request.POST.get('sin_iva') == '1') if puede_iva and 'iva_enviado' in request.POST else None
         servicios.actualizar_items(p, cambios, quitar, perfil, tiene_permiso(request, 'precios.fijar'),
                                    descuento, sin_iva=sin_iva,
-                                   observaciones=observaciones if perfil.observaciones_por_producto else None)
+                                   observaciones=observaciones if perfil.observaciones_por_producto else None,
+                                   servicios_datos=servicios_datos)
         if perfil.multialmacen and 'almacen' in request.POST:
             from apps.inventario.models import Almacen
             valor = request.POST.get('almacen')

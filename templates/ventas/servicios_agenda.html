@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+  <div><h1 class="h3 mb-0">Agenda de servicios</h1>
+    <div class="small text-muted">Servicios de ventas confirmadas · hoy {{ hoy|date:"l d/m/Y" }}</div></div>
+  {% if 'reportes.ver' in permisos %}<a href="{% url 'ventas:reporte_servicios' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-bar-chart-line me-1"></i>Reporte</a>{% endif %}
+</div>
+
+<ul class="nav nav-pills flex-nowrap overflow-auto mb-3 gap-1 pb-1" role="tablist">
+  {% for clave, titulo, icono, n in pestanas %}
+  <li class="nav-item"><a class="nav-link text-nowrap {% if tab == clave %}active{% endif %}" href="?tab={{ clave }}&{{ querystring }}"{% if tab == clave %} aria-current="page"{% endif %}>
+    <i class="bi bi-{{ icono }} me-1"></i>{{ titulo }}{% if n %} <span class="badge {% if tab == clave %}text-bg-light{% elif clave == 'atrasados' %}text-bg-danger{% elif clave == 'hoy' %}text-bg-primary{% else %}text-bg-secondary{% endif %}">{{ n }}</span>{% endif %}</a></li>
+  {% endfor %}
+</ul>
+
+<form method="get" class="card card-body mb-3">
+  <input type="hidden" name="tab" value="{{ tab }}">
+  <div class="row g-2 align-items-end">
+    <div class="col-12 col-md-4"><label class="form-label small mb-1" for="q">Buscar</label><input type="search" id="q" name="q" value="{{ f.q }}" class="form-control form-control-sm" placeholder="Cliente, servicio o N° de venta"></div>
+    <div class="col-6 col-md-3"><label class="form-label small mb-1" for="responsable">Responsable</label><select id="responsable" name="responsable" class="form-select form-select-sm">
+      <option value="">Todos</option><option value="sin" {% if f.responsable == 'sin' %}selected{% endif %}>Sin responsable</option>
+      {% for u in equipo %}<option value="{{ u.pk }}" {% if f.responsable == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.nombre_visible }}</option>{% endfor %}</select></div>
+    {% if tab == 'realizados' %}
+    <div class="col-6 col-md-2"><label class="form-label small mb-1" for="desde">Desde</label><input type="date" id="desde" name="desde" value="{{ f.desde }}" class="form-control form-control-sm"></div>
+    <div class="col-6 col-md-2"><label class="form-label small mb-1" for="hasta">Hasta</label><input type="date" id="hasta" name="hasta" value="{{ f.hasta }}" class="form-control form-control-sm"></div>
+    {% endif %}
+    <div class="col-6 col-md-1 d-grid"><button class="btn btn-sm btn-primary" aria-label="Filtrar"><i class="bi bi-funnel"></i></button></div>
+  </div>
+</form>
+
+{% if tab == 'por_cobrar' %}<p class="small text-muted">Servicios ya realizados cuya venta todavía tiene saldo. El cobro se registra en la venta (abonos o pago completo).</p>{% endif %}
+{% if tab == 'por_programar' %}<p class="small text-muted">Ventas confirmadas con servicios sin fecha. Ábrelos para programarlos.</p>{% endif %}
+
+<div class="card">
+  {% if pagina.object_list %}
+  <div class="list-group list-group-flush">
+    {% for i in pagina %}
+    <div class="list-group-item">
+      <div class="d-flex justify-content-between gap-2 flex-wrap">
+        <div class="min-w-0">
+          <a href="{% url 'ventas:servicio' i.pk %}" class="fw-semibold text-decoration-none">{{ i.producto.nombre }}</a>
+          <span class="small text-muted">· {{ i.cantidad|miles }} {{ i.producto.unidad.abreviatura }}</span>
+          <div class="small">{{ i.presupuesto.cliente.nombre }} · <a href="{% url 'ventas:detalle' i.presupuesto_id %}">{{ i.presupuesto.numero }}</a>{% if i.presupuesto.cliente.direccion %} · <span class="text-muted"><i class="bi bi-geo-alt"></i> {{ i.presupuesto.cliente.direccion|truncatechars:60 }}</span>{% endif %}</div>
+          <div class="small mt-1">{% include 'ventas/partials/estado_servicio.html' with i=i %}
+            {% if tab == 'por_cobrar' %} <span class="badge text-bg-warning">Saldo {{ i.presupuesto.saldo_usd|usd }}</span>{% endif %}</div>
+        </div>
+        <div class="d-flex gap-1 align-items-start flex-shrink-0">
+          {% if i.whatsapp %}<a href="{{ i.whatsapp }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-success" title="Recordar por WhatsApp" aria-label="Recordar por WhatsApp a {{ i.presupuesto.cliente.nombre }}"><i class="bi bi-whatsapp"></i></a>{% endif %}
+          {% if i.realizado_en %}<a href="{% url 'ventas:constancia_servicio' i.pk %}" target="_blank" data-pdf class="btn btn-sm btn-outline-secondary" title="Constancia" aria-label="Constancia en PDF"><i class="bi bi-file-earmark-pdf"></i></a>{% endif %}
+          <a href="{% url 'ventas:servicio' i.pk %}" class="btn btn-sm btn-primary">{% if i.realizado_en %}Ver{% elif i.fecha_servicio %}Gestionar{% else %}Programar{% endif %}</a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card-body text-muted">{% if tab == 'hoy' %}No hay servicios para hoy.{% elif tab == 'atrasados' %}No hay servicios atrasados.{% else %}No hay servicios en esta lista.{% endif %}</div>
+  {% endif %}
+</div>
+{% include 'partials/paginacion.html' with pagina=pagina querystring=querystring_pagina %}
+{% endblock %}

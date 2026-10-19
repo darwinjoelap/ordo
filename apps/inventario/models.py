@@ -118,12 +118,25 @@ class ProductoQuerySet(EmpresaQuerySet):
             return self
         return self.filter(Q(nombre__icontains=texto) | Q(codigo__icontains=texto))
 
+    def fisicos(self):
+        """Solo productos con inventario (excluye servicios)."""
+        return self.filter(tipo=Producto.Tipo.PRODUCTO)
+
+    def servicios(self):
+        return self.filter(tipo=Producto.Tipo.SERVICIO)
+
 
 class ProductoManager(EmpresaManager.from_queryset(ProductoQuerySet)):
     pass
 
 
 class Producto(EmpresaModel):
+    class Tipo(models.TextChoices):
+        PRODUCTO = 'PRODUCTO', 'Producto (con inventario)'
+        SERVICIO = 'SERVICIO', 'Servicio (sin inventario)'
+
+    tipo = models.CharField('Tipo', max_length=8, choices=Tipo.choices, default=Tipo.PRODUCTO,
+                            help_text='Un servicio no tiene lotes ni stock: no se aparta, no se descuenta ni se despacha.')
     codigo = models.CharField('Código', max_length=50)
     nombre = models.CharField('Nombre', max_length=200)
     descripcion = models.TextField('Descripción', blank=True)
@@ -163,6 +176,10 @@ class Producto(EmpresaModel):
 
     def __str__(self):
         return f'[{self.codigo}] {self.nombre}'
+
+    @property
+    def es_servicio(self):
+        return self.tipo == self.Tipo.SERVICIO
 
     # ── Stock: usa anotaciones o lotes precargados; consulta solo como último recurso ──
 
@@ -207,7 +224,7 @@ class Producto(EmpresaModel):
 
     @property
     def alerta_stock_minimo(self):
-        return self.stock_disponible <= self.stock_minimo
+        return not self.es_servicio and self.stock_disponible <= self.stock_minimo
 
     @cached_property
     def tiene_lotes_vencidos(self):

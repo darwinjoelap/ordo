@@ -1,8 +1,23 @@
 from django.conf import settings
 
 from django.utils import timezone
+from django.utils.functional import SimpleLazyObject
 
-from .permisos import permisos_de
+from .permisos import permisos_de, tiene_permiso
+
+
+def _recordatorio_servicios(request, empresa):
+    """Conteos para la insignia del menú (solo se consultan si la plantilla los usa)."""
+    perfil = getattr(empresa, 'perfil', None) if empresa else None
+    if not (perfil and perfil.maneja_servicios and perfil.recordatorio_servicios
+            and tiene_permiso(request, 'servicios.gestionar')):
+        return None
+
+    def contar():
+        from apps.ventas import agenda
+        from apps.ventas.views import visibles
+        return agenda.resumen(agenda.de_ventas(visibles(request)))
+    return SimpleLazyObject(contar)
 
 
 def ordo(request):
@@ -28,4 +43,5 @@ def ordo(request):
         'membresia': membresia,
         'membresias': getattr(request, 'membresias', []),
         'permisos': permisos_de(membresia.rol) if membresia else set(),
+        'servicios_aviso': _recordatorio_servicios(request, empresa) if membresia else None,
     }

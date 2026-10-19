@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import F, Sum
+from django.db.models import F, Q, Sum
 from django.db.models.functions import Lower
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -34,6 +34,8 @@ def lista(request):
     from .models import Almacen
     almacen_sel = 'SIN' if almacen_txt == 'SIN' else (Almacen.objects.filter(pk=almacen_txt).first() if almacen_txt.isdigit() else None)
     productos = Producto.objects.select_related('categoria', 'subcategoria', 'marca', 'unidad').con_stock(almacen_sel)
+    ver_servicios = request.empresa.perfil.maneja_servicios and g.get('tipo') == Producto.Tipo.SERVICIO
+    productos = productos.servicios() if ver_servicios else productos.fisicos()
     if solo_activos:
         productos = productos.filter(activo=True)
     productos = productos.buscar(q)
@@ -70,7 +72,9 @@ def lista(request):
         'subcategorias': Subcategoria.objects.select_related('categoria'),
         'marcas': Marca.objects.filter(activa=True),
         'f': {'q': q, 'categoria': categoria_id, 'subcategoria': subcategoria_id, 'marca': marca_id,
-              'alerta': alerta, 'activos': solo_activos, 'almacen': almacen_txt},
+              'alerta': alerta, 'activos': solo_activos, 'almacen': almacen_txt,
+              'tipo': Producto.Tipo.SERVICIO if ver_servicios else ''},
+        'ver_servicios': ver_servicios,
         'almacenes': almacenes.opciones(request), 'almacen_sel': almacen_sel,
         'total_unidades': total_unidades,
         'ver_costos': tiene_permiso(request, 'inventario.ver_costos'),
@@ -109,14 +113,16 @@ def detalle(request, pk):
 def producto_form(request, pk=None):
     producto = get_object_or_404(Producto, pk=pk) if pk else None
     if request.method == 'POST':
-        form = ProductoForm(request.POST, instance=producto)
+        form = ProductoForm(request.POST, instance=producto, maneja_servicios=request.empresa.perfil.maneja_servicios)
         if form.is_valid():
             producto = form.save()
-            messages.success(request, f'Producto "{producto.nombre}" guardado.')
+            messages.success(request, f'{"Servicio" if producto.es_servicio else "Producto"} "{producto.nombre}" guardado.')
             return redirect('inventario:detalle', pk=producto.pk)
     else:
         inicial = {'unidad': Unidad.objects.filter(abreviatura='UN').first()} if not producto else None
-        form = ProductoForm(instance=producto, initial=inicial)
+        if not producto and request.GET.get('tipo') == Producto.Tipo.SERVICIO:
+            inicial['tipo'] = Producto.Tipo.SERVICIO
+        form = ProductoForm(instance=producto, initial=inicial, maneja_servicios=request.empresa.perfil.maneja_servicios)
     return render(request, 'inventario/producto_form.html', {
         'titulo': f'Editar {producto.nombre}' if producto else 'Nuevo producto',
         'form': form, 'producto': producto,
@@ -141,7 +147,7 @@ def buscar_productos(request):
     destino = request.GET.get('destino', 'ingreso')
     productos = []
     if len(q) >= 2:
-        productos = (Producto.objects.filter(activo=True).buscar(q).select_related('unidad')
+        productos = (Producto.objects.filter(activo=True).fisicos().buscar(q).select_related('unidad')
                      .con_stock().order_by('nombre')[:12])
     return render(request, 'inventario/partials/resultados_busqueda.html', {
         'productos': productos, 'q': q, 'destino': destino, 'orden_id': request.GET.get('orden', '')})
@@ -267,8 +273,10 @@ def lista_precios(request):
                      .select_related('categoria', 'marca', 'unidad').order_by(Lower('categoria__nombre'), Lower('nombre')))
         if request.GET.get('categoria'):
             productos = productos.filter(categoria_id=request.GET['categoria'])
-        if request.GET.get('con_existencia'):
-            productos = productos.filter(anot_stock_disponible__gt=0)
+        if request.GET.get('con_existencia'):      # los servicios siempre están disponibles
+            productos = productos.filter(Q(anot_stock_disponible__gt=0) | Q(tipo=Producto.Tipo.SERVICIO))
+        if not request.empresa.perfil.maneja_servicios:
+            productos = productos.fisicos()
         contenido = lista_precios_pdf(productos, request.empresa,
                                       mostrar_existencia=bool(request.GET.get('mostrar_existencia')),
                                       tasa=tasa_vigente(request.empresa) if request.GET.get('en_bs') else None)

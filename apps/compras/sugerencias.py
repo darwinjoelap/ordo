@@ -72,7 +72,7 @@ def calcular(dias_cobertura=30, proveedor_id=None, solo_necesarios=True, categor
                                                           OrdenCompra.Estado.PARCIAL])
         .values('producto').annotate(t=Sum(F('cantidad_pedida') - F('cantidad_recibida')))
     }
-    productos = (Producto.objects.filter(activo=True).con_stock()
+    productos = (Producto.objects.filter(activo=True).fisicos().con_stock()
                  .select_related('proveedor_habitual', 'unidad', 'categoria', 'subcategoria').order_by('nombre'))
     if categoria_id:
         productos = productos.filter(categoria_id=categoria_id)

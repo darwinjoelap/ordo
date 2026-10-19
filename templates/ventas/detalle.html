@@ -42,7 +42,7 @@
   <div class="col-lg-8">
     {% if p.editable %}
     <div class="card mb-3">
-      <div class="card-header ordo-card-titulo"><i class="bi bi-search me-1"></i>Agregar producto</div>
+      <div class="card-header ordo-card-titulo"><i class="bi bi-search me-1"></i>Agregar producto{% if perfil.maneja_servicios %} o servicio{% endif %}</div>
       <div class="card-body">
         <input type="search" name="q" class="form-control" placeholder="Nombre o código (mínimo 2 letras)" autocomplete="off"
                hx-get="{% url 'ventas:buscar_productos' p.pk %}" hx-trigger="input changed delay:300ms, search" hx-target="#resultados-productos">
@@ -55,7 +55,7 @@
       {% csrf_token %}
       <button type="submit" class="d-none" tabindex="-1" aria-hidden="true"></button>{# Enter en un campo guarda; no dispara la papelera #}
       <div class="card mb-3">
-        <div class="card-header ordo-card-titulo"><i class="bi bi-box-seam me-1"></i>Productos ({{ items|length }}){% if items %} <span class="fw-normal">· {{ total_unidades|miles }} unidad{{ total_unidades|pluralize:'es' }}</span>{% endif %}</div>
+        <div class="card-header ordo-card-titulo"><i class="bi bi-box-seam me-1"></i>{% if hay_servicios %}Productos y servicios{% else %}Productos{% endif %} ({{ items|length }}){% if items %} <span class="fw-normal">· {{ total_unidades|miles }} unidad{{ total_unidades|pluralize:'es' }}</span>{% endif %}</div>
         {% if items %}
         <div class="table-responsive"><table class="table align-middle mb-0 ordo-items">
           <thead class="table-light"><tr><th>Producto</th><th class="text-end" style="width:6rem">Cant.</th><th class="text-end" style="width:8rem">Precio</th><th class="text-end">Subtotal</th>{% if p.editable %}<th style="width:3rem"><span class="visually-hidden">Quitar</span></th>{% endif %}</tr></thead>
@@ -63,10 +63,18 @@
           {% for i in items %}
             <tr class="{% if i.fuera_de_rango %}table-warning{% endif %}">
               <td>
-                <div class="fw-semibold">{{ i.producto.nombre }}{% if i.exento_iva and p.iva_pct %} <span class="badge text-bg-info fw-normal" title="Exento de IVA">E</span>{% endif %}</div>
+                <div class="fw-semibold">{{ i.producto.nombre }}{% if i.exento_iva and p.iva_pct %} <span class="badge text-bg-info fw-normal" title="Exento de IVA">E</span>{% endif %}{% if i.producto.es_servicio %} <span class="badge text-bg-light border fw-normal"><i class="bi bi-tools me-1"></i>Servicio</span>{% endif %}</div>
                 <div class="small text-muted">{{ i.producto.codigo }}{% if i.precio_usd != i.precio_base_usd %} · lista {{ i.precio_base_usd|usd }}{% endif %}{% if i.fuera_de_rango %} · <span class="text-warning-emphasis">fuera de rango</span>{% endif %}</div>
                 {% if i.disponible is not None %}{% if i.disponible <= 0 %}<div class="small text-danger fw-bold"><i class="bi bi-exclamation-circle me-1"></i>SIN STOCK</div>{% elif i.disponible < i.cantidad %}<div class="small text-danger fw-semibold"><i class="bi bi-exclamation-circle me-1"></i>Solo hay {{ i.disponible|miles }} disponibles</div>{% endif %}{% endif %}
-                {% if perfil.observaciones_por_producto %}{% if p.editable %}<input name="obs_{{ i.pk }}" value="{{ i.observacion }}" maxlength="300" class="form-control form-control-sm mt-1 fst-italic" placeholder="Observación (ej.: dosis por hectárea)" title="{{ i.observacion }}" aria-label="Observación de {{ i.producto.nombre }}">{% elif i.observacion %}<div class="small text-muted fst-italic"><i class="bi bi-chat-left-text me-1"></i>{{ i.observacion }}</div>{% endif %}{% endif %}
+                {% if perfil.observaciones_por_producto and not i.producto.es_servicio %}{% if p.editable %}<input name="obs_{{ i.pk }}" value="{{ i.observacion }}" maxlength="300" class="form-control form-control-sm mt-1 fst-italic" placeholder="Observación (ej.: dosis por hectárea)" title="{{ i.observacion }}" aria-label="Observación de {{ i.producto.nombre }}">{% elif i.observacion %}<div class="small text-muted fst-italic"><i class="bi bi-chat-left-text me-1"></i>{{ i.observacion }}</div>{% endif %}{% endif %}
+                {% if i.producto.es_servicio %}{% if p.editable %}
+                  <textarea name="desc_{{ i.pk }}" rows="2" maxlength="2000" class="form-control form-control-sm mt-1" placeholder="Descripción técnica (sale en el PDF debajo del nombre)" aria-label="Descripción técnica de {{ i.producto.nombre }}">{{ i.descripcion_tecnica }}</textarea>
+                  <div class="input-group input-group-sm mt-1" style="max-width:16rem"><span class="input-group-text"><i class="bi bi-calendar-event me-1"></i>Fecha prevista</span><input type="date" name="fecha_{{ i.pk }}" value="{{ i.fecha_servicio|date:'Y-m-d' }}" class="form-control" aria-label="Fecha prevista de {{ i.producto.nombre }}"></div>
+                {% else %}
+                  {% if i.descripcion_tecnica %}<div class="small text-muted" style="white-space:pre-line">{{ i.descripcion_tecnica }}</div>{% endif %}
+                  <div class="small mt-1">{% include 'ventas/partials/estado_servicio.html' with i=i %}
+                    {% if gestiona_servicios %}<a href="{% url 'ventas:servicio' i.pk %}" class="ms-1">{% if i.realizado_en %}Ver constancia{% elif p.confirmada %}Programar / realizado{% else %}Programar{% endif %} <i class="bi bi-chevron-right"></i></a>{% endif %}</div>
+                {% endif %}{% endif %}
                 {% for r in i.lista_reservas %}<div class="small text-muted"><i class="bi bi-lock"></i> Lote {{ r.lote.numero_lote|default:r.lote.pk }}{% if r.lote.fecha_vencimiento %} (vence {{ r.lote.fecha_vencimiento|date:"d/m/Y" }}){% endif %}: {{ r.cantidad }}</div>{% endfor %}
               </td>
               {% if p.editable %}
@@ -133,7 +141,7 @@
         {% if p.estado == 'BORRADOR' %}
           <form method="post" action="{% url 'ventas:accion' p.pk 'emitir' %}" class="d-grid">{% csrf_token %}<button class="btn btn-primary"><i class="bi bi-send me-1"></i>Emitir presupuesto</button></form>
         {% endif %}
-        <form method="post" action="{% url 'ventas:accion' p.pk 'apartar' %}" class="d-grid">{% csrf_token %}<button class="btn btn-outline-warning"><i class="bi bi-lock me-1"></i>Apartar stock</button></form>
+        {% if not solo_servicios %}<form method="post" action="{% url 'ventas:accion' p.pk 'apartar' %}" class="d-grid">{% csrf_token %}<button class="btn btn-outline-warning"><i class="bi bi-lock me-1"></i>Apartar stock</button></form>{% endif %}
         <form method="post" action="{% url 'ventas:accion' p.pk 'confirmar' %}" class="d-grid" onsubmit="return confirm('¿Confirmar la venta? Se aparta el stock y pasa a validación.')">{% csrf_token %}<button class="btn btn-success"><i class="bi bi-bag-check me-1"></i>Confirmar venta</button></form>
       {% elif p.estado == 'APARTADO' %}
         <form method="post" action="{% url 'ventas:accion' p.pk 'confirmar' %}" class="d-grid">{% csrf_token %}<button class="btn btn-success"><i class="bi bi-bag-check me-1"></i>Confirmar venta</button></form>

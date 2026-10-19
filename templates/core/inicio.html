@@ -9,6 +9,7 @@
   {% if 'presupuestos.crear' in permisos %}<a href="{% url 'ventas:nuevo' %}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Nuevo presupuesto</a>{% endif %}
 </div>
 
+{% if servicios %}{% include 'core/partials/servicios_hoy.html' %}{% endif %}
 {% if despacho %}
 <div class="row g-3 mb-4">
   <div class="col-6 col-lg-3"><a href="{% url 'ventas:bandeja_despacho' %}" class="card card-body h-100 text-decoration-none">

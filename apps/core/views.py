@@ -47,6 +47,15 @@ def inicio(request):
         from apps.ventas import entregas
         todas = Presupuesto.objects.all()
         ctx['despacho'] = {'pendientes': entregas.bandeja(todas).count(), 'transito': entregas.transito_de(todas).count()}
+    perfil = request.empresa.perfil
+    if perfil.maneja_servicios and perfil.recordatorio_servicios and tiene_permiso(request, 'servicios.gestionar'):
+        from apps.ventas import agenda
+        from apps.ventas.views import visibles
+        lineas = agenda.de_ventas(visibles(request))
+        hoy_lista = list(agenda.pestana(lineas, 'hoy')[:6])
+        for i in hoy_lista:
+            i.whatsapp = agenda.enlace_whatsapp(i, perfil)
+        ctx['servicios'] = {**agenda.resumen(lineas), 'lista': hoy_lista}
     if tiene_permiso(request, 'comisiones.ver_propias'):
         from apps.comisiones.models import AjusteComision, Comision
         ctx['mi_comision_mes'] = sum(
@@ -55,7 +64,7 @@ def inicio(request):
     if tiene_permiso(request, 'inventario.ver'):
         from apps.inventario.models import Lote
         hoy = ahora.date()
-        criticos = (Producto.objects.filter(activo=True, stock_minimo__gt=0).con_stock()
+        criticos = (Producto.objects.filter(activo=True, stock_minimo__gt=0).fisicos().con_stock()
                     .filter(anot_stock_disponible__lte=F('stock_minimo')).order_by('anot_stock_disponible', 'nombre'))
         con_stock = Lote.objects.filter(cantidad_actual__gt=0).select_related('producto')
         vencidos = con_stock.filter(fecha_vencimiento__lt=hoy).order_by('fecha_vencimiento')

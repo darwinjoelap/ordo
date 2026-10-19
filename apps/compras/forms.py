@@ -25,4 +25,4 @@ class ItemForm(FormBootstrap, forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['producto'].queryset = Producto.objects.filter(activo=True)
+        self.fields['producto'].queryset = Producto.objects.filter(activo=True).fisicos()

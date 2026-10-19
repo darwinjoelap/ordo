@@ -190,6 +190,18 @@ class PerfilEmpresa(models.Model):
         choices=[('DIA', 'Tasa del día del pago'), ('VENTA', 'Tasa de la venta')],
         help_text='Del día: la deuda es en dólares y el cliente paga los Bs del día. '
                   'De la venta: la deuda queda fija en Bs desde que se confirmó.')
+    # Servicios
+    maneja_servicios = models.BooleanField(
+        'Maneja servicios', default=False,
+        help_text='Permite crear servicios (sin inventario) y venderlos en los presupuestos, con fecha programada, '
+                  'responsable, constancia de ejecución, agenda y reportes.')
+    recordatorio_servicios = models.BooleanField(
+        'Recordatorio de servicios', default=True,
+        help_text='Muestra en el inicio y en el menú cuántos servicios hay hoy, mañana y atrasados.')
+    mensaje_servicio = models.CharField(
+        'Mensaje de WhatsApp para recordar un servicio', max_length=300, blank=True,
+        default='Hola {cliente}, le recordamos el servicio «{servicio}» programado para el {fecha}. {empresa}',
+        help_text='Variables: {cliente}, {servicio}, {fecha}, {hora}, {empresa}.')
 
     actualizado_en = models.DateTimeField(auto_now=True)
 

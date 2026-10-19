@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+<a href="{% url 'ventas:agenda_servicios' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Agenda de servicios</a>
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mt-2 mb-3">
+  <div class="min-w-0">
+    <h1 class="h3 mb-1">{{ i.producto.nombre }} <span class="badge text-bg-{{ etiqueta.1 }} align-middle fs-6">{{ etiqueta.0 }}</span></h1>
+    <div class="small text-muted">{{ i.cantidad|miles }} {{ i.producto.unidad.abreviatura }} · Venta <a href="{% url 'ventas:detalle' p.pk %}">{{ p.numero }}</a> ({{ p.get_estado_display }}) · Vendedor: {{ p.vendedor.nombre_visible }}</div>
+    <div class="small"><i class="bi bi-person me-1"></i>{{ p.cliente.nombre }}{% if p.cliente.contacto %} · {{ p.cliente.contacto }}{% endif %}{% if p.cliente.telefono %} · <a href="tel:{{ p.cliente.telefono }}">{{ p.cliente.telefono }}</a>{% endif %}</div>
+    {% if p.cliente.direccion %}<div class="small text-muted"><i class="bi bi-geo-alt me-1"></i>{{ p.cliente.direccion }}</div>{% endif %}
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    {% if not i.realizado_en %}<a href="{{ whatsapp }}" target="_blank" rel="noopener" class="btn btn-outline-success btn-sm"><i class="bi bi-whatsapp me-1"></i>Recordar al cliente</a>{% endif %}
+    <a href="{% url 'ventas:constancia_servicio' i.pk %}" target="_blank" data-pdf class="btn btn-outline-primary btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>{% if i.realizado_en %}Constancia{% else %}Constancia para firmar{% endif %}</a>
+  </div>
+</div>
+{% if not i.realizado_en and not tiene_telefono %}<div class="alert alert-light border small py-2"><i class="bi bi-info-circle me-1"></i>El cliente no tiene un teléfono móvil válido: WhatsApp se abrirá para que elijas el contacto.</div>{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    {% if i.descripcion_tecnica %}
+    <div class="card mb-3"><div class="card-header ordo-card-titulo"><i class="bi bi-card-text me-1"></i>Descripción técnica</div>
+      <div class="card-body small" style="white-space:pre-line">{{ i.descripcion_tecnica }}</div></div>
+    {% endif %}
+
+    {% if i.realizado_en %}
+    <div class="card mb-3 border-success">
+      <div class="card-header ordo-card-titulo text-success"><i class="bi bi-check2-circle me-1"></i>Realizado</div>
+      <div class="card-body">
+        <dl class="row small mb-0">
+          <dt class="col-sm-4">Fecha</dt><dd class="col-sm-8">{{ i.realizado_en|date:"d/m/Y h:i A" }}</dd>
+          <dt class="col-sm-4">Registró</dt><dd class="col-sm-8">{{ i.realizado_por.nombre_visible|default:"—" }}</dd>
+          <dt class="col-sm-4">Responsable</dt><dd class="col-sm-8">{{ i.responsable_visible|default:"—" }}</dd>
+          {% if i.nota_servicio %}<dt class="col-sm-4">Observaciones</dt><dd class="col-sm-8">{{ i.nota_servicio }}</dd>{% endif %}
+          <dt class="col-sm-4">Conforme el cliente</dt><dd class="col-sm-8">{% if i.recibe_nombre %}{{ i.recibe_nombre }}{% if i.recibe_cedula %} · C.I. {{ i.recibe_cedula }}{% endif %}{% else %}—{% endif %}</dd>
+        </dl>
+        {% if i.recibe_firma %}<img src="{{ i.recibe_firma }}" alt="Firma de {{ i.recibe_nombre }}" class="border rounded bg-white mt-2" style="max-height:90px;max-width:100%">{% endif %}
+        {% if puede_deshacer %}
+        <form method="post" class="mt-3" onsubmit="return confirm('¿Deshacer el «realizado»? Se borran la nota y la firma, y el servicio vuelve a la agenda.')">{% csrf_token %}
+          <input type="hidden" name="accion" value="deshacer"><button class="btn btn-sm btn-outline-danger"><i class="bi bi-arrow-counterclockwise me-1"></i>Deshacer «realizado»</button></form>
+        {% endif %}
+      </div>
+    </div>
+    {% elif puede_realizar %}
+    <form method="post" class="card mb-3">{% csrf_token %}<input type="hidden" name="accion" value="realizar">
+      <div class="card-header ordo-card-titulo"><i class="bi bi-check2-square me-1"></i>Marcar como realizado</div>
+      <div class="card-body">
+        <div class="row g-2">
+          <div class="col-6"><label class="form-label small" for="fecha_realizado">Fecha</label><input type="date" id="fecha_realizado" name="fecha_realizado" value="{{ ahora_fecha }}" max="{{ ahora_fecha }}" class="form-control form-control-sm" required></div>
+          <div class="col-6"><label class="form-label small" for="hora_realizado">Hora</label><input type="time" id="hora_realizado" name="hora_realizado" value="{{ ahora_hora }}" class="form-control form-control-sm"></div>
+          <div class="col-12"><label class="form-label small" for="nota">Observaciones de la ejecución</label><textarea id="nota" name="nota" rows="2" maxlength="500" class="form-control form-control-sm" placeholder="Ej.: se aplicó en 12 ha, lote norte"></textarea></div>
+          <div class="col-sm-7"><label class="form-label small" for="recibe_nombre">Conforme el cliente (nombre)</label><input id="recibe_nombre" name="recibe_nombre" maxlength="120" class="form-control form-control-sm" value="{{ p.cliente.contacto }}"></div>
+          <div class="col-sm-5"><label class="form-label small" for="recibe_cedula">Cédula</label><input id="recibe_cedula" name="recibe_cedula" maxlength="20" class="form-control form-control-sm"></div>
+          <div class="col-12">{% include 'ventas/partials/firma.html' with campo='firma' id='firma-servicio' %}</div>
+        </div>
+        <button class="btn btn-success mt-3"><i class="bi bi-check2-circle me-1"></i>Marcar realizado</button>
+      </div>
+    </form>
+    {% elif not i.realizado_en and p.estado not in p.CAIDAS %}
+    <div class="alert alert-info small"><i class="bi bi-info-circle me-1"></i>Se marca como realizado cuando la venta esté <b>confirmada</b>. Mientras tanto puedes programarlo.</div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-5">
+    {% if puede_programar %}
+    <form method="post" class="card mb-3">{% csrf_token %}<input type="hidden" name="accion" value="programar">
+      <div class="card-header ordo-card-titulo"><i class="bi bi-calendar-event me-1"></i>Programación</div>
+      <div class="card-body">
+        <div class="row g-2">
+          <div class="col-7"><label class="form-label small" for="fecha">Fecha</label><input type="date" id="fecha" name="fecha" value="{{ i.fecha_servicio|date:'Y-m-d' }}" class="form-control form-control-sm"></div>
+          <div class="col-5"><label class="form-label small" for="hora">Hora</label><input type="time" id="hora" name="hora" value="{{ i.hora_servicio|time:'H:i' }}" class="form-control form-control-sm"></div>
+          <div class="col-12"><label class="form-label small" for="responsable">Responsable</label>
+            <select id="responsable" name="responsable" class="form-select form-select-sm" onchange="document.getElementById('externo').classList.toggle('d-none', this.value !== 'otro')">
+              <option value="">— Sin asignar —</option>
+              {% for u in equipo %}<option value="{{ u.pk }}" {% if i.responsable_id == u.pk %}selected{% endif %}>{{ u.nombre_visible }}</option>{% endfor %}
+              <option value="otro" {% if i.responsable_nombre %}selected{% endif %}>Otro (técnico externo)…</option>
+            </select></div>
+          <div class="col-12 {% if not i.responsable_nombre %}d-none{% endif %}" id="externo"><label class="form-label small" for="responsable_nombre">Nombre del técnico</label><input id="responsable_nombre" name="responsable_nombre" value="{{ i.responsable_nombre }}" maxlength="120" class="form-control form-control-sm"></div>
+        </div>
+        <div class="form-text">Deja la fecha vacía para quitarla. La fecha sale en el PDF del presupuesto como «Fecha prevista».</div>
+        <button class="btn btn-primary btn-sm mt-2"><i class="bi bi-save me-1"></i>Guardar programación</button>
+      </div>
+    </form>
+    {% endif %}
+
+    <div class="card mb-3">
+      <div class="card-header ordo-card-titulo"><i class="bi bi-cash-coin me-1"></i>Cobro de la venta</div>
+      <div class="card-body small">
+        <div class="d-flex justify-content-between"><span>Total venta</span><b>{{ p.total_usd|usd }}</b></div>
+        <div class="d-flex justify-content-between"><span>Este servicio (antes de desc. e IVA)</span><span>{{ i.subtotal_usd|usd }}</span></div>
+        <div class="d-flex justify-content-between"><span>Saldo</span><b class="{% if p.saldo_usd > 0 %}text-danger{% else %}text-success{% endif %}">{% if p.pagado %}Cobrada{% else %}{{ p.saldo_usd|usd }}{% endif %}</b></div>
+        <a href="{% url 'ventas:detalle' p.pk %}" class="d-inline-block mt-2">Registrar pago en la venta <i class="bi bi-chevron-right"></i></a>
+      </div>
+    </div>
+
+    {% if otros %}
+    <div class="card mb-3">
+      <div class="card-header ordo-card-titulo"><i class="bi bi-list-check me-1"></i>Otros servicios de esta venta</div>
+      <div class="list-group list-group-flush">
+        {% for o in otros %}<a href="{% url 'ventas:servicio' o.pk %}" class="list-group-item list-group-item-action small">
+          <div class="fw-semibold">{{ o.producto.nombre }}</div>{% include 'ventas/partials/estado_servicio.html' with i=o %}</a>{% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

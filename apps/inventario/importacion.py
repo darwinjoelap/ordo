@@ -67,6 +67,8 @@ COLUMNAS = [
     Columna('activo', 'activo', False, 'SI / NO', 'SI', 'Vacío = SI.', 8),
     Columna('exento_iva', 'exento_iva', False, 'SI / NO', 'NO',
             'Producto exento de IVA: sale marcado (E). Vacío = NO en productos nuevos; en los existentes no cambia.', 11),
+    Columna('servicio', 'servicio', False, 'SI / NO', 'NO',
+            'SI = servicio (sin inventario: no lleva lote ni existencia). Vacío = NO en nuevos; en existentes no cambia.', 10),
     Columna('existencia_inicial', 'existencia_inicial', False, 'Entero ≥ 0', 12,
             'Solo para productos NUEVOS. Crea un ingreso inicial con el costo_usd.', 16),
     Columna('numero_lote', 'numero_lote', False, 'Texto', 'L2601',
@@ -379,12 +381,15 @@ def validar(contenido):
                 ('stock_minimo', _entero, 0), ('dias_por_unidad', _decimal, Decimal('30')),
                 ('maneja_lote', _si_no, False),
                 ('maneja_vencimiento', _si_no, False), ('activo', _si_no, True),
-                ('exento_iva', _si_no, None)):
+                ('exento_iva', _si_no, None), ('servicio', _si_no, None)):
             try:
                 datos[clave] = conversor(d.get(clave), defecto)
             except ValueError as e:
                 error(f.numero, clave, str(e))
 
+        if datos.get('servicio'):              # un servicio no maneja inventario
+            datos['maneja_lote'] = datos['maneja_vencimiento'] = False
+            datos['stock_minimo'] = 0
         if datos.get('dias_por_unidad') == 0:
             error(f.numero, 'dias_por_unidad', 'debe ser mayor que 0')
         p = ProductoImportado(codigo=codigo, fila=f.numero, datos=datos, existente=existentes.get(codigo))
@@ -402,6 +407,12 @@ def validar(contenido):
 
     # Reglas que dependen del producto completo
     for p in productos.values():
+        if p.datos.get('servicio') and p.lotes:
+            error(p.lotes[0][0], 'existencia_inicial', f'{p.codigo} es un servicio: no lleva existencia ni lote')
+            p.lotes = []
+        if p.datos.get('servicio') and p.existente and not p.existente.es_servicio and \
+                p.existente.lotes.filter(cantidad_actual__gt=0).exists():
+            error(p.fila, 'servicio', f'{p.codigo} tiene stock: no puede pasar a servicio')
         if p.existente and p.lotes:
             avisos.append((p.fila, f'{p.codigo} ya existe: se actualizan sus datos pero se IGNORA la existencia '
                                    f'inicial ({sum(c for _, c, _, _ in p.lotes)} u.). Usa Ingreso para sumar stock.'))
@@ -479,6 +490,8 @@ def aplicar(resultado, usuario):
                       maneja_lotes=d['maneja_lote'], maneja_vencimiento=d['maneja_vencimiento'], activo=d['activo'])
         if d.get('exento_iva') is not None or not p.existente:     # vacío no cambia a los que ya existen
             campos['exento_iva'] = bool(d.get('exento_iva'))
+        if d.get('servicio') is not None or not p.existente:
+            campos['tipo'] = Producto.Tipo.SERVICIO if d.get('servicio') else Producto.Tipo.PRODUCTO
         if p.existente:
             for k, v in campos.items():
                 setattr(p.existente, k, v)
@@ -507,7 +520,8 @@ def exportar_productos(productos):
                    p.proveedor_habitual.nombre if p.proveedor_habitual else None,
                    float(p.precio_costo_usd), float(p.precio_venta_usd), p.stock_minimo, float(p.factor_venta_dias),
                    si_no(p.maneja_lotes),
-                   si_no(p.maneja_vencimiento), p.descripcion or None, si_no(p.activo), si_no(p.exento_iva)])
+                   si_no(p.maneja_vencimiento), p.descripcion or None, si_no(p.activo), si_no(p.exento_iva),
+                   si_no(p.es_servicio)])
     salida = BytesIO()
     wb.save(salida)
     return salida.getvalue()

@@ -8,7 +8,7 @@
     <div class="d-flex justify-content-between gap-2">
       <div class="min-w-0">
         <div class="fw-semibold">{{ pr.nombre }}</div>
-        <div class="small text-muted">{{ pr.codigo }} · {% if pr.stock_disponible <= 0 %}<span class="text-danger fw-bold">SIN STOCK</span>{% else %}Disponible: {{ pr.stock_disponible|miles }} {{ pr.unidad.abreviatura }}{% endif %} · Lista {{ pr.precio_venta_usd|usd }}</div>
+        <div class="small text-muted">{{ pr.codigo }} · {% if pr.es_servicio %}<span class="badge text-bg-info fw-normal"><i class="bi bi-tools me-1"></i>Servicio</span> {{ pr.unidad.abreviatura }}{% elif pr.stock_disponible <= 0 %}<span class="text-danger fw-bold">SIN STOCK</span>{% else %}Disponible: {{ pr.stock_disponible|miles }} {{ pr.unidad.abreviatura }}{% endif %} · Lista {{ pr.precio_venta_usd|usd }}</div>
         {% if minimo or maximo %}<div class="small text-muted">Rango permitido: {{ minimo|usd|default:"—" }} a {% if maximo %}{{ maximo|usd }}{% else %}sin máximo{% endif %}</div>{% endif %}
       </div>
       <button type="button" class="btn-close js-cambiar ordo-solo-elegido" aria-label="Elegir otro producto" title="Elegir otro producto"></button>

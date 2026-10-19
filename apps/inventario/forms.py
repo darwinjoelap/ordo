@@ -10,7 +10,7 @@ from .models import Categoria, Lote, Marca, MovimientoInventario, Producto, Subc
 class ProductoForm(FormBootstrap, forms.ModelForm):
     class Meta:
         model = Producto
-        fields = ['codigo', 'nombre', 'descripcion', 'categoria', 'subcategoria', 'marca', 'unidad',
+        fields = ['tipo', 'codigo', 'nombre', 'descripcion', 'categoria', 'subcategoria', 'marca', 'unidad',
                   'proveedor_habitual', 'maneja_lotes', 'maneja_vencimiento', 'exento_iva', 'precio_costo_usd',
                   'precio_venta_usd', 'stock_minimo', 'factor_venta_dias', 'activo']
         widgets = {
@@ -20,8 +20,13 @@ class ProductoForm(FormBootstrap, forms.ModelForm):
             'factor_venta_dias': forms.NumberInput(attrs={'step': '0.01', 'min': '0.01'}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, maneja_servicios=False, **kwargs):
         super().__init__(*args, **kwargs)
+        if not maneja_servicios and not (self.instance.pk and self.instance.es_servicio):
+            del self.fields['tipo']               # servicios apagados: todo es producto
+        else:
+            self.fields['descripcion'].help_text = ('Servicio: es la descripción técnica que sale en el presupuesto '
+                                                    'debajo del nombre (se puede ajustar en cada presupuesto).')
         self.fields['marca'].queryset = Marca.objects.filter(activa=True)
         self.fields['proveedor_habitual'].queryset = Proveedor.objects.filter(activo=True)
         # Subcategorías de la categoría elegida (POST) o de la del producto
@@ -42,6 +47,14 @@ class ProductoForm(FormBootstrap, forms.ModelForm):
         sub, cat = datos.get('subcategoria'), datos.get('categoria')
         if sub and cat and sub.categoria_id != cat.pk:
             self.add_error('subcategoria', 'La subcategoría no pertenece a la categoría elegida.')
+        tipo = datos.get('tipo')
+        if self.instance.pk and tipo and tipo != self.instance.tipo:
+            from .models import Lote
+            if tipo == Producto.Tipo.SERVICIO and Lote.objects.filter(producto=self.instance, cantidad_actual__gt=0).exists():
+                self.add_error('tipo', 'Tiene stock en inventario: no puede pasar a servicio. Ajusta el stock a cero primero.')
+        if tipo == Producto.Tipo.SERVICIO:          # un servicio no maneja inventario
+            datos['maneja_lotes'] = datos['maneja_vencimiento'] = False
+            datos['stock_minimo'] = 0
         return datos
 
 
@@ -58,7 +71,7 @@ class IngresoForm(FormBootstrap, forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['producto'].queryset = Producto.objects.filter(activo=True)
+        self.fields['producto'].queryset = Producto.objects.filter(activo=True).fisicos()
         self.fields['proveedor'].queryset = Proveedor.objects.filter(activo=True)
 
     def clean(self):
@@ -86,7 +99,7 @@ class AjusteForm(FormBootstrap, forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['producto'].queryset = Producto.objects.all()
+        self.fields['producto'].queryset = Producto.objects.fisicos()
         producto_id = self.data.get('producto') or self.initial.get('producto')
         self.fields['lote'].queryset = (
             Lote.objects.filter(producto_id=producto_id, cantidad_actual__gt=0) if producto_id else Lote.objects.none())

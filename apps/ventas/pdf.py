@@ -115,15 +115,23 @@ def _sin_columnas_lote(items, lotes, filas, anchos):
     return [f[:2] + f[4:] for f in filas], anchos
 
 
-def _celda_descripcion(producto, exento=False, observacion=''):
+def _celda_descripcion(producto, exento=False, observacion='', item=None):
     """
     Nombre con la marca y la observación del ítem (p. ej. dosis) como sublínea, en el mismo estilo.
     (E) = exento de IVA, como pide el SENIAT en los documentos de venta.
+    Servicio: su descripción técnica (del ítem) debajo del nombre y la fecha prevista si ya la tiene.
     """
     texto = producto.nombre + (' <b>(E)</b>' if exento else '')
     sub = ' · '.join(x for x in [producto.marca.nombre if producto.marca_id else '', observacion] if x)
     if sub:
         texto += f'<br/><font size="7" color="#6C757D"><i>{sub}</i></font>'
+    if item is not None and producto.es_servicio:
+        if item.descripcion_tecnica:
+            desc = item.descripcion_tecnica.strip().replace('\n', '<br/>')
+            texto += f'<br/><font size="7.5" color="#495057">{desc}</font>'
+        if item.fecha_servicio:
+            hora = f' · {item.hora_servicio:%I:%M %p}' if item.hora_servicio else ''
+            texto += f'<br/><font size="7" color="#6C757D">Fecha prevista: {item.fecha_servicio:%d/%m/%Y}{hora}</font>'
     return Paragraph(texto, E_NORMAL)
 
 
@@ -208,7 +216,7 @@ def presupuesto_pdf(p, empresa, moneda='ambas', tasa_referencial=False):
     marcar_e = bool(p.iva_pct) and any(i.exento_iva for i in items)     # venta sin IVA: no hay nada que distinguir
     for i in items:
         lote, venc = _celdas_lote(i.producto, lotes.get(i.pk), not perfil.ocultar_sin_stock)
-        fila = [Paragraph(i.producto.codigo, E_NORMAL), _celda_descripcion(i.producto, marcar_e and i.exento_iva, i.observacion if perfil.observaciones_por_producto else ''), lote, venc,
+        fila = [Paragraph(i.producto.codigo, E_NORMAL), _celda_descripcion(i.producto, marcar_e and i.exento_iva, i.observacion if perfil.observaciones_por_producto else '', i), lote, venc,
                 Paragraph(f'{i.cantidad}<br/><font size="6.5" color="#6C757D">{i.producto.unidad.abreviatura}</font>', E_CENTRO)]
         precio_bs = redondear(i.precio_usd * p.tasa_bs) if p.tasa_bs else None
         if moneda == 'ambas':
@@ -485,6 +493,8 @@ def despacho_pdf(d, empresa):
         anchos = [26, 86, 30, 22, 12, 10]
     items = list(ItemPresupuesto.todos.filter(presupuesto=p).select_related('producto__unidad', 'producto__marca')
                  .order_by(Lower('producto__nombre'), 'pk'))
+    if not d.con_precios:          # sin precios es solo la mercancía que viaja; con precios cuadra con el total
+        items = [i for i in items if not i.producto.es_servicio]
     lotes = lotes_por_item(p, items)
     marcar_e = d.con_precios and bool(p.iva_pct) and any(i.exento_iva for i in items)
     filas = [cab]

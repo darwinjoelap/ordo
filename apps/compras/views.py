@@ -264,7 +264,7 @@ def crear_desde_panel(request):
     proveedor = get_object_or_404(Proveedor, pk=request.POST.get('proveedor') or 0)
     items = []
     for pid in request.POST.getlist('producto'):
-        producto = Producto.objects.filter(pk=pid, activo=True).first()
+        producto = Producto.objects.filter(pk=pid, activo=True).fisicos().first()
         if not producto:
             raise Http404
         try:

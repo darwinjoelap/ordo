@@ -1,0 +1,28 @@
+{% load ordo %}
+{# Recordatorio de servicios (Mi empresa → Servicios → «Recordatorio de servicios») #}
+{% url 'ventas:agenda_servicios' as url_agenda %}
+<div class="card mb-4">
+  <div class="card-header ordo-card-titulo d-flex justify-content-between align-items-center"><span><i class="bi bi-tools me-1"></i>Servicios</span>
+    <a href="{{ url_agenda }}" class="small fw-normal text-white">Agenda <i class="bi bi-chevron-right"></i></a></div>
+  <div class="card-body pb-2">
+    <div class="row g-2 text-center">
+      <div class="col-6 col-md-3"><a href="{{ url_agenda }}?tab=hoy" class="d-block border rounded py-2 text-decoration-none"><div class="fs-4 fw-bold {% if servicios.hoy %}text-primary{% else %}text-body{% endif %}">{{ servicios.hoy }}</div><div class="small text-muted">Hoy</div></a></div>
+      <div class="col-6 col-md-3"><a href="{{ url_agenda }}?tab=proximos" class="d-block border rounded py-2 text-decoration-none"><div class="fs-4 fw-bold text-body">{{ servicios.manana }}</div><div class="small text-muted">Mañana</div></a></div>
+      <div class="col-6 col-md-3"><a href="{{ url_agenda }}?tab=atrasados" class="d-block border rounded py-2 text-decoration-none {% if servicios.atrasados %}border-danger{% endif %}"><div class="fs-4 fw-bold {% if servicios.atrasados %}text-danger{% else %}text-body{% endif %}">{{ servicios.atrasados }}</div><div class="small text-muted">Atrasados</div></a></div>
+      <div class="col-6 col-md-3"><a href="{{ url_agenda }}?tab=por_programar" class="d-block border rounded py-2 text-decoration-none"><div class="fs-4 fw-bold {% if servicios.por_programar %}text-warning-emphasis{% else %}text-body{% endif %}">{{ servicios.por_programar }}</div><div class="small text-muted">Por programar</div></a></div>
+    </div>
+    {% if servicios.lista %}
+    <div class="list-group list-group-flush mt-2">
+      {% for i in servicios.lista %}
+      <div class="list-group-item px-0 d-flex justify-content-between align-items-center gap-2">
+        <a href="{% url 'ventas:servicio' i.pk %}" class="min-w-0 text-decoration-none">
+          <div class="fw-semibold text-truncate">{% if i.hora_servicio %}{{ i.hora_servicio|time:"h:i A" }} · {% endif %}{{ i.producto.nombre }}</div>
+          <div class="small text-muted text-truncate">{{ i.presupuesto.cliente.nombre }}{% if i.responsable_visible %} · {{ i.responsable_visible }}{% endif %}</div></a>
+        <a href="{{ i.whatsapp }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-success flex-shrink-0" title="Recordar por WhatsApp" aria-label="Recordar por WhatsApp a {{ i.presupuesto.cliente.nombre }}"><i class="bi bi-whatsapp"></i></a>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if servicios.por_cobrar %}<div class="small mt-2"><a href="{{ url_agenda }}?tab=por_cobrar" class="text-danger"><i class="bi bi-cash-coin me-1"></i>{{ servicios.por_cobrar }} servicio{{ servicios.por_cobrar|pluralize }} realizado{{ servicios.por_cobrar|pluralize }} por cobrar</a></div>{% endif %}
+  </div>
+</div>

@@ -173,6 +173,7 @@ class Presupuesto(EmpresaModel):
         return self.estado in (self.E.BORRADOR, self.E.EMITIDO)
 
     CONFIRMADAS = ('POR_PAGAR', 'POR_VALIDAR', 'VALIDADA')
+    CAIDAS = ('RECHAZADA', 'VENCIDO', 'CANCELADO', 'DEVUELTA')
 
     @property
     def confirmada(self):
@@ -242,12 +243,27 @@ class ItemPresupuesto(EmpresaModel):
     exento_iva = models.BooleanField('Exento de IVA', default=False)   # copia del producto al agregarlo
     observacion = models.CharField('Observación', max_length=300, blank=True)   # p. ej. dosis por hectárea
     orden = models.PositiveSmallIntegerField(default=0)
+    # ── Solo servicios (producto.tipo = SERVICIO) ──
+    descripcion_tecnica = models.TextField('Descripción técnica', blank=True)   # copia del servicio; editable aquí
+    fecha_servicio = models.DateField('Fecha programada', null=True, blank=True)
+    hora_servicio = models.TimeField('Hora', null=True, blank=True)
+    responsable = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='+', verbose_name='Responsable')
+    responsable_nombre = models.CharField('Responsable (externo)', max_length=120, blank=True)
+    realizado_en = models.DateTimeField('Realizado', null=True, blank=True)
+    realizado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                      related_name='+')
+    nota_servicio = models.CharField('Nota de ejecución', max_length=500, blank=True)
+    recibe_nombre = models.CharField('Recibió (cliente)', max_length=120, blank=True)
+    recibe_cedula = models.CharField('Cédula', max_length=20, blank=True)
+    recibe_firma = models.TextField(blank=True)         # data URL PNG, como en las entregas
 
     class Meta:
         verbose_name = 'Ítem'
         verbose_name_plural = 'Ítems'
         ordering = ['orden', 'pk']
         base_manager_name = 'todos'
+        indexes = [models.Index(fields=['empresa', 'fecha_servicio'], name='item_servicio_fecha')]
 
     def __str__(self):
         return f'{self.producto} × {self.cantidad}'
@@ -255,6 +271,24 @@ class ItemPresupuesto(EmpresaModel):
     @property
     def subtotal_usd(self):
         return redondear(self.cantidad * self.precio_usd)
+
+    # Estado del servicio: se DERIVA (no se guarda) para que nunca quede desfasado de la venta.
+    @property
+    def estado_servicio(self):
+        """PENDIENTE (sin fecha) · PROGRAMADO · ATRASADO · REALIZADO · ANULADO (venta caída)."""
+        if self.realizado_en:
+            return 'REALIZADO'
+        if self.presupuesto.estado in Presupuesto.CAIDAS:
+            return 'ANULADO'
+        if not self.fecha_servicio:
+            return 'PENDIENTE'
+        return 'ATRASADO' if self.fecha_servicio < timezone.localdate() else 'PROGRAMADO'
+
+    @property
+    def responsable_visible(self):
+        if self.responsable_id:
+            return getattr(self.responsable, 'nombre_visible', None) or self.responsable.get_username()
+        return self.responsable_nombre
 
 
 class Reserva(EmpresaModel):
