@@ -13,6 +13,7 @@ from apps.inventario import almacenes as almacenes_inv
 from apps.core.permisos import requiere
 from apps.inventario.models import Producto
 from apps.proveedores.models import Proveedor
+from apps.core.numeros import numero
 from apps.core.pdf import nombre_corto, respuesta_pdf
 
 from . import servicios, sugerencias
@@ -97,23 +98,35 @@ def actualizar_items(request, pk):
     form = OrdenForm(request.POST, instance=orden)
     if form.is_valid():
         form.save()
-    for item in orden.items.all():
+    errores = 0
+    for item in orden.items.select_related('producto'):
         if request.POST.get(f'quitar_{item.pk}'):
             item.delete()
             continue
-        try:
-            cantidad = int(request.POST.get(f'cantidad_{item.pk}', item.cantidad_pedida))
-            costo = Decimal(request.POST.get(f'costo_{item.pk}', item.costo_unitario_usd).replace(',', '.'))
-        except (ValueError, InvalidOperation):
-            messages.error(request, f'Valor inválido en {item.producto.nombre}.')
+        nombre = item.producto.nombre
+        texto_cant = request.POST.get(f'cantidad_{item.pk}', str(item.cantidad_pedida)).strip()
+        texto_costo = request.POST.get(f'costo_{item.pk}', str(item.costo_unitario_usd)).strip()
+        cantidad, costo = numero(texto_cant), numero(texto_costo)
+        if cantidad is None or cantidad != int(cantidad):
+            messages.error(request, f'{nombre}: la cantidad «{texto_cant or "vacía"}» debe ser un número entero.')
+            errores += 1
+            continue
+        if costo is None:
+            messages.error(request, f'{nombre}: el costo «{texto_costo or "vacío"}» no es un número (ej.: 12.50 o 12,50).')
+            errores += 1
             continue
         if cantidad <= 0 or costo < 0:
-            messages.error(request, f'{item.producto.nombre}: cantidad > 0 y costo ≥ 0.')
+            messages.error(request, f'{nombre}: la cantidad debe ser mayor que 0 y el costo no puede ser negativo.')
+            errores += 1
             continue
-        item.cantidad_pedida, item.costo_unitario_usd = cantidad, costo
+        item.cantidad_pedida, item.costo_unitario_usd = int(cantidad), costo.quantize(Decimal('0.01'))
         item.save(update_fields=['cantidad_pedida', 'costo_unitario_usd'])
-    messages.success(request, 'Orden actualizada.')
+    if errores:
+        messages.warning(request, f'Se guardó lo demás. Corrige {errores} producto{"s" if errores > 1 else ""} y vuelve a guardar.')
+    else:
+        messages.success(request, 'Orden actualizada.')
     return redirect('compras:detalle', pk=pk)
+
 
 
 @login_required
@@ -144,7 +157,13 @@ def recibir(request, pk):
             p = request.POST
             try:
                 cantidad = int(p.get(f'cantidad_{i.pk}') or 0)
-                costo = Decimal((p.get(f'costo_{i.pk}') or str(i.costo_unitario_usd)).replace(',', '.'))
+                costo = numero(p.get(f'costo_{i.pk}', str(i.costo_unitario_usd)))
+                if cantidad == 0 and costo is None:          # no llegó: el costo no importa
+                    costo = i.costo_unitario_usd
+                if costo is None or costo < 0:
+                    errores[i.pk] = 'Costo vacío o inválido (ej.: 12.50 o 12,50).'
+                    continue
+                costo = costo.quantize(Decimal('0.01'))
                 venc_txt = p.get(f'vence_{i.pk}') or ''
                 venc = datetime.strptime(venc_txt, '%Y-%m-%d').date() if venc_txt else None
             except (ValueError, InvalidOperation):

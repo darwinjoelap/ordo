@@ -106,7 +106,7 @@
       </table>{% else %}<div class="text-muted small mb-2">Aún no hay costos fijos para este mes.</div>{% endif %}
       <form method="post" action="{% url 'finanzas:costo_agregar' %}" class="row g-2 align-items-end">{% csrf_token %}<input type="hidden" name="mes" value="{{ mes|date:'Y-m' }}">
         <div class="col-12 col-sm-5"><label class="form-label small mb-1" for="cf-nombre">Concepto</label><input id="cf-nombre" name="nombre" maxlength="80" required class="form-control form-control-sm" placeholder="Alquiler"></div>
-        <div class="col-6 col-sm-3"><label class="form-label small mb-1" for="cf-monto">Monto USD</label><input id="cf-monto" name="monto" type="number" step="0.01" min="0.01" required class="form-control form-control-sm"></div>
+        <div class="col-6 col-sm-3"><label class="form-label small mb-1" for="cf-monto">Monto USD</label><input id="cf-monto" name="monto" type="text" inputmode="decimal" autocomplete="off" required class="form-control form-control-sm"></div>
         <div class="col-6 col-sm-4"><label class="form-label small mb-1" for="cf-rec">Se repite</label><select id="cf-rec" name="recurrente" class="form-select form-select-sm"><option value="1">Cada mes</option><option value="0">Solo este mes</option></select></div>
         <div class="col-12"><button class="btn btn-sm btn-success"><i class="bi bi-plus-lg me-1"></i>Agregar</button></div>
       </form>
@@ -129,7 +129,7 @@
       </table>{% else %}<div class="text-muted small mb-2">Sin deducciones.</div>{% endif %}
       <form method="post" action="{% url 'finanzas:deduccion_agregar' %}" class="row g-2 align-items-end">{% csrf_token %}<input type="hidden" name="mes" value="{{ mes|date:'Y-m' }}">
         <div class="col-12 col-sm-5"><label class="form-label small mb-1" for="de-nombre">Concepto</label><input id="de-nombre" name="nombre" maxlength="80" required class="form-control form-control-sm" placeholder="Comisión bancaria"></div>
-        <div class="col-5 col-sm-3"><label class="form-label small mb-1" for="de-pct">%</label><input id="de-pct" name="porcentaje" type="number" step="0.01" min="0.01" max="100" required class="form-control form-control-sm"></div>
+        <div class="col-5 col-sm-3"><label class="form-label small mb-1" for="de-pct">%</label><input id="de-pct" name="porcentaje" type="text" inputmode="decimal" autocomplete="off" required class="form-control form-control-sm"></div>
         <div class="col-7 col-sm-4"><label class="form-label small mb-1" for="de-base">Se aplica</label><select id="de-base" name="base" class="form-select form-select-sm">{% for v, t in bases %}<option value="{{ v }}">{{ t }}</option>{% endfor %}</select></div>
         <div class="col-12"><button class="btn btn-sm btn-success"><i class="bi bi-plus-lg me-1"></i>Agregar</button></div>
       </form>

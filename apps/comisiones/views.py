@@ -11,6 +11,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from apps.core.numeros import leer_decimal
 from apps.core.templatetags.ordo import usd
 from apps.core.permisos import PERMISOS, requiere, tiene_permiso
 from apps.empresas.models import Membresia
@@ -111,11 +112,11 @@ def configuracion(request):
         errores = []
 
         def leer(nombre):
-            texto = request.POST.get(nombre, '').strip().replace(',', '.')
+            texto = request.POST.get(nombre, '').strip()
             if not texto:
                 return None
             try:
-                valor = Decimal(texto)
+                valor = leer_decimal(texto)
             except InvalidOperation:
                 errores.append(texto)
                 return None

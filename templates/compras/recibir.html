@@ -17,7 +17,7 @@
           <td><input type="number" min="0" max="{{ i.pendiente }}" name="cantidad_{{ i.pk }}" value="{{ f.cantidad }}" class="form-control form-control-sm" style="width:80px"></td>
           <td><input name="lote_{{ i.pk }}" value="{{ f.lote }}" class="form-control form-control-sm" style="width:110px" {% if not i.producto.maneja_lotes %}placeholder="opcional"{% endif %}></td>
           <td><input type="date" name="vence_{{ i.pk }}" value="{{ f.vence }}" class="form-control form-control-sm" style="width:150px"></td>
-          <td><input type="number" min="0" step="0.01" name="costo_{{ i.pk }}" value="{{ f.costo }}" class="form-control form-control-sm" style="width:100px"></td>
+          <td><input type="text" inputmode="decimal" name="costo_{{ i.pk }}" value="{{ f.costo }}" class="form-control form-control-sm" style="width:100px"></td>
         </tr>
       {% endwith %}{% endfor %}
       </tbody>

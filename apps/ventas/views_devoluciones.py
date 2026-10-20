@@ -11,6 +11,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
+from apps.core.numeros import leer_decimal
 from apps.core.permisos import requiere, tiene_permiso
 from apps.core.pdf import nombre_corto, respuesta_pdf
 
@@ -59,8 +60,7 @@ def devolver(request, pk):
             datos['fecha'] = _fecha(post.get('fecha')) or timezone.localdate()
             reembolso = None
             if datos['reembolso']:
-                monto = datos['monto'].strip().replace(',', '.')
-                reembolso = {'monto_usd': Decimal(monto) if monto else None, 'metodo': datos['metodo'],
+                reembolso = {'monto_usd': leer_decimal(datos['monto']), 'metodo': datos['metodo'],
                              'fecha': _fecha(datos['fecha_reembolso']), 'referencia': datos['referencia']}
             dev = servicios.devolver(p, request.user, lineas, datos['motivo'], datos['fecha'], reembolso)
         except (ValueError, InvalidOperation):
@@ -86,8 +86,7 @@ def detalle(request, pk):
             messages.error(request, 'Tu rol no permite esta acción.')
             return redirect('ventas:devolucion', pk=pk)
         try:
-            monto = request.POST.get('reembolso_monto', '').strip().replace(',', '.')
-            servicios.registrar_reembolso(dev, Decimal(monto) if monto else None,
+            servicios.registrar_reembolso(dev, leer_decimal(request.POST.get('reembolso_monto')),
                                           request.POST.get('reembolso_metodo', ''),
                                           _fecha(request.POST.get('reembolso_fecha')),
                                           request.POST.get('reembolso_referencia', ''))

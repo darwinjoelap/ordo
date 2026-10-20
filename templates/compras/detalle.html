@@ -49,8 +49,8 @@
           <tr>
             <td><div class="fw-semibold">{{ i.producto.nombre }}</div><small class="text-muted"><code>{{ i.producto.codigo }}</code> · {{ i.producto.unidad.abreviatura }}</small></td>
             {% if orden.editable %}
-              <td class="text-end"><input type="number" min="1" name="cantidad_{{ i.pk }}" value="{{ i.cantidad_pedida }}" class="form-control form-control-sm text-end ms-auto" style="width:90px"></td>
-              <td class="text-end"><input type="number" min="0" step="0.01" name="costo_{{ i.pk }}" value="{{ i.costo_unitario_usd }}" class="form-control form-control-sm text-end ms-auto" style="width:110px"></td>
+              <td class="text-end"><input type="text" inputmode="numeric" name="cantidad_{{ i.pk }}" value="{{ i.cantidad_pedida }}" class="form-control form-control-sm text-end ms-auto" style="width:90px" aria-label="Cantidad de {{ i.producto.nombre }}"></td>
+              <td class="text-end"><input type="text" inputmode="decimal" name="costo_{{ i.pk }}" value="{{ i.costo_unitario_usd }}" class="form-control form-control-sm text-end ms-auto" style="width:110px" aria-label="Costo de {{ i.producto.nombre }}"></td>
             {% else %}
               <td class="text-end">{{ i.cantidad_pedida|miles }}</td>
               <td class="text-end {% if i.pendiente %}text-warning{% else %}text-success{% endif %} fw-semibold">{{ i.cantidad_recibida|miles }}</td>

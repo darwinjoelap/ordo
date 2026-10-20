@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from apps.core.numeros import leer_decimal
 from apps.core.permisos import requiere
 
 from . import servicios
@@ -28,7 +29,10 @@ def _volver(mes):
 
 
 def _decimal(texto):
-    return Decimal((texto or '').strip().replace(',', '.'))
+    valor = leer_decimal(texto)
+    if valor is None:
+        raise InvalidOperation('vacío')
+    return valor
 
 
 @login_required

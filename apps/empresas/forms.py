@@ -45,6 +45,8 @@ class PerfilEmpresaForm(forms.ModelForm):
         for nombre in ('quitar_logo', 'quitar_firma'):
             self.fields[nombre].widget.attrs['class'] = 'form-check-input'
         self.fields['tasa_abonos'].required = False
+        from apps.core.forms import decimales_tolerantes
+        decimales_tolerantes(self)
         for nombre in ('razon_social', 'rif'):          # los administra la plataforma (panel de empresas)
             self.fields[nombre].disabled = True
             self.fields[nombre].help_text = 'Lo actualiza el equipo de Ordo. Escríbenos si hay que corregirlo.'

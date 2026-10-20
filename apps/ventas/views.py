@@ -17,6 +17,7 @@ from django.views.decorators.http import require_POST
 from apps.clientes.permisos import clientes_visibles
 from apps.core.permisos import requiere, tiene_permiso
 from apps.inventario.models import Producto
+from apps.core.numeros import leer_decimal
 from apps.core.pdf import nombre_corto, respuesta_pdf
 
 from . import servicios
@@ -252,8 +253,7 @@ def agregar_item(request, pk):
     try:
         producto = get_object_or_404(Producto.objects.filter(activo=True), pk=request.POST.get('producto'))
         cantidad = int(request.POST.get('cantidad') or 1)
-        precio = request.POST.get('precio', '').replace(',', '.') or None
-        precio = Decimal(precio) if precio is not None else None
+        precio = leer_decimal(request.POST.get('precio'))
         item = servicios.agregar_item(p, producto, cantidad, precio, request.empresa.perfil,
                                       tiene_permiso(request, 'precios.fijar'))
         disponible = None if producto.es_servicio else \
@@ -284,7 +284,8 @@ def actualizar(request, pk):
                 continue
             cantidad = int(request.POST.get(f'cantidad_{item.pk}', item.cantidad))
             precio_txt = request.POST.get(f'precio_{item.pk}')
-            precio = Decimal(precio_txt.replace(',', '.')) if precio_txt else item.precio_usd
+            precio = leer_decimal(precio_txt)
+            precio = item.precio_usd if precio is None else precio
             cambios[item.pk] = (cantidad, precio)
             if f'obs_{item.pk}' in request.POST:
                 observaciones[item.pk] = request.POST.get(f'obs_{item.pk}', '')
@@ -296,7 +297,7 @@ def actualizar(request, pk):
                     datos['fecha'] = _fecha_o_none(request.POST.get(f'fecha_{item.pk}'))
                 servicios_datos[item.pk] = datos
         descuento = request.POST.get('descuento_pct')
-        descuento = Decimal(descuento.replace(',', '.')) if descuento else None
+        descuento = leer_decimal(descuento)
         if descuento and not tiene_permiso(request, 'precios.fijar') and request.empresa.perfil.modo_precio == 'FIJO':
             descuento = None
         perfil = request.empresa.perfil
@@ -399,12 +400,12 @@ def pago_entrega(request, pk):
     try:
         if 'pagado' in request.POST:
             fecha = request.POST.get('fecha_pago') or None
-            monto = request.POST.get('monto_pago', '').strip().replace(',', '.')
+            monto = leer_decimal(request.POST.get('monto_pago'))
             servicios.registrar_pago(p, request.POST.get('pagado') == '1', request.POST.get('metodo_pago', ''),
                                      date.fromisoformat(fecha) if fecha else None,
                                      banco=request.POST.get('banco_pago', ''),
                                      referencia=request.POST.get('referencia_pago', ''),
-                                     monto=Decimal(monto) if monto else None,
+                                     monto=monto,
                                      moneda=request.POST.get('moneda_pago', ''), usuario=request.user)
         if 'entregado' in request.POST:
             if request.empresa.perfil.despacho_por_almacen:
@@ -511,10 +512,7 @@ def despacho_pdf_vista(request, pk):
 
 
 def _decimal_post(request, campo):
-    texto = request.POST.get(campo, '').strip().replace(' ', '')
-    if ',' in texto and '.' in texto:
-        texto = texto.replace('.', '').replace(',', '.')
-    return Decimal(texto.replace(',', '.')) if texto else None
+    return leer_decimal(request.POST.get(campo, ''))
 
 
 @login_required
