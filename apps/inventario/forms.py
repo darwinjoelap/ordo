@@ -27,6 +27,9 @@ class ProductoForm(FormBootstrap, forms.ModelForm):
         else:
             self.fields['descripcion'].help_text = ('Servicio: es la descripción técnica que sale en el presupuesto '
                                                     'debajo del nombre (se puede ajustar en cada presupuesto).')
+            self.fields['descripcion'].widget.attrs['rows'] = 4
+            # La categoría la exige el producto; en un servicio es opcional (vacía = «Servicios»)
+            self.fields['categoria'].required = False
         self.fields['marca'].queryset = Marca.objects.filter(activa=True)
         self.fields['proveedor_habitual'].queryset = Proveedor.objects.filter(activo=True)
         # Subcategorías de la categoría elegida (POST) o de la del producto
@@ -47,7 +50,15 @@ class ProductoForm(FormBootstrap, forms.ModelForm):
         sub, cat = datos.get('subcategoria'), datos.get('categoria')
         if sub and cat and sub.categoria_id != cat.pk:
             self.add_error('subcategoria', 'La subcategoría no pertenece a la categoría elegida.')
-        tipo = datos.get('tipo')
+        tipo = datos.get('tipo') or self.instance.tipo
+        if tipo == Producto.Tipo.SERVICIO:
+            # Lo que el formulario de servicio no muestra no se guarda (marca, subcategoría, proveedor)
+            datos['marca'] = datos['subcategoria'] = datos['proveedor_habitual'] = None
+            self.errors.pop('subcategoria', None)
+            if not datos.get('categoria'):
+                datos['categoria'], _ = Categoria.objects.get_or_create(nombre='Servicios')
+        elif 'categoria' in self.fields and not datos.get('categoria') and 'categoria' not in self.errors:
+            self.add_error('categoria', 'Este campo es obligatorio.')
         if self.instance.pk and tipo and tipo != self.instance.tipo:
             from .models import Lote
             if tipo == Producto.Tipo.SERVICIO and Lote.objects.filter(producto=self.instance, cantidad_actual__gt=0).exists():
