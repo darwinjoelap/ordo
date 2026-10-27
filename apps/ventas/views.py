@@ -268,7 +268,7 @@ def agregar_item(request, pk):
         messages.error(request, 'Cantidad o precio inválidos.')
     except servicios.ErrorVenta as e:
         messages.error(request, str(e))
-    return redirect('ventas:detalle', pk=pk)
+    return redirect(reverse('ventas:detalle', args=[pk]) + '#agregar')     # vuelve al buscador para el siguiente
 
 
 @login_required

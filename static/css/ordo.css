@@ -195,6 +195,51 @@ body {
 .ordo-login .card { width: 100%; max-width: 420px; border-radius: 1rem; }
 .ordo-login .ordo-logo-login { width: 170px; height: auto; }
 
+/* ── Acceso (login): pantalla partida, como Ordo Lab y Ordo Salud ───── */
+.ordo-acceso {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-wrap: wrap;
+  background: var(--ordo-fondo);
+}
+.ordo-acceso-marca {
+  position: relative;
+  overflow: hidden;
+  flex: 1 1 420px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: max(2.5rem, env(safe-area-inset-top)) 3rem 3rem;
+  background: var(--ordo-azul-900);
+  color: #fff;
+}
+.ordo-acceso-fondo { position: absolute; right: -140px; bottom: -140px; width: 520px; height: 520px; object-fit: contain;
+  opacity: .07; filter: brightness(0) invert(1); pointer-events: none; }
+.ordo-acceso-logo { width: 240px; max-width: 70%; height: auto; position: relative; }
+.ordo-acceso-lema { font-weight: 800; font-size: 2.1rem; line-height: 1.15; color: #fff; max-width: 30rem; position: relative; }
+.ordo-acceso-detalle { color: #C7DBEE; max-width: 30rem; line-height: 1.6; position: relative; }
+.ordo-acceso-formulario {
+  flex: 1 1 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1.25rem max(2.5rem, env(safe-area-inset-bottom));
+}
+.ordo-acceso-caja { width: 100%; max-width: 420px; background: #fff; border: 1px solid var(--ordo-gris-200);
+  border-radius: 18px; padding: 2rem; }
+.ordo-eyebrow { font-size: .75rem; letter-spacing: .14em; font-weight: 800; color: var(--ordo-verde-600); text-transform: uppercase; }
+@media (max-width: 767.98px) {
+  .ordo-acceso-marca { flex-basis: 100%; padding: max(1.5rem, env(safe-area-inset-top)) 1.5rem 1.5rem; gap: 1rem; }
+  .ordo-acceso-logo { width: 150px; }
+  .ordo-acceso-lema { font-size: 1.25rem; }
+  .ordo-acceso-detalle { display: none; }
+  .ordo-acceso-fondo { width: 300px; height: 300px; right: -90px; bottom: -110px; }
+  .ordo-acceso-formulario { align-items: flex-start; padding-top: 1.5rem; }
+  .ordo-acceso-caja { padding: 1.5rem 1.25rem; }
+}
+
 /* ── Mi empresa ───────────────────────────────────────────────────────── */
 .ordo-tabs { overflow-x: auto; flex-wrap: nowrap; white-space: nowrap; }
 .ordo-previa {
@@ -267,6 +312,8 @@ code { color: var(--ordo-gris-600); }
 /* Títulos de tarjeta con el color de la marca (presupuesto) */
 .ordo-card-titulo { background: var(--ordo-azul-900); color: #fff; font-weight: 600; }
 /* Resultados de búsqueda de productos: los controles aparecen al elegir uno */
+/* Buscador del presupuesto: al subir queda justo bajo la barra superior */
+.ordo-buscador { scroll-margin-top: calc(var(--ordo-topbar-alto) + env(safe-area-inset-top) + .5rem); }
 .js-resultado .ordo-solo-elegido { display: none; }
 .js-resultado.ordo-elegido .ordo-solo-elegido { display: block; }
 .js-resultado.ordo-elegido { cursor: default; border-color: var(--bs-success); background: rgba(25, 135, 84, .05); }

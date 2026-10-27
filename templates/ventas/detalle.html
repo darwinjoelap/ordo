@@ -41,10 +41,10 @@
 <div class="row g-3">
   <div class="col-lg-8">
     {% if p.editable %}
-    <div class="card mb-3">
+    <div class="card mb-3 ordo-buscador" id="agregar">
       <div class="card-header ordo-card-titulo"><i class="bi bi-search me-1"></i>Agregar producto{% if perfil.maneja_servicios %} o servicio{% endif %}</div>
       <div class="card-body">
-        <input type="search" name="q" class="form-control" placeholder="Nombre o código (mínimo 2 letras)" autocomplete="off"
+        <input type="search" name="q" id="buscar-producto" class="form-control" placeholder="Nombre o código (mínimo 2 letras)" autocomplete="off" enterkeyhint="search"
                hx-get="{% url 'ventas:buscar_productos' p.pk %}" hx-trigger="input changed delay:300ms, search" hx-target="#resultados-productos">
         <div id="resultados-productos" class="mt-2"></div>
       </div>
@@ -302,12 +302,22 @@
   (function () {
     var zona = document.getElementById('resultados-productos');
     if (!zona) return;
+    var buscador = document.getElementById('agregar'), campo = document.getElementById('buscar-producto');
+    // En el teléfono el teclado tapa media pantalla: el buscador sube arriba para que los resultados se vean sin bajar
+    var movil = window.matchMedia('(max-width: 991.98px)');
+    function subir() { if (movil.matches && buscador) buscador.scrollIntoView({block: 'start', behavior: 'smooth'}); }
+    if (campo) {
+      campo.addEventListener('focus', function () { setTimeout(subir, 250); });     // espera a que abra el teclado
+      if (location.hash === '#agregar') { campo.focus({preventScroll: true}); subir(); }   // recién agregado: listo para el siguiente
+    }
+    zona.addEventListener('htmx:afterSwap', subir);
     function elegir(fila) {
       if (fila.classList.contains('ordo-elegido')) return;
       zona.querySelectorAll('.js-resultado').forEach(function (f) { f.classList.toggle('d-none', f !== fila); });
       fila.classList.add('ordo-elegido');
       var ayuda = zona.querySelector('.js-ayuda-busqueda'); if (ayuda) ayuda.classList.add('d-none');
-      var cantidad = fila.querySelector('[name=cantidad]'); cantidad.focus(); cantidad.select();
+      var cantidad = fila.querySelector('[name=cantidad]'); cantidad.focus({preventScroll: true}); cantidad.select();
+      subir();
     }
     zona.addEventListener('click', function (e) {
       var fila = e.target.closest('.js-resultado');
