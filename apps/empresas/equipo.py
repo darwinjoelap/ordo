@@ -12,8 +12,11 @@ import secrets
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.db.models import Q
 
 from .models import Membresia, Rol
+
+USUARIOS_RESERVADOS = {'soporte', 'ordo', 'admin'}   # y los nombres de cuentas de soporte/plataforma
 
 ALFABETO = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
@@ -74,6 +77,9 @@ def agregar(empresa, actor, username, nombre, apellido, rol, email=''):
     _validar_rol(actor, rol)
     username = normalizar_usuario(username)
     U = get_user_model()
+    if username in USUARIOS_RESERVADOS or U.objects.filter(
+            empresa_cuenta__isnull=True, username=username).filter(Q(es_soporte=True) | Q(is_superuser=True)).exists():
+        raise ErrorEquipo(f'El usuario "{username}" está reservado para Ordo. Elige otro nombre.')
     if U.objects.filter(empresa_cuenta=empresa, username=username).exists():
         raise ErrorEquipo(f'Ya existe el usuario "{username}" en esta empresa. Si está inactivo, reactívalo.')
     _validar_limite(empresa)

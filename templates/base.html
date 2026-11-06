@@ -88,8 +88,12 @@
   <main class="ordo-main">
     {% if membresia.soporte %}
       <div class="alert alert-info py-2 d-flex justify-content-between align-items-center gap-2 flex-wrap">
-        <span><i class="bi bi-headset me-1"></i>Modo soporte: estás dentro de <b>{{ perfil.nombre_comercial|default:empresa.nombre }}</b> como administrador de Ordo. No apareces en su equipo.{% if not empresa.esta_activa %} <b>Empresa suspendida o vencida.</b>{% endif %}</span>
+        <span><i class="bi bi-headset me-1"></i>Modo soporte: estás dentro de <b>{{ perfil.nombre_comercial|default:empresa.nombre }}</b> como soporte de Ordo. No apareces en su equipo.{% if not empresa.esta_activa %} <b>Empresa suspendida o vencida.</b>{% endif %}</span>
+        {% if request.user.is_superuser and not request.empresa_host %}
         <form method="post" action="{% url 'plataforma:salir' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary">Salir al panel</button></form>
+        {% else %}
+        <form method="post" action="{% url 'usuarios:logout' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary">Cerrar sesión</button></form>
+        {% endif %}
       </div>
     {% endif %}
     {% if aviso_vencimiento is not None %}

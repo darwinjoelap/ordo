@@ -100,6 +100,7 @@
 - [x] Aviso al Dueño/Administrador 7 días antes del vencimiento; límite de usuarios aplicado en Equipo
 - [x] Modo soporte: el superusuario entra a cualquier empresa (botón Entrar o su enlace) con permisos de Dueño,
       sin membresía, sin aparecer en Equipo ni contar en el límite; banner y botón "Salir al panel"
+- [x] Cuenta de soporte Ordo (`es_soporte`, `crear_soporte`): entra por el login de cualquier empresa en Modo soporte, oculta del equipo, sin panel de plataforma.
 
 ## Login por usuario
 - [x] Usuario propio de cada empresa (`maria` puede existir en dos empresas); correo opcional

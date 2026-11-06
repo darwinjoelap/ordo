@@ -86,6 +86,9 @@ def entrar(request, pk):
     request.session[SESION_SOPORTE] = empresa.pk
     request.session.pop(SESION_EMPRESA, None)
     log.warning('Soporte: %s entró a la empresa %s (%s)', request.user.username, empresa.nombre, empresa.pk)
+    from apps.core.subdominios import base
+    if base():          # cada subdominio tiene su sesión: se entra en el login de la empresa con la misma cuenta
+        return redirect(_enlace(request, empresa) + '?soporte=1')
     return redirect('core:inicio')
 
 

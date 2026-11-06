@@ -12,6 +12,10 @@ SESION_EMPRESA = 'empresa_id'
 SESION_SOPORTE = 'soporte_empresa_id'   # superusuario dentro de una empresa sin ser miembro
 
 
+def es_soporte_ordo(usuario):
+    return usuario.is_authenticated and getattr(usuario, 'es_soporte_ordo', False)
+
+
 def membresia_soporte(usuario, empresa):
     """Membresía virtual (no se guarda) con la que un superusuario opera dentro de cualquier empresa."""
     m = Membresia(usuario=usuario, empresa=empresa, rol=Rol.DUENO, activa=True)
@@ -43,9 +47,9 @@ class EmpresaActivaMiddleware:
             empresa_host = getattr(request, 'empresa_host', None)
             if empresa_host is not None:        # subdominio de la empresa: manda el host, no la sesión
                 elegida = next((m for m in membresias if m.empresa_id == empresa_host.pk), None)
-                if elegida is None and request.user.is_superuser:
+                if elegida is None and es_soporte_ordo(request.user):
                     elegida = membresia_soporte(request.user, empresa_host)
-                suspendida = not empresa_host.esta_activa and not request.user.is_superuser
+                suspendida = not empresa_host.esta_activa and not es_soporte_ordo(request.user)
                 if (elegida is None or suspendida) and not request.path.startswith(('/static/', '/cuenta/salir/')):
                     from django.shortcuts import render
                     plantilla = 'empresas/suspendida.html' if suspendida else 'empresas/sin_acceso.html'
@@ -54,11 +58,11 @@ class EmpresaActivaMiddleware:
                 empresa_id = request.session.get(SESION_EMPRESA)
                 if empresa_id:
                     elegida = next((m for m in membresias if m.empresa_id == empresa_id), None)
-                soporte_id = request.session.get(SESION_SOPORTE) if request.user.is_superuser else None
+                soporte_id = request.session.get(SESION_SOPORTE) if es_soporte_ordo(request.user) else None
                 if soporte_id:
                     empresa = Empresa.objects.select_related('perfil').filter(pk=soporte_id).first()
                     elegida = membresia_soporte(request.user, empresa) if empresa else None
-                if elegida is None and len(membresias) == 1 and not request.user.is_superuser:
+                if elegida is None and len(membresias) == 1 and not es_soporte_ordo(request.user):
                     elegida = membresias[0]
                     request.session[SESION_EMPRESA] = elegida.empresa_id
 

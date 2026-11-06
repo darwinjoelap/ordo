@@ -49,3 +49,17 @@ El punto inicial de `.app.ordove.com` en `ALLOWED_HOSTS` cubre todos los subdomi
 - [ ] Pasar a cada empresa su enlace nuevo (Plataforma → empresa → Enlace).
 - [ ] En el teléfono: desinstalar la app instalada con la dirección vieja e instalarla desde el subdominio nuevo
   (cada dirección guarda su propia app, sesión y caché sin conexión).
+
+## Cuenta de soporte Ordo
+Una sola cuenta de plataforma (`es_soporte=True`, sin empresa, no superusuario) que entra por el login de
+CUALQUIER empresa (`<slug>.app.ordove.com` o `/<slug>/`) en «Modo soporte»: permisos de Dueño, sin membresía, así
+que no sale en Equipo, vendedores ni cuenta en el límite de usuarios. No entra a `/plataforma/` ni a `/admin/`.
+
+- Crear o cambiar la contraseña (Railway → web → Shell): `python manage.py crear_soporte` (la pide dos veces; nunca
+  va en código ni archivos). Desactivar: `python manage.py crear_soporte --desactivar`.
+- Si la empresa tiene un usuario propio con el mismo nombre, gana el de la empresa; por eso `soporte`, `ordo`,
+  `admin` y los nombres de cuentas de plataforma están reservados al agregar personas al equipo.
+- Empresa suspendida: el login se abre con `?soporte=1` (el botón Entrar del panel ya lo agrega).
+- Cada entrada queda en el log: `Soporte: <usuario> entró a la empresa ...`.
+- Con subdominios, el botón «Entrar» del panel lleva al login de la empresa (cada subdominio tiene su sesión);
+  el superusuario entra ahí con su misma cuenta.

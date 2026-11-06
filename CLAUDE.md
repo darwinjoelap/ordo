@@ -30,6 +30,7 @@ python manage.py runserver
 - `apps/core` — inicio, healthcheck `/salud/`, utilidades comunes
 - `apps/usuarios` — login por NOMBRE DE USUARIO, único POR EMPRESA (`empresa_cuenta`); cuentas de plataforma sin empresa.
   Backend `usuarios/backends.py`: en `/<slug>/` busca en esa empresa; en `/cuenta/entrar/` y `/admin/` solo plataforma. El rol vive en la membresía
+  Cuenta de soporte (`Usuario.es_soporte`, comando `crear_soporte`): entra a cualquier empresa en Modo soporte sin ser miembro (docs/DOMINIO.md)
 - `apps/empresas` — Empresa, Membresia (rol), PerfilEmpresa (marca y datos para documentos), panel Mi empresa
 - `apps/empresas/equipo.py` — reglas del equipo (agregar, rol, desactivar, clave temporal); `apps/usuarios` → Mi perfil y middleware de cambio de clave obligatorio
 - `apps/empresas/plataforma.py` + `views_plataforma.py` — panel `/plataforma/` (solo superusuario); `views_entrada.py` → enlace `/<slug>/` (ruta AL FINAL de config/urls.py; slugs reservados en `RESERVADOS`)

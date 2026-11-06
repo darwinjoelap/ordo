@@ -10,12 +10,15 @@ from django.contrib.auth import views as auth_views
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
-from apps.core.middleware import SESION_EMPRESA, SESION_SOPORTE
+import logging
+
+from apps.core.middleware import SESION_EMPRESA, SESION_SOPORTE, es_soporte_ordo
 from apps.usuarios.forms import LoginForm
 
 from .models import Empresa, Membresia
 
 COOKIE_EMPRESA = 'ordo_empresa'
+log = logging.getLogger('apps.empresas')
 
 
 def _membresia(usuario, empresa):
@@ -28,7 +31,8 @@ class EntradaEmpresa(auth_views.LoginView):
 
     def dispatch(self, request, *args, **kwargs):
         self.empresa = get_object_or_404(Empresa.objects.select_related('perfil'), slug=kwargs['slug'])
-        if not self.empresa.esta_activa and not request.user.is_superuser:
+        # ?soporte=1: el login se muestra igual para que soporte Ordo entre; los demás siguen bloqueados después
+        if not self.empresa.esta_activa and not es_soporte_ordo(request.user) and request.GET.get('soporte') != '1':
             return render(request, 'empresas/suspendida.html', {'empresa_marca': self.empresa}, status=403)
         request.empresa_login = self.empresa          # el backend busca el usuario dentro de esta empresa
         if request.user.is_authenticated:
@@ -36,7 +40,7 @@ class EntradaEmpresa(auth_views.LoginView):
                 request.session[SESION_EMPRESA] = self.empresa.pk
                 request.session.pop(SESION_SOPORTE, None)
                 return redirect('core:inicio')
-            if request.user.is_superuser:
+            if es_soporte_ordo(request.user):
                 request.session[SESION_SOPORTE] = self.empresa.pk
                 return redirect('core:inicio')
             return render(request, 'empresas/sin_acceso.html', {'empresa_marca': self.empresa}, status=403)
@@ -55,12 +59,16 @@ class EntradaEmpresa(auth_views.LoginView):
         usuario = form.get_user()
         if _membresia(usuario, self.empresa):
             self.request.session[SESION_EMPRESA] = self.empresa.pk
-        elif usuario.is_superuser:
+        elif es_soporte_ordo(usuario):
             self.request.session[SESION_SOPORTE] = self.empresa.pk
+            log.warning('Soporte: %s entró a la empresa %s (%s)', usuario.username, self.empresa.nombre, self.empresa.pk)
         return respuesta
 
     def get_success_url(self):
         return '/'
+
+    def get_redirect_url(self):
+        return ''          # el ?soporte=1 no es un destino
 
 
 def entrada(request, slug):

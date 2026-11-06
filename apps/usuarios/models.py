@@ -61,6 +61,10 @@ class Usuario(AbstractUser):
     debe_cambiar_clave = models.BooleanField(
         'Debe cambiar la contraseña', default=False,
         help_text='Se activa al asignar una contraseña temporal; se pide cambiarla al entrar.')
+    es_soporte = models.BooleanField(
+        'Cuenta de soporte Ordo', default=False,
+        help_text='Cuenta de plataforma que entra por el enlace de CUALQUIER empresa con permisos de Dueño, '
+                  'sin ser miembro (no aparece en su equipo). No entra al panel de plataforma.')
 
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = []
@@ -83,6 +87,11 @@ class Usuario(AbstractUser):
 
     def __str__(self):
         return self.nombre_visible
+
+    @property
+    def es_soporte_ordo(self):
+        """Superusuario o cuenta de soporte: opera dentro de cualquier empresa como 'Modo soporte'."""
+        return self.is_active and self.empresa_cuenta_id is None and (self.is_superuser or self.es_soporte)
 
     @property
     def nombre_visible(self):
