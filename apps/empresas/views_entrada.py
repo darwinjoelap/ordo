@@ -1,5 +1,6 @@
 """
-Enlace propio de cada empresa: https://<dominio>/<slug>/
+Enlace propio de cada empresa: https://<slug>.<BASE_DOMAIN>/ (apps/core/subdominios.py) o, sin BASE_DOMAIN,
+https://<dominio>/<slug>/ (sigue funcionando siempre, p. ej. en la dirección de Railway).
 
 - Sin sesión: login con la marca de la empresa; al entrar queda elegida esa empresa.
 - Con sesión y membresía activa: elige esa empresa y va al inicio.
@@ -65,4 +66,8 @@ class EntradaEmpresa(auth_views.LoginView):
 def entrada(request, slug):
     if slug != slug.lower():
         raise Http404
+    from apps.core import subdominios
+    if subdominios.base() and subdominios.host_de(request) in (subdominios.base(), f'www.{subdominios.base()}') \
+            and Empresa.objects.filter(slug=slug).exists():
+        return redirect(subdominios.enlace(request, slug))     # app.ordove.com/<slug>/ → <slug>.app.ordove.com
     return EntradaEmpresa.as_view()(request, slug=slug)

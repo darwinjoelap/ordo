@@ -13,6 +13,8 @@ SECRET_KEY = config('SECRET_KEY', default='dev-inseguro-cambiar')
 DEBUG = False
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv(), default='localhost,127.0.0.1')
 CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', cast=Csv(), default='')
+# Subdominio por empresa: <slug>.BASE_DOMAIN (ej. app.ordove.com). Vacío = todo por ruta /<slug>/.
+BASE_DOMAIN = config('BASE_DOMAIN', default='')
 
 # Versión visible y usada para invalidar caché de la PWA en cada despliegue
 ORDO_VERSION = config('RAILWAY_GIT_COMMIT_SHA', default='dev')[:7]
@@ -56,6 +58,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'apps.core.subdominios.SubdominioMiddleware',       # <slug>.BASE_DOMAIN → empresa
     'apps.usuarios.middleware.CambioClaveObligatorioMiddleware',
     'apps.core.middleware.EmpresaActivaMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',

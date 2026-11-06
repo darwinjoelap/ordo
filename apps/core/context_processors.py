@@ -20,6 +20,14 @@ def _recordatorio_servicios(request, empresa):
     return SimpleLazyObject(contar)
 
 
+def _enlace(request, empresa):
+    """Dirección propia de la empresa (su subdominio si hay BASE_DOMAIN; si no, /<slug>/)."""
+    if not empresa:
+        return ''
+    from .subdominios import enlace
+    return SimpleLazyObject(lambda: enlace(request, empresa.slug))
+
+
 def ordo(request):
     """Datos globales para todas las plantillas."""
     membresia = getattr(request, 'membresia', None)
@@ -44,4 +52,6 @@ def ordo(request):
         'membresias': getattr(request, 'membresias', []),
         'permisos': permisos_de(membresia.rol) if membresia else set(),
         'servicios_aviso': _recordatorio_servicios(request, empresa) if membresia else None,
+        'enlace_empresa': _enlace(request, empresa),
+        'base_domain': getattr(settings, 'BASE_DOMAIN', ''),
     }

@@ -26,7 +26,8 @@ def solo_plataforma(vista):
 
 
 def _enlace(request, empresa):
-    return request.build_absolute_uri(f'/{empresa.slug}/')
+    from apps.core.subdominios import enlace
+    return enlace(request, empresa.slug)
 
 
 @solo_plataforma

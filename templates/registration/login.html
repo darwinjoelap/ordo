@@ -47,7 +47,7 @@
         </div>
         <button type="submit" class="btn btn-primary btn-lg w-100">Entrar</button>
       </form>
-      {% if login_plataforma %}<p class="small text-muted mt-4 mb-0">¿Trabajas en una empresa? Entra por el <b>enlace de tu empresa</b> (ej. <code>/miempresa/</code>).</p>{% endif %}
+      {% if login_plataforma %}<p class="small text-muted mt-4 mb-0">¿Trabajas en una empresa? Entra por el <b>enlace de tu empresa</b> (ej. <code>{% if base_domain %}miempresa.{{ base_domain }}{% else %}/miempresa/{% endif %}</code>).</p>{% endif %}
       {% if empresa_marca %}<p class="small text-muted mt-4 mb-0">¿Olvidaste tu contraseña? Pídela al administrador de tu empresa.</p>{% endif %}
     </div>
   </section>

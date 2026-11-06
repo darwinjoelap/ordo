@@ -13,7 +13,7 @@
       <div class="col-md-6">{% include 'partials/campo.html' with campo=form.apellido %}</div>
       <div class="col-md-6">{% include 'partials/campo.html' with campo=form.email %}</div>
     </div>
-    <p class="small text-muted mt-2 mb-2">Se crea con una <b>contraseña temporal</b> que verás una sola vez; la persona debe cambiarla al entrar. El usuario es propio de esta empresa: entra por su enlace <code>/{{ empresa.slug }}/</code>.</p>
+    <p class="small text-muted mt-2 mb-2">Se crea con una <b>contraseña temporal</b> que verás una sola vez; la persona debe cambiarla al entrar. El usuario es propio de esta empresa: entra por su enlace <code>{{ enlace_empresa }}</code>.</p>
     <div><button class="btn btn-primary btn-sm">Agregar</button></div>
   </form>
 </div>

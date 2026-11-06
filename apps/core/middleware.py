@@ -40,16 +40,27 @@ class EmpresaActivaMiddleware:
             ]
             request.membresias = membresias
             elegida = None
-            empresa_id = request.session.get(SESION_EMPRESA)
-            if empresa_id:
-                elegida = next((m for m in membresias if m.empresa_id == empresa_id), None)
-            soporte_id = request.session.get(SESION_SOPORTE) if request.user.is_superuser else None
-            if soporte_id:
-                empresa = Empresa.objects.select_related('perfil').filter(pk=soporte_id).first()
-                elegida = membresia_soporte(request.user, empresa) if empresa else None
-            if elegida is None and len(membresias) == 1 and not request.user.is_superuser:
-                elegida = membresias[0]
-                request.session[SESION_EMPRESA] = elegida.empresa_id
+            empresa_host = getattr(request, 'empresa_host', None)
+            if empresa_host is not None:        # subdominio de la empresa: manda el host, no la sesión
+                elegida = next((m for m in membresias if m.empresa_id == empresa_host.pk), None)
+                if elegida is None and request.user.is_superuser:
+                    elegida = membresia_soporte(request.user, empresa_host)
+                suspendida = not empresa_host.esta_activa and not request.user.is_superuser
+                if (elegida is None or suspendida) and not request.path.startswith(('/static/', '/cuenta/salir/')):
+                    from django.shortcuts import render
+                    plantilla = 'empresas/suspendida.html' if suspendida else 'empresas/sin_acceso.html'
+                    return render(request, plantilla, {'empresa_marca': empresa_host}, status=403)
+            else:
+                empresa_id = request.session.get(SESION_EMPRESA)
+                if empresa_id:
+                    elegida = next((m for m in membresias if m.empresa_id == empresa_id), None)
+                soporte_id = request.session.get(SESION_SOPORTE) if request.user.is_superuser else None
+                if soporte_id:
+                    empresa = Empresa.objects.select_related('perfil').filter(pk=soporte_id).first()
+                    elegida = membresia_soporte(request.user, empresa) if empresa else None
+                if elegida is None and len(membresias) == 1 and not request.user.is_superuser:
+                    elegida = membresias[0]
+                    request.session[SESION_EMPRESA] = elegida.empresa_id
 
             if elegida:
                 request.membresia = elegida

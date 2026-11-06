@@ -9,6 +9,8 @@ clientes, comisiones). Construido desde cero reutilizando lógica de BioLifeVent
 - Python 3.14 · Django 5.2 LTS · PostgreSQL (psycopg 3)
 - Bootstrap 5.3 + Bootstrap Icons + HTMX 2 servidos localmente (static/vendor, sin CDN)
 - WhiteNoise (estáticos) · Cloudinary (media) · ReportLab (PDF) · Sentry
+- Dominio: cada empresa en `<slug>.app.ordove.com` (variable `BASE_DOMAIN`, `apps/core/subdominios.py`); plataforma en
+  `admin.app.ordove.com`; la ruta `/<slug>/` sigue funcionando en cualquier host (p. ej. la dirección de Railway). Ver `docs/DOMINIO.md`
 - Railway Pro: entornos `staging` (rama develop) y `production` (rama main)
 
 ## Arranque local (PowerShell)
