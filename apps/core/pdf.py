@@ -95,6 +95,21 @@ def encabezado_empresa(empresa, titulo='', subtitulo=''):
     return [tabla, Spacer(1, 3 * mm), HRFlowable(width='100%', thickness=1.4, color=color), Spacer(1, 5 * mm)]
 
 
+_SIMBOLO_ORDO = None
+
+
+def simbolo_ordo():
+    """Símbolo de Ordo para el pie (se lee una vez). None si falta el archivo: el pie sale solo con texto."""
+    global _SIMBOLO_ORDO
+    if _SIMBOLO_ORDO is None:
+        from pathlib import Path
+
+        from django.conf import settings
+        ruta = Path(settings.BASE_DIR) / 'static' / 'img' / 'marca' / 'ordo-simbolo-web.png'
+        _SIMBOLO_ORDO = ImageReader(str(ruta)) if ruta.exists() else False
+    return _SIMBOLO_ORDO or None
+
+
 def pie_empresa(empresa):
     """Función para onPage: pie con texto de la empresa y marca Ordo discreta."""
     perfil = empresa.perfil
@@ -105,8 +120,15 @@ def pie_empresa(empresa):
         canvas.setFillColor(colors.HexColor('#6B7280'))
         if perfil.pie_documentos:
             canvas.drawString(doc.leftMargin, 12 * mm, perfil.pie_documentos[:150])
-        canvas.drawRightString(doc.pagesize[0] - doc.rightMargin, 12 * mm,
-                               f'Página {doc.page} · Generado con Ordo')
+        derecha = doc.pagesize[0] - doc.rightMargin
+        simbolo = simbolo_ordo()
+        if simbolo:                                 # símbolo del alto de la letra, a la derecha del texto
+            iw, ih = simbolo.getSize()
+            alto = 2.8 * mm
+            ancho = alto * iw / ih
+            canvas.drawImage(simbolo, derecha - ancho, 12 * mm - 0.55 * mm, width=ancho, height=alto, mask='auto')
+            derecha -= ancho + 1 * mm
+        canvas.drawRightString(derecha, 12 * mm, f'Página {doc.page} · Generado con Ordo')
         canvas.restoreState()
     return dibujar
 
