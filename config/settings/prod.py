@@ -1,5 +1,5 @@
 """
-Ordo — Settings de producción y staging (Railway).
+Ordo — Settings de producción (Railway).
 """
 from decouple import config
 

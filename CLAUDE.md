@@ -11,7 +11,8 @@ clientes, comisiones). Construido desde cero reutilizando lógica de BioLifeVent
 - WhiteNoise (estáticos) · Cloudinary (media) · ReportLab (PDF) · Sentry
 - Dominio: cada empresa en `<slug>.app.ordove.com` (variable `BASE_DOMAIN`, `apps/core/subdominios.py`); plataforma en
   `admin.app.ordove.com`; la ruta `/<slug>/` sigue funcionando en cualquier host (p. ej. la dirección de Railway). Ver `docs/DOMINIO.md`
-- Railway Pro: entornos `staging` (rama develop) y `production` (rama main)
+- Railway: solo entorno `production` (rama `main`, auto-deploy). `develop` es rama de trabajo: sus pushes no despliegan.
+  Configuración de Railway en el panel (sin railway.json). Antes de un merge con migraciones grandes: backup de Postgres
 
 ## Arranque local (PowerShell)
 ```powershell

@@ -1,6 +1,9 @@
-# Despliegue de Ordo en Railway (staging)
+# Despliegue de Ordo en Railway
 
-Entorno `staging` ← rama `develop`. Producción (`main`) se arma igual en la Fase 7.
+> **Estado actual (nov 2026):** solo existe el entorno `production` ← rama `main` (servicios `web`, `cron`, `Postgres`).
+> El entorno `staging` se eliminó. Esta guía quedó escrita para staging; para rearmar un entorno usa los mismos pasos
+> con el nombre y la rama que correspondan. Para borrar un entorno: Settings del proyecto → **Environments** → staging →
+> Delete (nunca *Danger*: ahí se borra el proyecto completo).
 Los nombres de botones pueden variar un poco según la versión del panel de Railway.
 
 ## 0. Antes de empezar
