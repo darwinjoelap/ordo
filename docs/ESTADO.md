@@ -15,7 +15,7 @@
 - [x] Proyecto Django 5.2 con settings base/dev/prod
 - [x] Usuario con login por correo
 - [x] Base visual con marca Ordo (escritorio y móvil)
-- [x] Healthcheck `/salud/`, Dockerfile, railway.json
+- [x] Healthcheck `/salud/`, Dockerfile; configuración de Railway en el panel (railway.json retirado: Railway deja de leerlo el 2026-12-01)
 - [x] 8 tests en verde; `check --deploy` sin errores
 - [ ] Primer despliegue en Railway staging
 - [ ] Sentry recibiendo errores

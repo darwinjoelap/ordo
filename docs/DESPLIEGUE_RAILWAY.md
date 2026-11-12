@@ -39,8 +39,11 @@ Los nombres de botones pueden variar un poco según la versión del panel de Rai
    - `healthcheck.railway.app` es obligatorio: es el host con el que Railway consulta `/salud/`.
    - Cloudinary: puedes usar la misma cuenta de BioLifeVentas; Ordo guarda todo bajo la carpeta `ordo/`.
    - Opcional: `SENTRY_DSN=<dsn del proyecto Ordo en Sentry>`.
-6. **Deploy** (o "Apply changes"). El build usa el `Dockerfile`; antes de arrancar corre `migrate`
-   (preDeployCommand de `railway.json`) y luego verifica `/salud/`.
+6. **Settings → Deploy** (la configuración vive SOLO en el panel; Railway dejó de leer `railway.json` el 2026-12-01):
+   - Pre-deploy step: `python manage.py migrate --noinput`
+   - Healthcheck Path: `/salud/` (timeout 60)
+   - Restart Policy: On Failure
+   **Deploy** (o "Apply changes"). El build usa el `Dockerfile` (detectado solo); el `CMD` también corre `migrate` como respaldo.
 7. Verificación: abre `https://<dominio>/salud/` → `{"estado": "ok"}`.
 
 ## 4. Primer usuario y empresa (Railway CLI)
@@ -64,8 +67,9 @@ exit
 ## 5. Servicio cron (tareas diarias)
 1. **+ Create → GitHub Repo → darwinjoelap/ordo** otra vez. Renómbralo **`cron`**.
 2. **Settings → Source → Branch**: `develop`.
-3. **Settings → Config-as-code / Railway config file**: `/railway.cron.json`
-   (define: comando `python manage.py tareas_programadas`, horario `0 11 * * *` = 7:00 a. m. Venezuela, sin healthcheck).
+3. **Settings → Deploy** (en el panel, sin archivo de configuración):
+   - Custom Start Command: `python manage.py tareas_programadas`
+   - Cron Schedule: `0 11 * * *` (7:00 a. m. Venezuela), sin healthcheck; Restart Policy: Never
 4. **Variables**:
    ```
    SECRET_KEY=${{web.SECRET_KEY}}
