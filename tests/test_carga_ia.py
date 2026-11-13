@@ -171,3 +171,36 @@ class CatalogoTests(BaseIA):
         self.assertEqual(cat.candidatos(carga_ia.Linea(texto='glifos 48 galon'))[0], self.glifo)
         self.assertEqual(cat.exacto('gli 48'), self.glifo)
         self.assertEqual(cat.candidatos(carga_ia.Linea(texto='')), [])
+
+
+class InventarioRealTests(BaseIA):
+    """Pedido real de discos de antibiograma (nombres mal escritos y con concentraciones distintas)."""
+    CATALOGO = [('AK-SDA', 'AMIKACINA 30mcg x50 DSCOS'), ('AMP-SDA', 'AMPICILIN 10 mcg x50 DISCOS'),
+                ('AMC-SDA', 'AMOXICILINA AC CLAVULANICO 10mcg x50 DISCOS'),
+                ('SAM-SDA', 'AMPICILIN SULBACTAM 10/10 mcg x50 DISCOS'), ('ATM-SDA', 'AZTREONAM 30mcg x50 DISCOS'),
+                ('IPM-SDA', 'IMIPENEM 10mcg x50 DISCOS'), ('MRP-SDA', 'MEROPENEM 10mcg x50 DISCOS'),
+                ('SXT-SDA', 'SULFATRIMETROPIM 25mcg x50 DISCOS'), ('OFL-SDA', 'OFLOXACINO 5 MCG x50 DISCOS'),
+                ('NOR-SDA', 'NORFLOXACINA 10mcg x50 DISCOS'), ('LEV-SDA', 'LEVOFLOXACINA 5mcg x50 DISCOS'),
+                ('CXM-SDA', 'CEFUROXIMA 30mcg x50 DISCOS'), ('CTX-SDA', 'CEFOTAXIMA 30mcg x50 DISCOS'),
+                ('MH-ACCU', 'MUELLER HINTON AGAR x 500 gr'), ('BAS-LIO', 'BLOOD BASE AGAR x500gr')]
+
+    def test_el_correcto_queda_primero(self):
+        with self.empresa_ctx():
+            un = Unidad.objects.get(abreviatura='UN')
+            for codigo, nombre in self.CATALOGO:
+                Producto.objects.create(codigo=codigo, nombre=nombre, categoria=self.cat, unidad=un)
+            cat = carga_ia.catalogo(self.perfil)
+        for pedido, esperado in [('AZTREONAN 30 MCG X 50 DISCOS', 'ATM-SDA'), ('AMIKACINA 30 MCG X 50 DISCOS', 'AK-SDA'),
+                                 ('IMIPENEN 10 MCG X 50 DISCOS', 'IPM-SDA'), ('MEROPENEN 10 MCG X 50 DISCOS', 'MRP-SDA'),
+                                 ('TRIMETROPIN SULFA 25 MCG X 50 DISCOS', 'SXT-SDA'),
+                                 ('OFLOXACINA X 50 DISCOS', 'OFL-SDA'), ('AMPICILINA X 50 DISCOS', 'AMP-SDA'),
+                                 ('AMPICILINA SULBACTAM X 50 DISCOS', 'SAM-SDA'), ('CEFUROXIME X 50 DISCOS', 'CXM-SDA'),
+                                 ('Agar Muller Hinton', 'MH-ACCU')]:
+            with self.subTest(pedido):
+                self.assertEqual(cat.candidatos(carga_ia.Linea(texto=pedido))[0].codigo, esperado)
+        self.assertEqual(cat.candidatos(carga_ia.Linea(texto='Hemoglobina soluble')), [])
+
+    def test_sin_cantidad_y_grupo(self):
+        lineas = carga_ia._lineas_de({'lineas': [{'texto': 'Agar CLED', 'cantidad': 0, 'grupo': 'Bacteriología'}]})
+        self.assertEqual((lineas[0].cantidad, lineas[0].grupo), (1, 'Bacteriología'))
+        self.assertIn('no dice la cantidad', lineas[0].nota)

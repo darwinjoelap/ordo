@@ -19,7 +19,7 @@
           <td class="small">
             <div class="fw-semibold"><i class="bi bi-chat-left-quote me-1 text-muted"></i>{{ x.texto }}</div>
             {% if x.codigo %}<div class="text-muted">Código: {{ x.codigo }}</div>{% endif %}
-            {% if x.unidad %}<div class="text-muted">{{ x.unidad }}</div>{% endif %}
+            {% if x.unidad or x.grupo %}<div class="text-muted">{{ x.unidad }}{% if x.unidad and x.grupo %} · {% endif %}{% if x.grupo %}{{ x.grupo }}{% endif %}</div>{% endif %}
             {% if x.nota %}<div class="text-warning-emphasis"><i class="bi bi-info-circle me-1"></i>{{ x.nota }}</div>{% endif %}
             <div class="mt-1">
             {% if x.candidatos %}

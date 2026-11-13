@@ -8,6 +8,8 @@ Cargar un presupuesto desde un pedido con IA (texto pegado, fotos o PDF). Métod
 El resultado se revisa en pantalla antes de agregar nada; se agrega con `servicios.agregar_item` (precios, rangos,
 IVA y stock como siempre). El pedido no se guarda: pasa por memoria y se descarta.
 """
+import difflib
+import math
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -34,6 +36,7 @@ class Linea:
     codigo: str = ''
     cantidad: int = 1
     unidad: str = ''
+    grupo: str = ''                                        # título del pedido que agrupa la línea («Bacteriología»)
     nota: str = ''
     candidatos: list = field(default_factory=list)       # [Producto]
     producto: Producto | None = None
@@ -55,23 +58,42 @@ class Resultado:
 # ── Normalización y búsqueda local ───────────────────────────────────────────────────────────────────────────
 
 def normalizar(texto):
+    """Minúsculas, sin acentos ni signos; separa números de letras («30mcg» → «30 mcg», «x50» → «x 50»)."""
     texto = unicodedata.normalize('NFKD', str(texto or '')).encode('ascii', 'ignore').decode().lower()
+    texto = re.sub(r'(?<=\d)(?=[a-z])|(?<=[a-z])(?=\d)', ' ', texto)
     return re.sub(r'[^a-z0-9%]+', ' ', texto).strip()
 
 
 def _palabras(texto):
-    return [p for p in normalizar(texto).split() if len(p) >= 2 or p.isdigit()]
+    vistas, salida = set(), []
+    for p in normalizar(texto).split():
+        if (len(p) >= 2 or p.isdigit()) and p not in vistas:
+            vistas.add(p)
+            salida.append(p)
+    return salida
 
 
 class Catalogo:
-    """El inventario activo de la empresa, normalizado una vez por pedido."""
+    """
+    El inventario activo de la empresa, normalizado una vez por pedido.
+
+    Puntaje de un producto para una línea del pedido = suma, por cada palabra del pedido, de
+    (parecido con la mejor palabra del producto) × (peso de esa palabra). El peso es mayor cuanto MENOS productos la
+    tienen: «discos», «mcg», «x50» casi no cuentan; «aztreonam» decide. El parecido tolera errores de escritura
+    («imipenen» → imipenem, «trimetropin» → sulfatrimetropim, «cefuroxime» → cefuroxima).
+    """
 
     def __init__(self, productos):
         self.productos = list(productos)
         self.por_codigo = {normalizar(p.codigo).replace(' ', ''): p for p in self.productos if p.codigo}
-        self.textos = [(p, f'{normalizar(p.codigo)} {normalizar(p.nombre)} '
-                           f'{normalizar(p.marca.nombre if p.marca_id else "")} '
-                           f'{normalizar(p.unidad.nombre if p.unidad_id else "")}') for p in self.productos]
+        self.indice = {}                                    # palabra → [posición del producto]
+        for i, p in enumerate(self.productos):
+            texto = f'{p.codigo} {p.nombre} {p.marca.nombre if p.marca_id else ""}'
+            for w in set(normalizar(texto).split()):
+                self.indice.setdefault(w, []).append(i)
+        total = max(len(self.productos), 1)
+        self.peso = {w: math.log(1 + total / len(ps)) for w, ps in self.indice.items()}
+        self._parecidos = {}
 
     def exacto(self, *codigos):
         for codigo in codigos:
@@ -80,23 +102,58 @@ class Catalogo:
                 return self.por_codigo[clave]
         return None
 
+    def parecidos(self, palabra):
+        """({palabra del inventario: parecido 0..1}, peso) para una palabra del pedido (con caché por pedido)."""
+        if palabra in self._parecidos:
+            return self._parecidos[palabra]
+        salida = {}
+        if palabra in self.peso:
+            salida[palabra] = 1.0
+        if len(palabra) >= 4 and not palabra.isdigit():
+            for w in self.peso:
+                if w == palabra or len(w) < 4 or w.isdigit():
+                    continue
+                contenida = palabra in w or w in palabra
+                if not contenida and (abs(len(w) - len(palabra)) > 4 or not set(palabra[:3]) & set(w)):
+                    continue                                # muy distinta: no vale la pena compararla
+                m = difflib.SequenceMatcher(None, palabra, w)
+                if contenida:                               # «sulfa» ⊂ «sulfatrimetropim», «ampicilin» ⊂ «ampicilina»
+                    # contenida: al menos 0,7, pero gana la más parecida («ofloxacina» → ofloxacino, no levofloxacina)
+                    salida[w] = max(salida.get(w, 0), m.ratio(), 0.7)
+                elif m.real_quick_ratio() >= 0.75 and m.quick_ratio() >= 0.75:
+                    r = m.ratio()                           # errores de escritura: «imipenen» → imipenem
+                    if r >= 0.75:
+                        salida[w] = max(salida.get(w, 0), r)
+        for w, r in salida.items():                         # mismo comienzo desempata: «ofloxacina» → ofloxacino
+            if w != palabra and w[:3] == palabra[:3]:
+                salida[w] = min(1.0, r + 0.05)
+        # El peso de la palabra del pedido es el de su mejor equivalente en el inventario (igual para todos los
+        # productos): así «ampicilina» pesa como «ampicilin» y no gana «amoxicilina» por ser más rara.
+        peso = self.peso[max(salida, key=salida.get)] if salida else 0
+        self._parecidos[palabra] = (salida, peso)
+        return self._parecidos[palabra]
+
     def candidatos(self, linea):
-        palabras = _palabras(f'{linea.texto} {linea.codigo} {linea.unidad}')
+        palabras = _palabras(f'{linea.texto} {linea.codigo}')
         if not palabras:
             return []
-        puntajes = []
-        for producto, texto in self.textos:
-            palabras_texto = texto.split()
-            puntos = 0.0
-            for p in palabras:
-                if f' {p} ' in f' {texto} ':
-                    puntos += 2 if len(p) >= 3 else 1
-                elif len(p) >= 4 and any(w.startswith(p[:4]) for w in palabras_texto):
-                    puntos += 1                      # «glifos» → glifosato, «fertiliz» → fertilizante
-            if puntos:
-                puntajes.append((puntos, producto.nombre, producto))
+        total = {}
+        for palabra in palabras:
+            mapa, peso = self.parecidos(palabra)
+            mejor = {}                                      # producto → mejor parecido para esta palabra
+            for w, parecido in mapa.items():
+                for i in self.indice[w]:
+                    if parecido > mejor.get(i, 0):
+                        mejor[i] = parecido
+            for i, parecido in mejor.items():
+                total[i] = total.get(i, 0) + peso * parecido
+        puntajes = [(puntos, self.productos[i].nombre, self.productos[i]) for i, puntos in total.items() if puntos > 0]
+        if not puntajes:
+            return []
         puntajes.sort(key=lambda x: (-x[0], x[1]))
-        return [p for _, _, p in puntajes[:MAX_CANDIDATOS]]
+        tope = puntajes[0][0]
+        # Solo los que se acercan al mejor: si nada más que «discos» coincide, no se llena la lista de ruido
+        return [p for puntos, _, p in puntajes[:MAX_CANDIDATOS] if puntos >= tope * 0.35]
 
 
 def catalogo(perfil):
@@ -113,10 +170,16 @@ agroquímicos, repuestos u otros). El pedido puede ser un mensaje de texto mal e
 mano o una orden de compra (foto o PDF) con códigos y siglas.
 
 Devuelve una línea por cada producto pedido:
-- texto: el producto tal como aparece (siglas, marca, presentación, concentración), SIN la cantidad.
+- texto: el producto tal como aparece (siglas, marca, presentación, concentración), SIN la cantidad. Corrige solo la
+  ortografía evidente si se lee claro; no cambies el producto.
 - codigo: si la línea trae un código o referencia de producto (columna Código, Ref., Cód.), cópialo exacto; si no, "".
-- cantidad: unidades pedidas, solo la cifra (si no lo dice, 1).
-- unidad: la presentación o unidad si aparece (saco, galón, litro, caja, kg, frasco…), si no "".
+- cantidad: unidades pedidas, solo la cifra. Si la línea NO indica cantidad, 0 (no supongas 1).
+- unidad: la presentación o unidad si aparece (saco, galón, litro, caja, kg, frasco, discos…), si no "".
+- grupo: si el pedido tiene títulos que agrupan productos (p. ej. «Bacteriología», «Química», «Herbicidas»),
+  el título bajo el que está la línea; si no, "". Los títulos NO son líneas.
+
+Listas escritas a mano: las comillas o marcas de repetición (", ″, 〃, «id.», «ídem») repiten la palabra de la línea
+de arriba; escribe la línea completa (debajo de «Agar base sangre», 〃 CLED = «Agar CLED»).
 
 No incluyas precios, totales, datos del cliente, direcciones, firmas ni saludos. No inventes productos. Si una parte
 no se lee bien, escribe lo que se lea y agrega "(?)" al final del texto."""
@@ -124,7 +187,7 @@ no se lee bien, escribe lo que se lea y agrega "(?)" al final del texto."""
 ESQUEMA_LEER = {'type': 'object', 'required': ['lineas'], 'properties': {
     'lineas': {'type': 'array', 'items': {'type': 'object', 'required': ['texto', 'cantidad'], 'properties': {
         'texto': {'type': 'string'}, 'codigo': {'type': 'string'}, 'cantidad': {'type': 'number'},
-        'unidad': {'type': 'string'}}}}}}
+        'unidad': {'type': 'string'}, 'grupo': {'type': 'string'}}}}}}
 
 
 def _cantidad(valor):
@@ -132,9 +195,9 @@ def _cantidad(valor):
     try:
         numero = float(str(valor).replace(',', '.'))
     except (TypeError, ValueError):
-        return 1, 'Cantidad no indicada: se puso 1.'
+        return 1, 'El pedido no dice la cantidad: se puso 1.'
     if numero <= 0:
-        return 1, 'Cantidad no indicada: se puso 1.'
+        return 1, 'El pedido no dice la cantidad: se puso 1.'
     entero = max(1, round(numero))
     return entero, ('' if entero == numero else f'El pedido dice {valor}: se redondeó a {entero}.')
 
@@ -146,7 +209,8 @@ def _lineas_de(datos):
             continue
         cantidad, nota = _cantidad(d.get('cantidad'))
         lineas.append(Linea(texto=str(d['texto']).strip()[:200], codigo=str(d.get('codigo') or '').strip()[:50],
-                            cantidad=cantidad, unidad=str(d.get('unidad') or '').strip()[:40], nota=nota))
+                            cantidad=cantidad, unidad=str(d.get('unidad') or '').strip()[:40],
+                            grupo=str(d.get('grupo') or '').strip()[:60], nota=nota))
     return lineas
 
 
@@ -184,9 +248,13 @@ def leer(texto, archivos):
 # ── Paso 3: elegir entre los candidatos ──────────────────────────────────────────────────────────────────────
 
 ELEGIR = """Para cada línea de un pedido, elige el producto del inventario que corresponde, SOLO entre los candidatos
-de esa línea (por su código). Usa siglas, abreviaturas, marca, presentación, concentración y unidad para decidir.
-Si ninguno corresponde con seguridad razonable, devuelve codigo "".
-confianza: "alta" si es claramente ese producto; "media" si es probable; "baja" si dudas."""
+de esa línea (por su código). Usa siglas, abreviaturas, nombres en otro idioma o mal escritos (cefuroxime =
+cefuroxima, trimetropin sulfa = sulfatrimetoprim), marca, presentación, concentración, unidad y el grupo del pedido.
+- Si es el mismo producto pero la concentración o presentación del pedido no coincide (pide 10 mcg y hay 300 mcg),
+  elígelo con confianza "media": el vendedor lo verifica.
+- Si el producto pedido NO está entre los candidatos (otro principio activo, otro medio de cultivo, otro artículo),
+  devuelve codigo "". No elijas algo solo porque comparte palabras genéricas (agar, discos, saco, galón).
+confianza: "alta" si es claramente ese producto; "media" si es probable o difiere en concentración; "baja" si dudas."""
 
 ESQUEMA_ELEGIR = {'type': 'object', 'required': ['elecciones'], 'properties': {
     'elecciones': {'type': 'array', 'items': {'type': 'object', 'required': ['linea', 'codigo', 'confianza'],
@@ -216,7 +284,7 @@ def elegir(lineas):
     bloques = []
     for i, x in pendientes:
         detalle = f'{x.texto}' + (f' (código del pedido: {x.codigo})' if x.codigo else '') + \
-                  (f' (unidad: {x.unidad})' if x.unidad else '')
+                  (f' (unidad: {x.unidad})' if x.unidad else '') + (f' (grupo: {x.grupo})' if x.grupo else '')
         opciones = '\n'.join(f'   - {_describir(p)}' for p in x.candidatos)
         bloques.append(f'Línea {i}: {detalle}\n  Candidatos:\n{opciones}')
     r = gemini.json_estructurado(ELEGIR, [gemini.parte_texto('\n\n'.join(bloques))], ESQUEMA_ELEGIR)
