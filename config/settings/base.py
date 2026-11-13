@@ -181,3 +181,14 @@ LOGGING = {
         'apps': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
     },
 }
+
+# ── IA: cargar presupuestos desde un pedido (texto, foto o PDF) con Gemini ─────
+# Sin GEMINI_API_KEY (o con IA_MODO='prueba') funciona en modo de prueba: lee solo texto, sin salir a internet.
+GEMINI_API_KEY = config('GEMINI_API_KEY', default='')
+IA_MODO = config('IA_MODO', default='')                                   # 'prueba' fuerza el modo de prueba
+IA_MODELO = config('IA_MODELO', default='gemini-3.5-flash-lite')          # leer el pedido y elegir producto
+IA_RAZONAMIENTO = config('IA_RAZONAMIENTO', default='minimal')            # minimal | low | medium | high
+IA_TIMEOUT = config('IA_TIMEOUT', default=60, cast=int)
+# Costo estimado (US$ por millón de tokens) del modelo configurado; actualízalo si cambias IA_MODELO
+IA_PRECIO_ENTRADA = config('IA_PRECIO_ENTRADA', default=0.30, cast=float)
+IA_PRECIO_SALIDA = config('IA_PRECIO_SALIDA', default=2.50, cast=float)

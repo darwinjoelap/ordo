@@ -228,3 +228,8 @@
   raíz y la empresa sale del host (solo cuentas de ella o soporte); `admin.` = plataforma; `BASE_DOMAIN/<slug>/`
   redirige; la ruta `/<slug>/` sigue en cualquier otro host. Enlace en plataforma y equipo con `enlace_empresa`.
   Pasos de Railway/Cloudflare en `docs/DOMINIO.md`.
+- [x] **Cargar presupuesto con IA** (Gemini, `apps/ventas/carga_ia.py`, `views_ia.py`, `apps/core/gemini.py`): texto pegado,
+  fotos o PDF del pedido → la IA lee las líneas → Ordo busca candidatos en el inventario (código exacto o palabras) →
+  la IA elige solo entre esos candidatos → pantalla de revisión → `servicios.agregar_item`. El pedido no se guarda;
+  `UsoIA` registra tokens y costo por empresa (admin). Interruptor `carga_ia_presupuestos` en Mi empresa.
+  Pendiente: equivalencias aprendidas (sigla → producto) y reporte de uso en Plataforma.

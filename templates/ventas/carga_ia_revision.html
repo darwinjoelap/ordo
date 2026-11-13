@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load ordo %}
+{% block contenido %}
+<a href="{% url 'ventas:carga_ia' p.pk %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Leer otro pedido</a>
+<h1 class="h3 mt-2 mb-1"><i class="bi bi-stars me-1"></i>Revisa el pedido</h1>
+<p class="text-muted small mb-3">{{ p.numero_visible }} · {{ p.cliente.nombre }}. La IA leyó <b>{{ resultado.lineas|length }}</b> línea{{ resultado.lineas|length|pluralize }} y propuso producto para <b>{{ resultado.sugeridas }}</b>.
+  Corrige lo que haga falta y desmarca lo que no quieras agregar. Los precios y el stock se aplican como siempre.</p>
+
+<form method="post" action="{% url 'ventas:carga_ia_agregar' p.pk %}">{% csrf_token %}
+  <input type="hidden" name="n" value="{{ resultado.lineas|length }}">
+  <input type="hidden" name="uso" value="{{ uso.pk }}">
+  <div class="card mb-3"><div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead class="table-light"><tr><th style="width:2.5rem"><span class="visually-hidden">Agregar</span></th><th>En el pedido → producto de tu inventario</th><th class="text-end" style="width:5.5rem">Cant.</th></tr></thead>
+      <tbody>
+      {% for x in resultado.lineas %}
+        <tr class="{% if not x.producto %}table-light{% elif x.confianza == 'baja' %}table-warning{% endif %}">
+          <td><input type="checkbox" class="form-check-input" name="incluir_{{ forloop.counter0 }}" value="1" aria-label="Agregar línea {{ forloop.counter }}" {% if x.producto and x.confianza != 'baja' %}checked{% endif %}></td>
+          <td class="small">
+            <div class="fw-semibold"><i class="bi bi-chat-left-quote me-1 text-muted"></i>{{ x.texto }}</div>
+            {% if x.codigo %}<div class="text-muted">Código: {{ x.codigo }}</div>{% endif %}
+            {% if x.unidad %}<div class="text-muted">{{ x.unidad }}</div>{% endif %}
+            {% if x.nota %}<div class="text-warning-emphasis"><i class="bi bi-info-circle me-1"></i>{{ x.nota }}</div>{% endif %}
+            <div class="mt-1">
+            {% if x.candidatos %}
+            <select name="producto_{{ forloop.counter0 }}" class="form-select form-select-sm" aria-label="Producto para {{ x.texto }}">
+              <option value="">— No agregar —</option>
+              {% for c in x.candidatos %}<option value="{{ c.pk }}" {% if x.producto and c.pk == x.producto.pk %}selected{% endif %}>{{ c.codigo }} · {{ c.nombre }}{% if c.marca_id %} · {{ c.marca.nombre }}{% endif %} · {{ c.precio_venta_usd|usd }}</option>{% endfor %}
+            </select>
+            <div class="small mt-1">
+              {% if x.confianza == 'exacto' %}<span class="badge text-bg-success fw-normal">Código exacto</span>
+              {% elif x.confianza == 'alta' %}<span class="badge text-bg-success fw-normal">Seguro</span>
+              {% elif x.confianza == 'media' %}<span class="badge text-bg-info fw-normal">Probable</span>
+              {% elif x.confianza == 'baja' %}<span class="badge text-bg-warning fw-normal">Dudoso: revisa</span>
+              {% else %}<span class="badge text-bg-secondary fw-normal">Sin elegir: escoge uno</span>{% endif %}
+            </div>
+            {% else %}
+            <div class="small text-muted"><i class="bi bi-question-circle me-1"></i>No se encontró en tu inventario. Agrégalo luego con el buscador.</div>
+            {% endif %}
+            </div>
+          </td>
+          <td><input type="number" name="cantidad_{{ forloop.counter0 }}" value="{{ x.cantidad }}" min="1" step="1" class="form-control form-control-sm text-end" aria-label="Cantidad de {{ x.texto }}"></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+  <div class="d-flex gap-2 flex-wrap">
+    <button class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>Agregar marcados al presupuesto</button>
+    <a href="{% url 'ventas:detalle' p.pk %}" class="btn btn-outline-secondary">Cancelar</a>
+  </div>
+</form>
+<script>
+  document.querySelectorAll('select[name^="producto_"]').forEach(function (s) {
+    s.addEventListener('change', function () {          // elegir un producto marca la línea; «No agregar» la desmarca
+      const caja = document.querySelector('input[name="incluir_' + s.name.split('_')[1] + '"]');
+      if (caja) caja.checked = !!s.value;
+    });
+  });
+</script>
+{% endblock %}

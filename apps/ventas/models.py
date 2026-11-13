@@ -506,3 +506,38 @@ class ItemDevolucion(EmpresaModel):
 
     def __str__(self):
         return f'{self.item.producto} × {self.cantidad}'
+
+
+class UsoIA(EmpresaModel):
+    """
+    Cada «Cargar con IA» en un presupuesto: uso y costo por empresa, y cuántas líneas se agregaron.
+    El pedido (texto, fotos o PDF) NO se guarda: solo pasa por memoria hacia la IA.
+    """
+    class Origen(models.TextChoices):
+        TEXTO = 'TEXTO', 'Texto'
+        ARCHIVO = 'ARCHIVO', 'Foto o PDF'
+        MIXTO = 'MIXTO', 'Texto y archivo'
+
+    presupuesto = models.ForeignKey(Presupuesto, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='+')
+    origen = models.CharField('Origen', max_length=8, choices=Origen.choices, default=Origen.TEXTO)
+    archivos = models.PositiveSmallIntegerField('Fotos o PDF', default=0)
+    ok = models.BooleanField(default=True)
+    error = models.CharField('Error', max_length=300, blank=True)
+    lineas = models.PositiveSmallIntegerField('Líneas leídas', default=0)
+    sugeridas = models.PositiveSmallIntegerField('Líneas con producto sugerido', default=0)
+    agregadas = models.PositiveSmallIntegerField('Líneas agregadas', default=0)
+    modelo = models.CharField(max_length=60, blank=True)
+    tokens_entrada = models.PositiveIntegerField(default=0)
+    tokens_salida = models.PositiveIntegerField(default=0)
+    costo_usd = models.DecimalField('Costo estimado (USD)', max_digits=10, decimal_places=6, default=0)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Uso de IA'
+        verbose_name_plural = 'Usos de IA'
+        ordering = ['-creado_en']
+        base_manager_name = 'todos'
+
+    def __str__(self):
+        return f'IA {self.creado_en:%d/%m/%Y %H:%M} · {self.lineas} líneas'

@@ -1,7 +1,7 @@
 from django.urls import path
 
 from . import reportes, views, views_almacen as almacen, views_cobranza, views_devoluciones, views_servicios
-from . import views_transporte as transporte
+from . import views_ia, views_transporte as transporte
 
 app_name = 'ventas'
 
@@ -40,6 +40,8 @@ urlpatterns = [
     path('<int:pk>/', views.detalle, name='detalle'),
     path('<int:pk>/buscar-productos/', views.buscar_productos, name='buscar_productos'),
     path('<int:pk>/agregar/', views.agregar_item, name='agregar_item'),
+    path('<int:pk>/ia/', views_ia.cargar, name='carga_ia'),
+    path('<int:pk>/ia/agregar/', views_ia.agregar, name='carga_ia_agregar'),
     path('<int:pk>/actualizar/', views.actualizar, name='actualizar'),
     path('<int:pk>/accion/<slug:nombre>/', views.accion, name='accion'),
     path('<int:pk>/eliminar/', views.eliminar, name='eliminar'),

@@ -20,6 +20,7 @@ GRUPOS = {
                                 'observaciones_por_producto', 'despacho_por_almacen',
                                 'multialmacen']),
     'servicios': ('Servicios', ['maneja_servicios', 'recordatorio_servicios', 'mensaje_servicio']),
+    'ia': ('Inteligencia artificial', ['carga_ia_presupuestos']),
 }
 
 

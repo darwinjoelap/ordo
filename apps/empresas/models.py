@@ -203,6 +203,13 @@ class PerfilEmpresa(models.Model):
         default='Hola {cliente}, le recordamos el servicio «{servicio}» programado para el {fecha}. {empresa}',
         help_text='Variables: {cliente}, {servicio}, {fecha}, {hora}, {empresa}.')
 
+    # IA
+    carga_ia_presupuestos = models.BooleanField(
+        'Cargar presupuestos con IA', default=False,
+        help_text='En el presupuesto aparece «Cargar con IA»: pegas un mensaje o subes fotos o un PDF del pedido y la '
+                  'IA propone los productos de tu inventario para que los revises antes de agregarlos. '
+                  'El pedido no se guarda.')
+
     actualizado_en = models.DateTimeField(auto_now=True)
 
     class Meta:

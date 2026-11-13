@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from apps.core.admin import EmpresaModelAdmin
 
-from .models import Devolucion, Presupuesto
+from .models import Devolucion, Presupuesto, UsoIA
 
 
 @admin.register(Presupuesto)
@@ -25,4 +25,17 @@ class DevolucionAdmin(EmpresaModelAdmin):
         return False
 
     def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(UsoIA)
+class UsoIAAdmin(EmpresaModelAdmin):
+    """Uso de «Cargar con IA» por empresa (costo estimado). Solo consulta."""
+    list_display = ['creado_en', 'empresa', 'usuario', 'origen', 'archivos', 'lineas', 'sugeridas', 'agregadas', 'ok',
+                    'costo_usd', 'modelo']
+    list_filter = ['empresa', 'ok', 'origen']
+    date_hierarchy = 'creado_en'
+    readonly_fields = [f.name for f in UsoIA._meta.fields]
+
+    def has_add_permission(self, request):
         return False

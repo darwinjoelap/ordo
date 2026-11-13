@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block contenido %}
+<a href="{% url 'ventas:detalle' p.pk %}#agregar" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Volver al presupuesto</a>
+<h1 class="h3 mt-2 mb-1"><i class="bi bi-stars me-1"></i>Cargar con IA</h1>
+<p class="text-muted small mb-3">{{ p.numero_visible }} · {{ p.cliente.nombre }}. Pega el mensaje del pedido o sube fotos o el PDF de la orden de compra.
+  La IA propone los productos de tu inventario y <b>tú los revisas antes de agregarlos</b>. El pedido no se guarda.</p>
+{% if prueba %}<div class="alert alert-warning small py-2"><i class="bi bi-cone-striped me-1"></i>Modo de prueba: la IA no está configurada. Solo se lee texto pegado, un producto por renglón (con la cantidad al inicio).</div>{% endif %}
+
+<form method="post" enctype="multipart/form-data" id="form-ia" class="card" style="max-width:760px">{% csrf_token %}
+  <div class="card-body">
+    <label class="form-label fw-semibold" for="texto"><i class="bi bi-chat-text me-1"></i>Mensaje del pedido</label>
+    <textarea id="texto" name="texto" rows="7" maxlength="6000" class="form-control" placeholder="Ej.:&#10;2 sacos urea&#10;1 galon glifo 48&#10;5 U46 cajas">{{ texto }}</textarea>
+
+    <div class="mt-3">
+      <label class="form-label fw-semibold" for="archivos"><i class="bi bi-camera me-1"></i>Fotos o PDF del pedido <span class="fw-normal text-muted small">(máximo {{ max_archivos }})</span></label>
+      <input type="file" id="archivos" name="archivos" class="form-control" multiple accept="image/*,application/pdf" {% if prueba %}disabled{% endif %}>
+      <div class="form-text">Pedido escrito a mano, orden de compra con códigos o una captura. Las fotos se reducen en tu teléfono antes de enviarse.</div>
+      <div id="vista-archivos" class="d-flex flex-wrap gap-2 mt-2"></div>
+    </div>
+  </div>
+  <div class="card-footer d-flex gap-2 align-items-center">
+    <button class="btn btn-primary" id="btn-ia"><i class="bi bi-stars me-1"></i>Leer pedido</button>
+    <a href="{% url 'ventas:detalle' p.pk %}" class="btn btn-outline-secondary">Cancelar</a>
+    <span id="procesando" class="small text-muted d-none"><span class="spinner-border spinner-border-sm me-1"></span>Leyendo el pedido… puede tardar unos segundos.</span>
+  </div>
+</form>
+
+<script>
+(function () {
+  const form = document.getElementById('form-ia');
+  const input = document.getElementById('archivos');
+  const vista = document.getElementById('vista-archivos');
+  const MAX_LADO = 2000, MAX = {{ max_archivos }};
+
+  function reducir(archivo) {           // fotos grandes → JPEG de máx. 2000 px (la letra sigue legible)
+    if (!archivo.type.startsWith('image/') || archivo.type === 'image/heic' || archivo.size < 900 * 1024) return Promise.resolve(archivo);
+    return new Promise(function (ok) {
+      const img = new Image();
+      img.onload = function () {
+        const k = Math.min(1, MAX_LADO / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        c.toBlob(function (b) {
+          URL.revokeObjectURL(img.src);
+          ok(b && b.size < archivo.size ? new File([b], archivo.name.replace(/\.\w+$/, '') + '.jpg', {type: 'image/jpeg'}) : archivo);
+        }, 'image/jpeg', 0.85);
+      };
+      img.onerror = function () { ok(archivo); };
+      img.src = URL.createObjectURL(archivo);
+    });
+  }
+
+  input && input.addEventListener('change', function () {
+    vista.innerHTML = '';
+    if (input.files.length > MAX) { alert('Máximo ' + MAX + ' archivos.'); input.value = ''; return; }
+    Array.from(input.files).forEach(function (f) {
+      const el = document.createElement('span');
+      el.className = 'badge text-bg-light border fw-normal';
+      el.innerHTML = (f.type === 'application/pdf' ? '<i class="bi bi-file-earmark-pdf me-1"></i>' : '<i class="bi bi-image me-1"></i>') + f.name;
+      vista.appendChild(el);
+    });
+  });
+
+  let enviando = false;
+  form.addEventListener('submit', async function (e) {
+    if (enviando) return;
+    e.preventDefault();
+    document.getElementById('btn-ia').disabled = true;
+    document.getElementById('procesando').classList.remove('d-none');
+    try {
+      if (input && input.files.length && window.DataTransfer) {
+        const dt = new DataTransfer();
+        for (const f of Array.from(input.files)) dt.items.add(await reducir(f));
+        input.files = dt.files;
+      }
+    } catch (err) { /* si el navegador no permite reducir, se envían como están */ }
+    enviando = true;
+    form.submit();
+  });
+})();
+</script>
+{% endblock %}
