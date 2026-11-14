@@ -57,11 +57,18 @@ class Resultado:
 
 # ── Normalización y búsqueda local ───────────────────────────────────────────────────────────────────────────
 
+# Unidades escritas de varias formas → una sola («20LT» = «x 20 L», «30GRS» = «x 30 G»)
+UNIDADES = {'lt': 'l', 'lts': 'l', 'litro': 'l', 'litros': 'l', 'gr': 'g', 'grs': 'g', 'gramos': 'g', 'gramo': 'g',
+            'kgs': 'kg', 'kilo': 'kg', 'kilos': 'kg', 'gal': 'gl', 'galon': 'gl', 'galones': 'gl', 'ml': 'ml',
+            'cc': 'ml', 'und': 'un', 'unid': 'un', 'unidad': 'un', 'unidades': 'un'}
+
+
 def normalizar(texto):
-    """Minúsculas, sin acentos ni signos; separa números de letras («30mcg» → «30 mcg», «x50» → «x 50»)."""
+    """Minúsculas, sin acentos ni signos; separa números de letras («30mcg» → «30 mcg», «x50» → «x 50»)
+    y unifica unidades («lt» → «l», «grs» → «g», «galon» → «gl»)."""
     texto = unicodedata.normalize('NFKD', str(texto or '')).encode('ascii', 'ignore').decode().lower()
     texto = re.sub(r'(?<=\d)(?=[a-z])|(?<=[a-z])(?=\d)', ' ', texto)
-    return re.sub(r'[^a-z0-9%]+', ' ', texto).strip()
+    return ' '.join(UNIDADES.get(w, w) for w in re.sub(r'[^a-z0-9%]+', ' ', texto).split())
 
 
 def _palabras(texto):
@@ -130,6 +137,10 @@ class Catalogo:
         # El peso de la palabra del pedido es el de su mejor equivalente en el inventario (igual para todos los
         # productos): así «ampicilina» pesa como «ampicilin» y no gana «amoxicilina» por ser más rara.
         peso = self.peso[max(salida, key=salida.get)] if salida else 0
+        if palabra in UNIDADES.values() or palabra in ('x', 'un', 'caja', 'bidon', 'saco', 'pipa'):
+            peso *= 0.25                                    # presentación: ayuda a desempatar, no a decidir
+        elif palabra.isdigit():
+            peso *= 0.5                                     # concentraciones y tamaños: igual
         self._parecidos[palabra] = (salida, peso)
         return self._parecidos[palabra]
 
@@ -148,9 +159,10 @@ class Catalogo:
             for i, parecido in mejor.items():
                 total[i] = total.get(i, 0) + peso * parecido
         puntajes = [(puntos, self.productos[i].nombre, self.productos[i]) for i, puntos in total.items() if puntos > 0]
+        sin_precio = lambda p: not getattr(p, 'precio_venta_usd', 1)          # noqa: E731  (duplicados en $0 al final)
         if not puntajes:
             return []
-        puntajes.sort(key=lambda x: (-x[0], x[1]))
+        puntajes.sort(key=lambda x: (-round(x[0], 3), sin_precio(x[2]), x[1]))
         tope = puntajes[0][0]
         # Solo los que se acercan al mejor: si nada más que «discos» coincide, no se llena la lista de ruido
         return [p for puntos, _, p in puntajes[:MAX_CANDIDATOS] if puntos >= tope * 0.35]
@@ -181,6 +193,10 @@ Devuelve una línea por cada producto pedido:
 Listas escritas a mano: las comillas o marcas de repetición (", ″, 〃, «id.», «ídem») repiten la palabra de la línea
 de arriba; escribe la línea completa (debajo de «Agar base sangre», 〃 CLED = «Agar CLED»).
 
+Documentos impresos (órdenes de compra, notas de entrega, facturas): toma solo la tabla de productos. Las cantidades
+pueden venir con decimales y coma («11,00» = 11). Ignora marcas como «(E)» de exento. Si llegan VARIAS fotos o
+páginas del MISMO documento (mismo número o mismas líneas), cuenta cada línea UNA sola vez.
+
 No incluyas precios, totales, datos del cliente, direcciones, firmas ni saludos. No inventes productos. Si una parte
 no se lee bien, escribe lo que se lea y agrega "(?)" al final del texto."""
 
@@ -208,10 +224,29 @@ def _lineas_de(datos):
         if not isinstance(d, dict) or not str(d.get('texto') or '').strip():
             continue
         cantidad, nota = _cantidad(d.get('cantidad'))
-        lineas.append(Linea(texto=str(d['texto']).strip()[:200], codigo=str(d.get('codigo') or '').strip()[:50],
-                            cantidad=cantidad, unidad=str(d.get('unidad') or '').strip()[:40],
-                            grupo=str(d.get('grupo') or '').strip()[:60], nota=nota))
+        texto, unidad = str(d['texto']).strip()[:200], str(d.get('unidad') or '').strip()[:40]
+        cantidad, nota = _por_caja(texto, unidad, cantidad, nota)
+        lineas.append(Linea(texto=texto, codigo=str(d.get('codigo') or '').strip()[:50], cantidad=cantidad,
+                            unidad=unidad, grupo=str(d.get('grupo') or '').strip()[:60], nota=nota))
     return lineas
+
+
+RE_CAJA = re.compile(r'\b1\s*x\s*(\d{1,3})\b', re.I)
+CAJAS = {'caj', 'caja', 'cajas', 'cj', 'bulto', 'bultos', 'paq', 'paquete', 'pqt'}
+
+
+def _por_caja(texto, unidad, cantidad, nota):
+    """«PH AN30 1X6 LT» · 1 Caj → 6 unidades (con aviso). Solo si la línea dice caja y trae «1xN»."""
+    m = RE_CAJA.search(texto)
+    primera = (normalizar(unidad).split() or [''])[0]
+    if not m or primera not in CAJAS:
+        return cantidad, nota
+    por_caja = int(m.group(1))
+    if por_caja < 2:
+        return cantidad, nota
+    aviso = (f'{cantidad} caja{"s" if cantidad > 1 else ""} de {por_caja}: se cuentan {cantidad * por_caja} unidades. '
+             'Si vendes la caja como un producto, cámbialo a ' + str(cantidad) + '.')
+    return cantidad * por_caja, f'{nota} {aviso}'.strip()
 
 
 RE_LINEA_PRUEBA = re.compile(r'^\s*[-•*]?\s*(\d+(?:[.,]\d+)?)\s*(?:x\s+)?(.+)$', re.I)
@@ -252,6 +287,8 @@ de esa línea (por su código). Usa siglas, abreviaturas, nombres en otro idioma
 cefuroxima, trimetropin sulfa = sulfatrimetoprim), marca, presentación, concentración, unidad y el grupo del pedido.
 - Si es el mismo producto pero la concentración o presentación del pedido no coincide (pide 10 mcg y hay 300 mcg),
   elígelo con confianza "media": el vendedor lo verifica.
+- Si hay dos productos iguales en el inventario, prefiere el que tiene precio (no el marcado SIN PRECIO).
+- Elige la presentación que corresponda (galón, litro, bidón de 20 L, saco) si el inventario las separa.
 - Si el producto pedido NO está entre los candidatos (otro principio activo, otro medio de cultivo, otro artículo),
   devuelve codigo "". No elijas algo solo porque comparte palabras genéricas (agar, discos, saco, galón).
 confianza: "alta" si es claramente ese producto; "media" si es probable o difiere en concentración; "baja" si dudas."""
@@ -269,6 +306,8 @@ def _describir(p):
         partes.append(f'marca {p.marca.nombre}')
     if p.unidad_id:
         partes.append(f'unidad {p.unidad.nombre}')
+    if not getattr(p, 'precio_venta_usd', 1):
+        partes.append('SIN PRECIO')
     return ' | '.join(partes)
 
 

@@ -204,3 +204,24 @@ class InventarioRealTests(BaseIA):
         lineas = carga_ia._lineas_de({'lineas': [{'texto': 'Agar CLED', 'cantidad': 0, 'grupo': 'Bacteriología'}]})
         self.assertEqual((lineas[0].cantidad, lineas[0].grupo), (1, 'Bacteriología'))
         self.assertIn('no dice la cantidad', lineas[0].nota)
+
+
+class PresentacionesTests(BaseIA):
+    def test_cajas_se_cuentan_en_unidades_con_aviso(self):
+        x = carga_ia._lineas_de({'lineas': [{'texto': 'PH AN30 1X6 LT', 'cantidad': 2, 'unidad': 'Caj'},
+                                            {'texto': 'MAGNEZINC 1X4 GL', 'cantidad': 1, 'unidad': 'Uni'}]})
+        self.assertEqual((x[0].cantidad, x[1].cantidad), (12, 1))
+        self.assertIn('2 cajas de 6', x[0].nota)
+
+    def test_unidades_escritas_de_otra_forma(self):
+        self.assertEqual(carga_ia.normalizar('Vida Forte 20LT BIDON'), 'vida forte 20 l bidon')
+        self.assertEqual(carga_ia.normalizar('Subiol 30GRS'), 'subiol 30 g')
+
+    def test_duplicado_sin_precio_va_despues(self):
+        with self.empresa_ctx():
+            un = Unidad.objects.get(abreviatura='UN')
+            Producto.objects.create(codigo='B1', nombre='Crixus bs', categoria=self.cat, unidad=un)
+            con = Producto.objects.create(codigo='B2', nombre='Crixus bs', categoria=self.cat, unidad=un,
+                                          precio_venta_usd=Decimal('33'))
+            cat = carga_ia.catalogo(self.perfil)
+        self.assertEqual(cat.candidatos(carga_ia.Linea(texto='CRIXUS BS GL (INSUBIOL)'))[0], con)
