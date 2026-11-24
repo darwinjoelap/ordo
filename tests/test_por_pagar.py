@@ -2,7 +2,7 @@
 from django.urls import reverse
 
 from apps.ventas import servicios as ventas
-from apps.ventas.models import Presupuesto
+from apps.ventas.models import Abono, Presupuesto
 
 from .test_fase5 import Base
 
@@ -54,15 +54,17 @@ class PorPagarTests(Base):
     def test_no_se_puede_validar_sin_pago(self):
         self.client.force_login(self.dueno)
         r = self.client.post(reverse('ventas:accion', args=[self.p.pk, 'validar']), follow=True)
-        self.assertContains(r, 'registra el pago antes de validarla')
+        self.assertContains(r, 'confirma los abonos antes de validarla')
         self.assertEqual(self.estado(), E.POR_PAGAR)
         # ni forzando el estado en la base: validar exige el pago
         Presupuesto.todos.filter(pk=self.p.pk).update(estado=E.POR_VALIDAR)
-        with self.empresa_ctx(), self.assertRaisesMessage(ventas.ErrorVenta, 'Registra el pago'):
+        with self.empresa_ctx(), self.assertRaisesMessage(ventas.ErrorVenta, 'Confirma el pago'):
             ventas.validar(self.p, self.dueno)
 
-    def test_registrar_el_pago_la_envia_a_validar(self):
+    def test_confirmar_el_pago_la_envia_a_validar(self):
         self.client.post(self.pago, {'pagado': '1', 'metodo_pago': 'PAGO_MOVIL', 'banco_pago': 'Banesco'})
+        self.assertEqual(self.estado(), E.POR_PAGAR)
+        self.confirmar_abonos(self.p)
         self.assertEqual(self.estado(), E.POR_VALIDAR)
         self.assertTrue(self.en_cola_de_validar())
         self.client.force_login(self.dueno)
@@ -72,7 +74,12 @@ class PorPagarTests(Base):
 
     def test_quitar_el_pago_la_saca_de_la_cola(self):
         self.client.post(self.pago, {'pagado': '1', 'metodo_pago': 'ZELLE'})
+        self.confirmar_abonos(self.p)
         self.client.post(self.pago, {'pagado': '0'})
+        self.assertEqual(self.estado(), E.POR_VALIDAR)
+        with self.empresa_ctx():
+            abono = Abono.objects.get(presupuesto=self.p)
+            ventas.revisar_abono(abono, self.dueno, Abono.Estado.REVERTIDO, 'Pago incorrecto')
         self.assertEqual(self.estado(), E.POR_PAGAR)
         self.assertFalse(self.en_cola_de_validar())
 
@@ -86,6 +93,7 @@ class PorPagarTests(Base):
 
     def test_rechazada_y_vuelta_a_confirmar_con_pago_va_directo_a_validar(self):
         self.client.post(self.pago, {'pagado': '1', 'metodo_pago': 'ZELLE'})
+        self.confirmar_abonos(self.p)
         with self.empresa_ctx():
             ventas.rechazar(self.p, self.dueno, 'Revisar precio', True, self.empresa)
         self.client.post(reverse('ventas:accion', args=[self.p.pk, 'confirmar']))

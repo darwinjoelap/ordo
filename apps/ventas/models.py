@@ -64,7 +64,7 @@ class Presupuesto(EmpresaModel):
         BORRADOR = 'BORRADOR', 'Borrador'
         EMITIDO = 'EMITIDO', 'Emitido'
         APARTADO = 'APARTADO', 'Apartado'
-        POR_PAGAR = 'POR_PAGAR', 'Por cobrar'      # confirmada, sin pago registrado (con «validar ventas» activo)
+        POR_PAGAR = 'POR_PAGAR', 'Por cobrar'      # confirmada, con saldo de cobro pendiente
         POR_VALIDAR = 'POR_VALIDAR', 'Por validar'
         VALIDADA = 'VALIDADA', 'Venta validada'
         RECHAZADA = 'RECHAZADA', 'Rechazada'
@@ -113,8 +113,9 @@ class Presupuesto(EmpresaModel):
     validado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
                                      related_name='+')
     motivo_rechazo = models.CharField('Motivo del rechazo', max_length=250, blank=True)
+    modalidad_comision = models.CharField(max_length=15, blank=True, default='', editable=False)
 
-    # pagado = la venta quedó cubierta por completo con sus abonos (lo calcula servicios.registrar_abono)
+    # Los agregados de cobro reflejan abonos confirmados y reembolsos aplicados.
     pagado = models.BooleanField('Pagado', default=False)
     abonado_usd = models.DecimalField('Abonado (USD)', max_digits=14, decimal_places=2, default=0)
     fecha_pago = models.DateField('Fecha de pago', null=True, blank=True)
@@ -309,7 +310,29 @@ class Abono(EmpresaModel):
     Un pago (total o parcial) de una venta. La venta queda «pagada» cuando la suma de sus abonos en USD cubre el
     total. Un abono en Bs se convierte a USD con la tasa indicada (por defecto, la del día del abono).
     """
+    class Estado(models.TextChoices):
+        PENDIENTE = 'PENDIENTE', 'Pendiente de revisión'
+        CONFIRMADO = 'CONFIRMADO', 'Confirmado'
+        RECHAZADO = 'RECHAZADO', 'Rechazado'
+        RETIRADO = 'RETIRADO', 'Retirado'
+        REVERTIDO = 'REVERTIDO', 'Revertido'
+
+    class Origen(models.TextChoices):
+        AUTOMATICO = 'AUTO', 'Confirmación automática'
+        MANUAL = 'MANUAL', 'Sujeto a revisión'
+        HISTORICO = 'HISTORICO', 'Cobro histórico'
+
     presupuesto = models.ForeignKey(Presupuesto, on_delete=models.CASCADE, related_name='abonos')
+    estado = models.CharField(max_length=12, choices=Estado.choices, default=Estado.CONFIRMADO)
+    origen = models.CharField(max_length=10, choices=Origen.choices, default=Origen.AUTOMATICO)
+    clave_registro = models.UUIDField(null=True, blank=True)
+    confirmado_en = models.DateTimeField(null=True, blank=True)
+    confirmado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True,
+                                       blank=True, related_name='+')
+    cerrado_en = models.DateTimeField(null=True, blank=True)
+    cerrado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True,
+                                    blank=True, related_name='+')
+    motivo_cierre = models.CharField(max_length=250, blank=True)
     fecha = models.DateField('Fecha', default=timezone.localdate)
     metodo = models.CharField('Método', max_length=15, choices=Presupuesto.MetodoPago.choices)
     banco = models.CharField('Banco emisor', max_length=60, blank=True)
@@ -327,6 +350,9 @@ class Abono(EmpresaModel):
         verbose_name_plural = 'Abonos'
         ordering = ['fecha', 'pk']
         base_manager_name = 'todos'
+        indexes = [models.Index(fields=['empresa', 'estado', 'fecha'], name='abono_estado_fecha')]
+        constraints = [models.UniqueConstraint(fields=['presupuesto', 'clave_registro'],
+                                               name='abono_clave_por_venta')]
 
     def __str__(self):
         return f'{self.presupuesto.numero} · {self.monto_usd}'
@@ -471,6 +497,7 @@ class Devolucion(EmpresaModel):
     reembolso_metodo = models.CharField('Método', max_length=15, choices=Presupuesto.MetodoPago.choices, blank=True)
     reembolso_fecha = models.DateField('Fecha del reembolso', null=True, blank=True)
     reembolso_referencia = models.CharField('Referencia', max_length=80, blank=True)
+    reembolso_en_cobranza = models.BooleanField(default=False, editable=False)
 
     class Meta:
         verbose_name = 'Devolución'

@@ -90,11 +90,12 @@ def datos_de_negocio(empresa):
 
 def vaciar_empresa(empresa):
     """Borra los datos de negocio de la empresa (no usuarios, membresías ni Mi empresa)."""
-    from apps.comisiones.models import AjusteComision, Comision, LineaComision, Liquidacion
+    from apps.comisiones.models import AjusteComision, Comision, LineaComision, Liquidacion, MovimientoComision
     from apps.core.models import Secuencia
     from apps.inventario.models import ImportacionProductos
     from apps.ventas.models import Devolucion, ItemDevolucion
-    for modelo in (AjusteComision, LineaComision, Comision, Liquidacion, ItemDevolucion, Devolucion, Reserva,
+    for modelo in (MovimientoComision, AjusteComision, LineaComision, Comision, Liquidacion, ItemDevolucion,
+                   Devolucion, Reserva,
                    ItemPresupuesto, Presupuesto, Cliente, ItemOrdenCompra, OrdenCompra, MovimientoInventario, Lote,
                    Producto, Subcategoria, Categoria, Marca, Proveedor, ImportacionProductos, Secuencia, TasaEmpresa):
         modelo.todos.filter(empresa=empresa).delete()
@@ -332,6 +333,7 @@ class Importador:
                 recalcular_totales(p)
                 if p.pagado:                     # el pago de BioLifeVentas pasa a ser un abono por el total
                     Abono.objects.create(empresa=self.e, presupuesto=p, fecha=p.fecha_pago or p.fecha,
+                                         origen=Abono.Origen.HISTORICO,
                                          metodo=p.metodo_pago or 'TRANSFERENCIA', monto=p.total_usd,
                                          monto_usd=p.total_usd)
                     Presupuesto.todos.filter(pk=p.pk).update(abonado_usd=p.total_usd)

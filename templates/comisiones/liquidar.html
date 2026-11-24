@@ -4,7 +4,7 @@
 <a href="{% url 'comisiones:inicio' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Comisiones</a>
 <h1 class="h3 mt-2 mb-3">Liquidar · {{ vendedor.nombre_visible }}</h1>
 <form method="get" class="d-flex gap-2 align-items-end mb-3">
-  <div><label class="form-label small mb-1" for="hasta">Ventas validadas hasta</label><input type="date" id="hasta" name="hasta" value="{{ hasta|date:'Y-m-d' }}" class="form-control form-control-sm"></div>
+  <div><label class="form-label small mb-1" for="hasta">Fecha de corte</label><input type="date" id="hasta" name="hasta" value="{{ hasta|date:'Y-m-d' }}" class="form-control form-control-sm"></div>
   <button class="btn btn-sm btn-outline-secondary">Actualizar</button>
 </form>
 {% if comisiones or ajustes %}
@@ -15,7 +15,7 @@
 </table></div></div>
 {% if total >= 0 %}<form method="post" class="d-flex justify-content-end">{% csrf_token %}<input type="hidden" name="hasta" value="{{ hasta|date:'Y-m-d' }}">
   <button class="btn btn-primary"><i class="bi bi-check2-square me-1"></i>Crear liquidación por {{ total|usd }}</button></form>{% endif %}
-{% if total < 0 %}<div class="alert alert-warning mt-3">El saldo es negativo por devoluciones: se descontará cuando el vendedor tenga nuevas comisiones.</div>{% endif %}
+{% if total < 0 %}<div class="alert alert-warning mt-3">El saldo es negativo por ajustes. Se descontará cuando el vendedor tenga nuevas comisiones.</div>{% endif %}
 {% else %}
 <div class="card card-body text-muted">No hay comisiones disponibles hasta esa fecha.</div>
 {% endif %}

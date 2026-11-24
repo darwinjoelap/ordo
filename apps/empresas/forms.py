@@ -16,7 +16,7 @@ GRUPOS = {
                                   'datos_bancarios', 'firma']),
     'comercial': ('Comercial', ['iva_porcentaje', 'dias_validez_presupuesto', 'dias_apartado', 'modo_precio',
                                 'margen_minimo_pct', 'margen_maximo_pct', 'requiere_validacion',
-                                'vendedores_ven_todos_los_clientes', 'comision_requiere_pago', 'tasa_abonos',
+                                'vendedores_ven_todos_los_clientes', 'modalidad_comision', 'tasa_abonos',
                                 'observaciones_por_producto', 'despacho_por_almacen',
                                 'multialmacen']),
     'servicios': ('Servicios', ['maneja_servicios', 'recordatorio_servicios', 'mensaje_servicio']),
@@ -46,6 +46,11 @@ class PerfilEmpresaForm(forms.ModelForm):
         for nombre in ('quitar_logo', 'quitar_firma'):
             self.fields[nombre].widget.attrs['class'] = 'form-check-input'
         self.fields['tasa_abonos'].required = False
+        self.fields['requiere_validacion'].label = 'Las ventas y sus abonos requieren validación'
+        self.fields['requiere_validacion'].help_text = 'Confirma cada abono antes de aplicarlo al saldo de la venta.'
+        self.initial['modalidad_comision'] = self.instance.modalidad_comision_vigente
+        self.fields['modalidad_comision'].choices = PerfilEmpresa.ModalidadComision.choices
+        self.fields['modalidad_comision'].help_text = 'Aplica a nuevas ventas. La cobranza proporcional devenga con cada abono confirmado.'
         from apps.core.forms import decimales_tolerantes
         decimales_tolerantes(self)
         for nombre in ('razon_social', 'rif'):          # los administra la plataforma (panel de empresas)
@@ -66,6 +71,9 @@ class PerfilEmpresaForm(forms.ModelForm):
 
     def clean_tasa_abonos(self):
         return self.cleaned_data.get('tasa_abonos') or 'DIA'      # un formulario viejo sin el campo no falla
+
+    def clean_modalidad_comision(self):
+        return self.cleaned_data.get('modalidad_comision') or self.instance.modalidad_comision_vigente
 
     def _validar_archivo(self, campo, etiqueta):
         archivo = self.cleaned_data.get(campo)

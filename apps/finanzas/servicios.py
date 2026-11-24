@@ -62,7 +62,7 @@ def quitar_costo(costo, mes):
 
 
 def calcular(anio, mes, hoy=None):
-    from apps.comisiones.models import AjusteComision, Comision
+    from apps.comisiones.models import AjusteComision, Comision, MovimientoComision
     from apps.ventas.models import Devolucion, ItemDevolucion, ItemPresupuesto, Presupuesto
 
     hoy = hoy or timezone.localdate()
@@ -99,8 +99,9 @@ def calcular(anio, mes, hoy=None):
                  .values('devolucion_id').annotate(c=Sum(F('cantidad') * F('item__costo_usd')))):
         costo[devoluciones[fila['devolucion_id']]['fecha'].day] -= fila['c'] or CERO
 
-    for modelo in (Comision, AjusteComision):       # los ajustes por devolución son negativos
-        for fila in modelo.objects.filter(fecha__gte=inicio, fecha__lte=fin).values('fecha').annotate(t=Sum('monto_usd')):
+    comisiones = Comision.objects.exclude(presupuesto__modalidad_comision='PROPORCIONAL')
+    for qs in (comisiones, AjusteComision.objects.all(), MovimientoComision.objects.all()):
+        for fila in qs.filter(fecha__gte=inicio, fecha__lte=fin).values('fecha').annotate(t=Sum('monto_usd')):
             comision[fila['fecha'].day] += fila['t'] or CERO
 
     deducciones = list(Deduccion.objects.filter(activa=True))

@@ -3,7 +3,8 @@ Comisiones de vendedores.
 
 - El % sale de la tabla del vendedor; si la categoría del producto tiene % propio, manda el de la categoría.
 - Base = subtotal del ítem menos el descuento del documento, SIN IVA.
-- Se genera UNA Comision por venta al validarla (señal `venta_validada`), con el % congelado por línea.
+- La comisión ordinaria se genera al validar la venta. La proporcional congela las líneas al confirmar
+  la venta y reconoce el devengo mediante MovimientoComision cuando se confirma la cobranza.
 - Está disponible para liquidar si no está liquidada y (la empresa no exige cobro o la venta está pagada).
 - Una devolución de la venta genera un AjusteComision (negativo). Nunca se modifica lo ya liquidado:
   el ajuste se descuenta en la próxima liquidación del vendedor.
@@ -134,3 +135,35 @@ class AjusteComision(EmpresaModel):
 
     def __str__(self):
         return f'{self.devolucion.numero} · {self.monto_usd}'
+
+
+class MovimientoComision(EmpresaModel):
+    comision = models.ForeignKey(Comision, on_delete=models.PROTECT, related_name='movimientos')
+    origen = models.CharField(max_length=64)
+    fecha = models.DateField()
+    base_usd = models.DecimalField(max_digits=14, decimal_places=2)
+    monto_usd = models.DecimalField(max_digits=14, decimal_places=2)
+    liquidacion = models.ForeignKey(Liquidacion, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='movimientos')
+
+    class Meta:
+        base_manager_name = 'todos'
+        ordering = ['fecha', 'pk']
+        constraints = [models.UniqueConstraint(fields=['comision', 'origen'], name='mov_comision_origen_unico')]
+        indexes = [models.Index(fields=['empresa', 'liquidacion', 'fecha'], name='mov_comision_liq_fecha')]
+
+    @property
+    def presupuesto(self):
+        return self.comision.presupuesto
+
+    @property
+    def presupuesto_id(self):
+        return self.comision.presupuesto_id
+
+    @property
+    def descripcion(self):
+        return {
+            'abono': 'Abono confirmado' if self.origen.endswith(':confirmado') else 'Reversión de abono',
+            'devolucion': 'Devolución',
+            'reembolso': 'Reembolso',
+        }[self.origen.split(':', 1)[0]]

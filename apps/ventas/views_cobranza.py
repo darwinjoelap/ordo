@@ -23,12 +23,8 @@ def _filtros(request):
     if vendedor:
         docs = docs.filter(vendedor_id=vendedor)
     metodo = g.get('metodo', '') if g.get('metodo', '') in Presupuesto.MetodoPago.values else ''
-    abonos = cobranza.abonos_de(docs)
-    if metodo:
-        abonos = abonos.filter(metodo=metodo)
-    filas = list(cobranza.detalle(abonos, desde, hasta))
-    return {'desde': desde, 'hasta': hasta, 'vendedor': vendedor, 'metodo': metodo}, filas, \
-        cobranza.resumen(abonos, desde, hasta)
+    filas = cobranza.movimientos(docs, desde, hasta, metodo)
+    return {'desde': desde, 'hasta': hasta, 'vendedor': vendedor, 'metodo': metodo}, filas, cobranza.resumen(filas)
 
 
 @login_required

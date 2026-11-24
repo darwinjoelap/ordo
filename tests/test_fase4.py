@@ -20,7 +20,7 @@ from apps.inventario.models import Categoria, Lote, Producto, Unidad
 from apps.tasas import servicios as tasas
 from apps.tasas.models import TasaCambio
 from apps.ventas import servicios
-from apps.ventas.models import ItemPresupuesto, Presupuesto, Reserva
+from apps.ventas.models import Abono, ItemPresupuesto, Presupuesto, Reserva
 
 E = Presupuesto.Estado
 HOY = timezone.localdate()
@@ -59,6 +59,12 @@ class Base(TestCase):
 
     def empresa_ctx(self):
         return usando_empresa(self.empresa)
+
+    def confirmar_abonos(self, p):
+        with self.empresa_ctx():
+            for abono in Abono.objects.filter(presupuesto=p, estado=Abono.Estado.PENDIENTE):
+                p = servicios.revisar_abono(abono, self.dueno, Abono.Estado.CONFIRMADO)
+        return p
 
     def stock(self):
         with self.empresa_ctx():
@@ -137,6 +143,7 @@ class FlujoTests(Base):
             p = servicios.confirmar(p, self.vendedor, self.empresa)
             self.assertEqual(p.estado, E.POR_PAGAR)                 # sin pago no entra a validación
             p = servicios.registrar_pago(p, True, 'ZELLE')
+            p = self.confirmar_abonos(p)
             self.assertEqual(p.estado, E.POR_VALIDAR)
             self.assertEqual(self.stock(), (10, 7))          # todavía no sale
             p = servicios.validar(p, self.dueno)
@@ -185,6 +192,7 @@ class FlujoTests(Base):
         p = self.presupuesto(cantidad=2)
         with self.empresa_ctx():
             p = servicios.registrar_pago(servicios.confirmar(p, self.vendedor, self.empresa), True, 'ZELLE')
+            p = self.confirmar_abonos(p)
             with self.assertRaises(servicios.ErrorVenta):
                 servicios.rechazar(p, self.dueno, '  ', empresa=self.empresa)
             p = servicios.rechazar(p, self.dueno, 'Precio mal', True, self.empresa)
@@ -195,7 +203,7 @@ class FlujoTests(Base):
     def test_rechazo_liberando_stock(self):
         p = self.presupuesto(cantidad=2)
         with self.empresa_ctx():
-            p = servicios.registrar_pago(servicios.confirmar(p, self.vendedor, self.empresa), True, 'ZELLE')
+            p = servicios.confirmar(p, self.vendedor, self.empresa)
             p = servicios.rechazar(p, self.dueno, 'Cliente desistió', False, self.empresa)
         self.assertEqual(p.estado, E.RECHAZADA)
         self.assertEqual(self.stock(), (10, 0))
@@ -284,7 +292,8 @@ class VistasTests(Base):
     def test_vendedor_no_puede_validar(self):
         p = self.presupuesto()
         with self.empresa_ctx():
-            servicios.registrar_pago(servicios.confirmar(p, self.vendedor, self.empresa), True, 'ZELLE')
+            p = servicios.registrar_pago(servicios.confirmar(p, self.vendedor, self.empresa), True, 'ZELLE')
+            self.confirmar_abonos(p)
         self.client.force_login(self.vendedor)
         self.assertEqual(self.client.get(reverse('ventas:por_validar')).status_code, 403)
         self.client.post(reverse('ventas:accion', args=[p.pk, 'validar']))
@@ -304,7 +313,7 @@ class VistasTests(Base):
         p.refresh_from_db()
         self.assertEqual(p.estado, E.POR_PAGAR)
         self.client.post(reverse('ventas:pago_entrega', args=[p.pk]), {'pagado': '1', 'metodo_pago': 'ZELLE'})
-        p.refresh_from_db()
+        p = self.confirmar_abonos(p)
         self.assertEqual(p.estado, E.POR_VALIDAR)
         self.client.force_login(self.dueno)
         self.assertContains(self.client.get(reverse('ventas:por_validar')), p.numero)

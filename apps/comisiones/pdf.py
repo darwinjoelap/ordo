@@ -9,14 +9,14 @@ from apps.core.pdf import Paragraph  # noqa: E402  (escapa & y < de los datos)
 from apps.core.pdf import ESTILO_CELDA, ESTILOS, documento, encabezado_empresa, pie_empresa
 from apps.core.templatetags.ordo import usd
 
-from .models import AjusteComision, Comision
+from .models import AjusteComision, Comision, MovimientoComision
 
 
 def liquidacion_pdf(liq, empresa):
     color = colors.HexColor(empresa.perfil.color_principal or '#053D74')
     buffer = BytesIO()
     doc = documento(buffer, titulo_pdf=f'Liquidación {liq.numero}')
-    sub = f'N° {liq.numero}<br/>Fecha: {liq.creada_en:%d/%m/%Y}<br/>Ventas hasta: {liq.hasta:%d/%m/%Y}'
+    sub = f'N° {liq.numero}<br/>Fecha: {liq.creada_en:%d/%m/%Y}<br/>Corte: {liq.hasta:%d/%m/%Y}'
     e = encabezado_empresa(empresa, titulo='LIQUIDACIÓN DE COMISIONES', subtitulo=sub)
     nombre = liq.vendedor.nombre_visible
     estado = liq.estado + (f' el {liq.fecha_pago:%d/%m/%Y}' if liq.pagada else '')
@@ -28,6 +28,10 @@ def liquidacion_pdf(liq, empresa):
     for c in comisiones:
         filas.append([f'{c.fecha:%d/%m/%Y}', c.presupuesto.numero, Paragraph(c.presupuesto.cliente.nombre, ESTILO_CELDA),
                       usd(c.base_usd), f'{c.porcentaje_efectivo:.2f}'.replace('.', ','), usd(c.monto_usd)])
+    for m in MovimientoComision.todos.filter(liquidacion=liq).select_related('comision__presupuesto__cliente'):
+        filas.append([f'{m.fecha:%d/%m/%Y}', m.presupuesto.numero,
+                      Paragraph(f'{m.descripcion} · {m.presupuesto.cliente.nombre}', ESTILO_CELDA),
+                      usd(m.base_usd), '', usd(m.monto_usd)])
     for a in AjusteComision.todos.filter(liquidacion=liq).select_related('devolucion__presupuesto__cliente') \
             .order_by('fecha', 'pk'):
         filas.append([f'{a.fecha:%d/%m/%Y}', a.devolucion.numero,

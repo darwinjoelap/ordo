@@ -1,18 +1,36 @@
 """Pagos parciales (abonos), comisión al pago completo y estado de cuenta del cliente."""
 from decimal import Decimal
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
+from unittest import skipUnless
+from uuid import uuid4
 
+from django.db import close_old_connections, connection, connections
+from django.test import TransactionTestCase
 from django.urls import reverse
+from django.utils import timezone
 from openpyxl import load_workbook
 from io import BytesIO
 
 from apps.comisiones import servicios as comisiones
-from apps.comisiones.models import Comision
+from apps.comisiones.models import Comision, MovimientoComision, PorcentajeCategoria, PorcentajeVendedor
+from apps.core.tenancy import usando_empresa
+from apps.empresas.models import Membresia, Rol
 from apps.tasas import servicios as tasas
 from apps.tasas.models import TasaCambio
 from apps.ventas import servicios as ventas
 from apps.ventas.models import Abono, Presupuesto
 
+from .test_fase4 import Base as BaseVentas
 from .test_fase5 import Base
+
+A = Abono.Estado
+
+
+def confirmar_pendientes(p, usuario):
+    for abono in Abono.objects.filter(presupuesto=p, estado=A.PENDIENTE):
+        p = ventas.revisar_abono(abono, usuario, A.CONFIRMADO)
+    return p
 
 
 class AbonosConValidacionTests(Base):
@@ -34,7 +52,14 @@ class AbonosConValidacionTests(Base):
         p = self.confirmada()
         self.assertEqual((p.estado, p.saldo_usd), ('POR_PAGAR', Decimal('116.00')))
         with self.empresa_ctx():
-            p = ventas.registrar_abono(p, Decimal('50'), 'USD', 'ZELLE', self.vendedor)
+            clave = uuid4()
+            for _ in range(2):
+                p = ventas.registrar_abono(p, Decimal('50'), 'USD', 'ZELLE', self.vendedor, clave=clave)
+            self.assertEqual((p.abonado_usd, p.saldo_usd, ventas.saldo_para_registrar(p)), (0, 116, 66))
+            abono = Abono.objects.get(presupuesto=p)
+            with self.assertRaisesRegex(ventas.ErrorVenta, 'rol'):
+                ventas.revisar_abono(abono, self.vendedor, A.CONFIRMADO)
+            p = confirmar_pendientes(p, self.dueno)
             self.assertEqual((p.estado, p.pagado, p.abonado_usd, p.saldo_usd, p.abono_parcial),
                              ('POR_PAGAR', False, Decimal('50.00'), Decimal('66.00'), True))
             with self.assertRaisesRegex(ventas.ErrorVenta, 'supera'):
@@ -42,36 +67,214 @@ class AbonosConValidacionTests(Base):
             with self.assertRaisesRegex(ventas.ErrorVenta, 'validar|cobrar'):
                 ventas.validar(p, self.dueno)
             p = ventas.registrar_abono(p, Decimal('66'), 'USD', 'PAGO_MOVIL', self.vendedor)
+            self.assertFalse(p.pagado)
+            p = confirmar_pendientes(p, self.dueno)
             self.assertEqual((p.estado, p.pagado, p.saldo_usd, p.metodo_pago), ('POR_VALIDAR', True, 0, 'MIXTO'))
             with self.assertRaisesRegex(ventas.ErrorVenta, 'pagada'):
                 ventas.registrar_abono(p, Decimal('1'), 'USD', 'ZELLE', self.vendedor)
-            p = ventas.anular_abono(Abono.objects.filter(presupuesto=p).last(), self.dueno)
+            ultimo = Abono.objects.filter(presupuesto=p).last()
+            p = ventas.anular_abono(ultimo, self.dueno, 'Pago no recibido')
             self.assertEqual((p.estado, p.pagado, p.saldo_usd), ('POR_PAGAR', False, Decimal('66.00')))
+            ultimo.refresh_from_db()
+            self.assertEqual((ultimo.estado, ultimo.confirmado_por, ultimo.cerrado_por),
+                             (A.REVERTIDO, self.dueno, self.dueno))
 
     def test_abono_en_bolivares_con_la_tasa(self):
         p = self.confirmada()
         with self.empresa_ctx():
             p = ventas.registrar_abono(p, Decimal('5000'), 'BS', 'PAGO_MOVIL', self.vendedor, tasa=Decimal('100'))
             a = Abono.objects.get(presupuesto=p)
-            self.assertEqual((a.monto_usd, a.tasa_bs, p.saldo_usd), (Decimal('50.00'), Decimal('100'), Decimal('66.00')))
+            self.assertEqual((a.monto_usd, a.tasa_bs, p.saldo_usd), (Decimal('50.00'), Decimal('100'), Decimal('116.00')))
             tasas.registrar(Decimal('200'), TasaCambio.Fuente.MANUAL)
             p = ventas.registrar_abono(p, Decimal('13200'), 'BS', 'PAGO_MOVIL', self.vendedor)      # tasa del día
-            self.assertTrue(p.pagado)
+            self.assertTrue(confirmar_pendientes(p, self.dueno).pagado)
 
     def test_redondeo_de_un_centavo_cierra_la_venta(self):
         p = self.confirmada()
         with self.empresa_ctx():
             p = ventas.registrar_abono(p, Decimal('115.995'), 'USD', 'ZELLE', self.vendedor)
-        self.assertTrue(p.pagado)
+            self.assertTrue(confirmar_pendientes(p, self.dueno).pagado)
 
     def test_registrar_pago_completo_sigue_funcionando(self):
         p = self.confirmada()
         with self.empresa_ctx():
             p = ventas.registrar_abono(p, Decimal('16'), 'USD', 'ZELLE', self.vendedor)
             p = ventas.registrar_pago(p, True, 'ZELLE', usuario=self.dueno)
-            self.assertEqual((p.pagado, p.abonado_usd, Abono.objects.filter(presupuesto=p).count()), (True, Decimal('116.00'), 2))
-            p = ventas.registrar_pago(p, False)
-            self.assertEqual((p.pagado, p.abonado_usd, p.estado), (False, 0, 'POR_PAGAR'))
+            self.assertEqual((p.pagado, p.abonado_usd, Abono.objects.filter(presupuesto=p).count()), (False, 0, 2))
+            with self.assertRaisesRegex(ventas.ErrorVenta, 'individualmente'):
+                ventas.registrar_pago(p, False, usuario=self.vendedor)
+            self.assertTrue(confirmar_pendientes(p, self.dueno).pagado)
+
+    def test_rechazar_y_retirar_conserva_el_historial_y_libera_el_cupo(self):
+        p = self.confirmada()
+        with self.empresa_ctx():
+            ventas.registrar_abono(p, Decimal('70'), 'USD', 'ZELLE', self.vendedor)
+            abono = Abono.objects.get(presupuesto=p)
+            ventas.revisar_abono(abono, self.dueno, A.RECHAZADO, 'Referencia incorrecta')
+            self.assertEqual(ventas.saldo_para_registrar(p), 116)
+            ventas.registrar_abono(p, Decimal('116'), 'USD', 'ZELLE', self.vendedor)
+            otro = Abono.objects.get(presupuesto=p, estado=A.PENDIENTE)
+            ventas.anular_abono(otro, self.vendedor, 'Monto incorrecto')
+            self.assertEqual(ventas.saldo_para_registrar(p), 116)
+            self.assertEqual(set(Abono.objects.values_list('estado', flat=True)), {A.RECHAZADO, A.RETIRADO})
+
+    def test_apagar_la_regla_no_confirma_abonos_pendientes(self):
+        p = self.confirmada()
+        with self.empresa_ctx():
+            ventas.registrar_abono(p, Decimal('116'), 'USD', 'ZELLE', self.vendedor)
+            self.perfil.requiere_validacion = False
+            self.perfil.save()
+            self.assertFalse(Presupuesto.objects.get(pk=p.pk).pagado)
+            with self.assertRaises(ventas.ErrorVenta):
+                ventas.registrar_pago(p, False, usuario=self.vendedor)
+            p = confirmar_pendientes(p, self.dueno)
+            self.assertEqual(p.estado, Presupuesto.Estado.POR_VALIDAR)
+
+    def test_cobranza_excluye_pendientes_y_conserva_reversion(self):
+        p = self.confirmada()
+        with self.empresa_ctx():
+            ventas.registrar_abono(p, Decimal('50'), 'USD', 'ZELLE', self.vendedor)
+        self.client.force_login(self.dueno)
+        url = reverse('ventas:cobranza')
+        self.assertEqual(self.client.get(url).context['tot']['usd'], 0)
+        with self.empresa_ctx():
+            confirmar_pendientes(p, self.dueno)
+            abono = Abono.objects.get(presupuesto=p)
+        self.assertEqual(self.client.get(url).context['tot']['usd'], 50)
+        self.client.force_login(self.vendedor)
+        revisar = reverse('ventas:revisar_abono', args=[p.pk, abono.pk])
+        self.assertEqual(self.client.post(revisar, {'accion': 'revertir', 'motivo': 'Prueba'}).status_code, 403)
+        self.client.force_login(self.dueno)
+        self.client.post(revisar, {'accion': 'revertir', 'motivo': 'Abono duplicado'})
+        self.client.post(revisar, {'accion': 'revertir', 'motivo': 'Reintento'})
+        reporte = self.client.get(url)
+        self.assertEqual(reporte.context['tot']['usd'], 0)
+        self.assertEqual([a.monto_usd for a in reporte.context['filas']], [50, -50])
+        self.assertContains(reporte, 'Reversión')
+
+    def test_comision_proporcional_devenga_y_liquida_una_vez(self):
+        self.perfil.modalidad_comision = 'PROPORCIONAL'
+        self.perfil.save()
+        p = self.confirmada()
+        hoy = timezone.localdate()
+        with self.empresa_ctx():
+            ventas.registrar_abono(p, Decimal('29'), 'USD', 'ZELLE', self.vendedor)
+            abono = Abono.objects.get(presupuesto=p)
+            self.assertFalse(MovimientoComision.objects.exists())
+            for _ in range(2):
+                ventas.revisar_abono(abono, self.dueno, A.CONFIRMADO)
+            self.assertEqual(MovimientoComision.objects.get().monto_usd, Decimal('1.25'))
+            self.assertEqual(comisiones.saldo_disponible(self.perfil, self.vendedor), 0)
+            self.perfil.modalidad_comision = 'VALIDADA'
+            self.perfil.save()
+            ventas.registrar_abono(p, Decimal('8700'), 'BS', 'PAGO_MOVIL', self.vendedor, tasa=Decimal('100'))
+            ultimo = Abono.objects.get(presupuesto=p, estado=A.PENDIENTE)
+            for _ in range(2):
+                p = ventas.revisar_abono(ultimo, self.dueno, A.CONFIRMADO, validar_venta=True)
+            self.assertEqual(p.estado, Presupuesto.Estado.VALIDADA)
+            self.assertEqual(Comision.objects.count(), 1)
+            self.assertEqual(MovimientoComision.objects.count(), 2)
+            liq = comisiones.liquidar(self.perfil, self.vendedor, hoy, self.dueno, self.empresa)
+            self.assertEqual(liq.total_usd, Decimal('5.00'))
+            comisiones.marcar_pagada(liq)
+            p = ventas.revisar_abono(abono, self.dueno, A.REVERTIDO, 'Registro duplicado')
+            self.assertEqual((p.estado, p.saldo_usd), (Presupuesto.Estado.VALIDADA, Decimal('29.00')))
+            self.assertEqual(comisiones.saldo_disponible(self.perfil, self.vendedor), Decimal('-1.25'))
+            liq.refresh_from_db()
+            self.assertTrue(liq.pagada)
+            self.assertEqual(liq.total_usd, Decimal('5.00'))
+
+    def test_otra_empresa_no_ve_ni_confirma_el_abono(self):
+        p = self.confirmada()
+        with self.empresa_ctx():
+            ventas.registrar_abono(p, Decimal('50'), 'USD', 'ZELLE', self.vendedor,
+                                   referencia='REF-PRIVADA')
+            abono = Abono.objects.get(presupuesto=p)
+        Membresia.objects.create(empresa=self.otra, usuario=self.vendedor2, rol=Rol.DUENO)
+        self.client.force_login(self.vendedor2)
+        sesion = self.client.session
+        sesion['empresa_id'] = self.otra.pk
+        sesion.save()
+        cola = self.client.get(reverse('ventas:abonos_por_validar'))
+        self.assertContains(cola, 'No hay abonos pendientes')
+        url = reverse('ventas:revisar_abono', args=[p.pk, abono.pk])
+        self.assertEqual(self.client.post(url, {'accion': 'confirmar'}).status_code, 404)
+        reporte = self.client.get(reverse('ventas:cobranza_excel'))
+        hoja = load_workbook(BytesIO(reporte.content)).active
+        self.assertNotIn('REF-PRIVADA', [v for fila in hoja.values for v in fila])
+
+
+class ComisionProporcionalDevolucionesTests(Base):
+    def test_devuelve_lineas_y_reembolsa_sobre_el_cobro_confirmado(self):
+        self.perfil.modalidad_comision = 'PROPORCIONAL'
+        self.perfil.save()
+        with self.empresa_ctx():
+            self.equipo.exento_iva = True
+            self.equipo.save(update_fields=['exento_iva'])
+            PorcentajeCategoria.objects.create(categoria=self.cat2, porcentaje=Decimal('8'))
+            p = self.venta([(self.prod, 1), (self.equipo, 1)], descuento='10')
+            p = ventas.registrar_abono(p, Decimal('100.44'), 'USD', 'ZELLE', self.vendedor)
+            self.assertEqual(comisiones.saldo_disponible(self.perfil, self.vendedor), Decimal('7.65'))
+            item = p.items.get(producto=self.equipo)
+            dev = ventas.devolver(p, self.dueno, {item.pk: (1, True)}, 'Devolución parcial')
+            self.assertEqual(comisiones.saldo_disponible(self.perfil, self.vendedor), Decimal('0.90'))
+            ventas.registrar_reembolso(dev, Decimal('90'), 'ZELLE')
+            p.refresh_from_db()
+            self.assertEqual((p.abonado_usd, p.saldo_usd), (Decimal('10.44'), Decimal('10.44')))
+            self.assertEqual(comisiones.saldo_disponible(self.perfil, self.vendedor), Decimal('0.45'))
+            item = p.items.get(producto=self.prod)
+            ventas.devolver(p, self.dueno, {item.pk: (1, True)}, 'Devolución total')
+            self.assertEqual(comisiones.saldo_disponible(self.perfil, self.vendedor), 0)
+        self.client.force_login(self.dueno)
+        self.assertEqual(self.client.get(reverse('ventas:cobranza')).context['tot']['usd'], Decimal('10.44'))
+
+
+@skipUnless(connection.vendor == 'postgresql', 'Requiere bloqueos de fila de PostgreSQL')
+class AbonosConcurrentesTests(TransactionTestCase):
+    def setUp(self):
+        BaseVentas.setUp(self)
+
+    def _en_paralelo(self, operacion):
+        inicio = Barrier(2, timeout=15)
+
+        def ejecutar():
+            close_old_connections()
+            try:
+                with usando_empresa(self.empresa):
+                    inicio.wait()
+                    return operacion()
+            finally:
+                connections.close_all()
+
+        with ThreadPoolExecutor(max_workers=2) as ejecutor:
+            tareas = [ejecutor.submit(ejecutar) for _ in range(2)]
+            return [t.result(timeout=20) for t in tareas]
+
+    def test_confirmacion_y_liquidacion_concurrentes(self):
+        self.perfil.modalidad_comision = 'PROPORCIONAL'
+        self.perfil.save()
+        with usando_empresa(self.empresa):
+            PorcentajeVendedor.objects.create(vendedor=self.vendedor, porcentaje=Decimal('5'))
+            p = ventas.crear(self.cliente, self.vendedor, self.empresa)
+            ventas.agregar_item(p, self.prod, 5, None, self.perfil, True)
+            p = ventas.confirmar(p, self.vendedor, self.empresa)
+            ventas.registrar_abono(p, Decimal('116'), 'USD', 'ZELLE', self.vendedor)
+            abono = Abono.objects.get(presupuesto=p)
+
+        def confirmar():
+            return ventas.revisar_abono(abono, self.dueno, A.CONFIRMADO, validar_venta=True).estado
+
+        self.assertEqual(self._en_paralelo(confirmar), [Presupuesto.Estado.VALIDADA] * 2)
+        self.assertEqual(MovimientoComision.todos.count(), 1)
+
+        def liquidar():
+            try:
+                liq = comisiones.liquidar(self.perfil, self.vendedor, timezone.localdate(), self.dueno, self.empresa)
+            except comisiones.ErrorComision:
+                return None
+            return liq.total_usd
+
+        self.assertCountEqual(self._en_paralelo(liquidar), [None, Decimal('5.00')])
 
 
 class ComisionAlPagoCompletoTests(Base):
@@ -101,7 +304,6 @@ class ComisionAlPagoCompletoTests(Base):
         self.assertContains(r, 'Los abonos parciales no la liberan')
         r = self.client.get(reverse('comisiones:detalle_vendedor'))
         self.assertContains(r, 'Espera pago completo')
-        self.assertContains(r, '¿Cuándo se paga la comisión?')
 
 
 class PantallaAbonosTests(Base):
@@ -208,7 +410,7 @@ class TasaDeLaVentaTests(Base):
             p = ventas.registrar_abono(p, Decimal('2000'), 'BS', 'PAGO_MOVIL', self.vendedor)
             self.assertEqual((Abono.objects.get().monto_usd, Abono.objects.get().tasa_bs), (Decimal('20.00'), Decimal('100')))
             p = ventas.registrar_abono(p, Decimal('9600'), 'BS', 'PAGO_MOVIL', self.vendedor)      # 116 × 100 − 2000
-            self.assertTrue(p.pagado)
+            self.assertTrue(confirmar_pendientes(p, self.dueno).pagado)
         self.client.force_login(self.dueno)
         self.assertContains(self.client.get(reverse('empresas:mi_empresa')), 'name="tasa_abonos"')
 
@@ -232,7 +434,7 @@ class CobranzaTests(Base):
         r = self.client.get(reverse('ventas:cobranza'))
         tot = r.context['tot']
         self.assertEqual((tot['usd'], tot['divisas'], tot['bs'], tot['n']), (Decimal('82.00'), Decimal('32.00'), Decimal('5000.00'), 2))
-        self.assertContains(r, 'en el mes en que se cobró')
+        self.assertContains(r, 'Los cobros confirmados aparecen en la fecha del pago')
         r = self.client.get(reverse('ventas:cobranza'), {'metodo': 'ZELLE', 'desde': '2000-01-01'})
         self.assertEqual(r.context['tot']['usd'], Decimal('16.00'))
         self.assertTrue(self.client.get(reverse('ventas:cobranza_pdf')).content.startswith(b'%PDF'))

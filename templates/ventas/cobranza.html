@@ -10,7 +10,7 @@
     <a href="{% url 'ventas:cobranza_excel' %}?{{ querystring }}" class="btn btn-outline-success btn-sm"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
   </div>
 </div>
-<p class="small text-muted">El dinero que entró, contado el día de cada pago. Una venta de un mes que se cobra en el siguiente aparece aquí en el mes en que se cobró; en <b>Ventas</b> sigue contando en el mes en que se validó.</p>
+<p class="small text-muted">Los cobros confirmados aparecen en la fecha del pago. Las reversiones y los reembolsos se descuentan en la fecha del movimiento.</p>
 
 <form method="get" class="card card-body mb-3">
   <div class="row g-2 align-items-end">
@@ -32,6 +32,7 @@
     {% for m in tot.metodos %}<div class="d-flex justify-content-between small"><span>{{ m.metodo }}</span><b>{{ m.usd|usd }}</b></div>{% empty %}<div class="small text-muted">Sin pagos.</div>{% endfor %}</div></div>
 </div>
 
+{% if tot.reembolsos_usd %}<p class="small text-muted">El total cobrado descuenta {{ tot.reembolsos_usd|usd }} en reembolsos.</p>{% endif %}
 <div class="card">
   {% if filas %}
   <div class="table-responsive"><table class="table table-sm align-middle mb-0">
@@ -41,9 +42,9 @@
       <td><a href="{% url 'ventas:detalle' a.presupuesto_id %}" class="fw-semibold">{{ a.presupuesto.numero }}</a>{% if not a.presupuesto.pagado %} <span class="badge text-bg-info">Parcial</span>{% endif %}</td>
       <td class="small">{{ a.presupuesto.cliente.nombre }}</td>
       <td class="small d-none d-md-table-cell">{{ a.presupuesto.vendedor.nombre_visible }}</td>
-      <td class="small">{{ a.get_metodo_display }}</td>
+      <td class="small">{% if a.tipo_movimiento %}<span class="text-danger">{{ a.tipo_movimiento }}</span> · {% endif %}{{ a.get_metodo_display }}</td>
       <td class="small d-none d-lg-table-cell">{{ a.banco }}{% if a.banco and a.referencia %} · {% endif %}{{ a.referencia }}</td>
-      <td class="text-end small text-nowrap">{% if a.moneda == 'BS' %}Bs {{ a.monto|floatformat:"2g" }}{% else %}{{ a.monto|usd }}{% endif %}</td>
+      <td class="text-end small text-nowrap">{% if a.moneda == 'BS' %}Bs {{ a.monto|floatformat:"2g" }}{% elif a.moneda == 'USD' %}{{ a.monto|usd }}{% else %}—{% endif %}</td>
       <td class="text-end fw-semibold text-nowrap">{{ a.monto_usd|usd }}</td></tr>{% endfor %}</tbody>
     <tfoot class="table-light"><tr class="fw-semibold"><td colspan="6">{{ filas|length }} pago{{ filas|length|pluralize }}</td><td class="text-end d-none d-lg-table-cell"></td><td class="text-end">{{ tot.usd|usd }}</td></tr></tfoot>
   </table></div>

@@ -84,6 +84,7 @@ class CalculoTests(Base):
         self.assertFalse(Comision.todos.exists())
         with self.empresa_ctx():
             p = ventas.registrar_pago(p, True, 'ZELLE')
+            p = self.confirmar_abonos(p)
             p = ventas.validar(p, self.dueno)
             comisiones.registrar(p)
         self.assertEqual(Comision.todos.count(), 1)

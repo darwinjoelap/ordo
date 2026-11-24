@@ -175,13 +175,17 @@
       {% endif %}
     </div>
 
-    {% if p.estado == 'POR_PAGAR' or p.estado == 'POR_VALIDAR' or p.estado == 'VALIDADA' or p.estado == 'APARTADO' %}
+    {% if p.confirmada or p.estado == 'APARTADO' or abonos %}
     <div class="card card-body mb-3">
       <div class="fw-semibold mb-2">Pago y entrega</div>
       {% if p.estado != 'APARTADO' %}
       <div class="mb-3">
         <div class="d-flex justify-content-between small"><span>Total a cobrar</span><b>{{ p.neto_usd|usd }}</b></div>
-        <div class="d-flex justify-content-between small"><span>Abonado</span><span class="text-success">{{ p.abonado_usd|usd }}</span></div>
+        <div class="d-flex justify-content-between small"><span>Cobro confirmado</span><span class="text-success">{{ p.abonado_usd|usd }}</span></div>
+        {% if pendiente_revision_usd %}
+        <div class="d-flex justify-content-between small"><span>Pendiente de revisión</span><b>{{ pendiente_revision_usd|usd }}</b></div>
+        <div class="d-flex justify-content-between small"><span>Disponible para registrar</span><b>{{ saldo_registro|usd }}</b></div>
+        {% endif %}
         <div class="d-flex justify-content-between {% if p.pagado %}text-success{% else %}text-danger{% endif %} fw-semibold border-top mt-1 pt-1">
           <span>{% if p.pagado %}<i class="bi bi-check-circle-fill me-1"></i>Pagada por completo{% else %}Falta por cobrar{% endif %}</span><span>{% if not p.pagado %}{{ p.saldo_usd|usd }}{% endif %}</span></div>
         {% if not p.pagado and tasa_de_venta and saldo_bs %}<div class="d-flex justify-content-between small text-danger"><span>En Bs (tasa fija de la venta, {{ p.tasa_bs|floatformat:"2g" }})</span><span>Bs {{ saldo_bs|floatformat:"2g" }}</span></div>{% endif %}
@@ -189,23 +193,25 @@
       </div>
       {% if abonos %}
       <div class="small mb-3">
-        <div class="text-muted mb-1">Pagos recibidos</div>
+        <div class="text-muted mb-1">Abonos registrados</div>
         {% for a in abonos %}
         <div class="d-flex justify-content-between align-items-start gap-2 border-bottom py-1">
-          <div><b>{{ a.monto_usd|usd }}</b>{% if a.moneda == 'BS' %} <span class="text-muted">(Bs {{ a.monto|floatformat:"2g" }} a {{ a.tasa_bs|floatformat:"2g" }})</span>{% elif a.monto != a.monto_usd %} <span class="text-muted">(recibido {{ a.monto|usd }})</span>{% endif %}
+          <div><b>{{ a.monto_usd|usd }}</b> <span class="badge text-bg-light">{{ a.get_estado_display }}</span>{% if a.moneda == 'BS' %} <span class="text-muted">(Bs {{ a.monto|floatformat:"2g" }} a {{ a.tasa_bs|floatformat:"2g" }})</span>{% elif a.monto != a.monto_usd %} <span class="text-muted">(recibido {{ a.monto|usd }})</span>{% endif %}
             <div class="text-muted">{{ a.fecha|date:"d/m/Y" }} · {{ a.get_metodo_display }}{% if a.banco %} · {{ a.banco }}{% endif %}{% if a.referencia %} · Ref. {{ a.referencia }}{% endif %}</div>
-            {% if a.registrado_por %}<div class="text-muted">Registró {{ a.registrado_por.nombre_visible }} · {{ a.registrado_en|date:"d/m/Y H:i" }}</div>{% endif %}</div>
-          {% if puede_validar or a.registrado_por_id == request.user.pk and p.estado != 'VALIDADA' %}
-          <form method="post" action="{% url 'ventas:anular_abono' p.pk a.pk %}" onsubmit="return confirm('¿Quitar este abono?')">{% csrf_token %}
-            <button class="btn btn-sm btn-link text-danger p-0" aria-label="Quitar abono"><i class="bi bi-trash"></i></button></form>{% endif %}
+            {% if a.registrado_por %}<div class="text-muted">Registró {{ a.registrado_por.nombre_visible }} · {{ a.registrado_en|date:"d/m/Y H:i" }}</div>{% endif %}
+            {% if a.confirmado_por %}<div class="text-muted">Confirmó {{ a.confirmado_por.nombre_visible }} · {{ a.confirmado_en|date:"d/m/Y H:i" }}</div>{% elif a.origen == 'HISTORICO' %}<div class="text-muted">Cobro histórico</div>{% endif %}
+            {% if a.cerrado_por %}<div class="text-muted">{{ a.cerrado_por.nombre_visible }} · {{ a.cerrado_en|date:"d/m/Y H:i" }} · {{ a.motivo_cierre }}</div>{% endif %}
+          </div>
+          {% include 'ventas/partials/revision_abono.html' %}
         </div>{% endfor %}
       </div>
       {% endif %}
-      {% if not p.pagado %}
+      {% if p.confirmada and saldo_registro > 0 %}
       <form method="post" action="{% url 'ventas:abonar' p.pk %}" class="mb-3 border rounded p-2" id="form-abono">{% csrf_token %}
+        <input type="hidden" name="clave_abono" value="{{ clave_abono }}">
         <div class="small fw-semibold mb-2">Registrar pago</div>
         <div class="row g-2">
-          <div class="col-7"><input name="monto" id="ab-monto" inputmode="decimal" class="form-control form-control-sm" placeholder="Monto" aria-label="Monto" value="{{ p.saldo_usd|floatformat:'2' }}" required></div>
+          <div class="col-7"><input name="monto" id="ab-monto" inputmode="decimal" class="form-control form-control-sm" placeholder="Monto" aria-label="Monto" value="{{ saldo_registro|floatformat:'2' }}" required></div>
           <div class="col-5"><select name="moneda" id="ab-moneda" class="form-select form-select-sm" aria-label="Moneda"><option value="USD">USD</option><option value="BS">Bs</option></select></div>
           <div class="col-12" id="ab-tasa-fila" hidden><div class="input-group input-group-sm"><span class="input-group-text">Tasa {% if tasa_de_venta %}de la venta{% else %}del día{% endif %}</span>
             <input name="tasa" id="ab-tasa" inputmode="decimal" class="form-control" value="{{ tasa_hoy|floatformat:'4'|default:'' }}" aria-label="Tasa Bs por USD"><span class="input-group-text" id="ab-equivale"></span></div></div>
@@ -214,8 +220,8 @@
           <div class="col-5"><input type="date" name="fecha" class="form-control form-control-sm" aria-label="Fecha del pago"></div>
           <div class="col-7"><input name="banco" list="bancos-ve" maxlength="60" class="form-control form-control-sm" placeholder="Banco emisor (opcional)" aria-label="Banco emisor"></div>
           <div class="col-5"><input name="referencia" maxlength="40" inputmode="numeric" class="form-control form-control-sm" placeholder="Referencia" aria-label="Referencia"></div>
-          <div class="col-12 small text-muted">Puede ser parcial. Falta {{ p.saldo_usd|usd }}{% if saldo_bs %} (Bs {{ saldo_bs|floatformat:"2g" }} a la tasa {% if tasa_de_venta %}de la venta{% else %}de hoy{% endif %}){% endif %}.</div>
-          {% if perfil.comision_requiere_pago %}<div class="col-12 small text-warning-emphasis"><i class="bi bi-info-circle me-1"></i>La comisión del vendedor se paga solo cuando la venta está <b>pagada por completo</b>. Los abonos parciales no la liberan.</div>{% endif %}
+          {% if perfil.requiere_validacion %}<div class="col-12 small text-muted">El abono quedará pendiente de revisión.</div>{% endif %}
+          {% if p.modalidad_comision == 'COBRADA' or not p.modalidad_comision and perfil.comision_requiere_pago %}<div class="col-12 small text-warning-emphasis"><i class="bi bi-info-circle me-1"></i>La comisión del vendedor se paga solo cuando la venta está <b>pagada por completo</b>. Los abonos parciales no la liberan.</div>{% endif %}
           <div class="col-12 d-grid"><button class="btn btn-sm btn-success"><i class="bi bi-cash me-1"></i>Registrar pago</button></div>
         </div>
         <datalist id="bancos-ve">{% for b in bancos %}<option value="{{ b }}">{% endfor %}</datalist>
@@ -223,7 +229,7 @@
       <script>
       (function () {
         var mon = document.getElementById('ab-moneda'), monto = document.getElementById('ab-monto'), tasa = document.getElementById('ab-tasa'),
-            fila = document.getElementById('ab-tasa-fila'), eq = document.getElementById('ab-equivale'), saldo = {{ p.saldo_usd|stringformat:"s" }};
+            fila = document.getElementById('ab-tasa-fila'), eq = document.getElementById('ab-equivale'), saldo = {{ saldo_registro|stringformat:"s" }};
         function num(v) { v = (v || '').trim(); if (v.indexOf(',') > -1 && v.indexOf('.') > -1) v = v.replace(/\./g, ''); return parseFloat(v.replace(',', '.')); }
         function fmt(v, d) { return v.toLocaleString('es-VE', {minimumFractionDigits: d, maximumFractionDigits: d}); }
         function equiv() { var m = num(monto.value), t = num(tasa.value); eq.textContent = (m > 0 && t > 0) ? '≈ $ ' + fmt(m / t, 2) : ''; }
@@ -236,14 +242,14 @@
       </script>
       {% endif %}
       {% endif %}
-      {% if perfil.despacho_por_almacen and p.estado != 'APARTADO' %}
+      {% if perfil.despacho_por_almacen and p.confirmada %}
       <div class="border-top pt-2">
         <div class="d-flex justify-content-between align-items-center mb-2"><span class="small fw-semibold"><i class="bi bi-truck me-1"></i>Entrega</span>
           <span class="badge text-bg-{{ estado_entrega.1 }}">{{ estado_entrega.0 }}</span></div>
         <div class="small text-muted mb-2">Almacén registra las entregas. {% if 'despacho.gestionar' in permisos %}<a href="{% url 'ventas:despachar' p.pk %}">Ir a despacho</a>{% endif %}</div>
         {% include 'ventas/partials/bitacora_entregas.html' with entregas=entregas puede_anular=False %}
       </div>
-      {% else %}
+      {% elif p.confirmada or p.estado == 'APARTADO' %}
       <form method="post" action="{% url 'ventas:pago_entrega' p.pk %}">{% csrf_token %}
         {% if p.entregado %}
           <div class="small mb-2 text-success"><i class="bi bi-truck me-1"></i>Entregado {{ p.fecha_entrega|date:"d/m/Y" }}</div>
@@ -274,6 +280,19 @@
       </form>
       {% if p.facturado %}<form method="post" action="{% url 'ventas:facturacion' p.pk %}" class="mt-2" onsubmit="return confirm('¿Quitar los datos de facturación?')">{% csrf_token %}<input type="hidden" name="facturado" value="0"><button class="btn btn-link btn-sm p-0 text-danger">Marcar como no facturada</button></form>{% endif %}
       {% endif %}
+    </div>
+    {% endif %}
+    {% if movimientos_comision %}
+    <div class="card card-body mb-3 small">
+      <div class="fw-semibold">Comisión por cobranza confirmada</div>
+      {% for mov in movimientos_comision %}
+      <div class="d-flex justify-content-between gap-2">
+        <span>{{ mov.fecha|date:"d/m/Y" }} · {{ mov.descripcion }}{% if mov.liquidacion_id %} · <a href="{% url 'comisiones:liquidacion' mov.liquidacion_id %}">{{ mov.liquidacion.numero }}</a>{% endif %}</span>
+        <strong>{{ mov.monto_usd|usd }}</strong>
+      </div>
+      {% endfor %}
+      <div class="d-flex justify-content-between border-top mt-1 pt-1"><span>Devengado</span><strong>{{ devengado|usd }}</strong></div>
+      {% if not p.validado_en %}<div class="text-muted">Disponible para liquidar cuando se valide la venta.</div>{% endif %}
     </div>
     {% endif %}
     {% if comision %}

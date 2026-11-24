@@ -57,10 +57,14 @@ def inicio(request):
             i.whatsapp = agenda.enlace_whatsapp(i, perfil)
         ctx['servicios'] = {**agenda.resumen(lineas), 'lista': hoy_lista}
     if tiene_permiso(request, 'comisiones.ver_propias'):
-        from apps.comisiones.models import AjusteComision, Comision
+        from apps.comisiones.models import AjusteComision, Comision, MovimientoComision
+        comisiones = Comision.objects.filter(vendedor=request.user).exclude(
+            presupuesto__modalidad_comision='PROPORCIONAL')
+        ajustes = AjusteComision.objects.filter(vendedor=request.user)
+        movimientos = MovimientoComision.objects.filter(comision__vendedor=request.user)
         ctx['mi_comision_mes'] = sum(
-            (m.objects.filter(vendedor=request.user, fecha__gte=inicio_mes.date()).aggregate(t=Sum('monto_usd'))['t'] or 0
-             for m in (Comision, AjusteComision)), 0)
+            (qs.filter(fecha__gte=inicio_mes.date()).aggregate(t=Sum('monto_usd'))['t'] or 0
+             for qs in (comisiones, ajustes, movimientos)), 0)
     if tiene_permiso(request, 'inventario.ver'):
         from apps.inventario.models import Lote
         hoy = ahora.date()

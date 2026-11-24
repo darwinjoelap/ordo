@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load ordo %}
 {% block contenido %}
+<a class="btn btn-sm btn-outline-primary mb-3" href="{% url 'ventas:abonos_por_validar' %}">Abonos por revisar</a>
 <a href="{% url 'ventas:lista' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Presupuestos</a>
 <h1 class="h3 mt-2 mb-1">Ventas por validar</h1>
 <p class="text-muted small">Solo las ventas validadas cuentan en reportes y comisiones. Al validar se descuenta el stock apartado.</p>

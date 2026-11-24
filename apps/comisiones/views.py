@@ -19,7 +19,7 @@ from apps.inventario.models import Categoria
 from apps.core.pdf import nombre_corto, respuesta_pdf
 
 from . import servicios
-from .models import AjusteComision, Comision, Liquidacion, PorcentajeCategoria, PorcentajeVendedor
+from .models import AjusteComision, Comision, Liquidacion, MovimientoComision, PorcentajeCategoria, PorcentajeVendedor
 from .pdf import liquidacion_pdf
 
 
@@ -71,12 +71,19 @@ def detalle_vendedor(request, vendedor_id=None):
         vendedor = request.user
     perfil = request.empresa.perfil
     mes = _mes(request.GET.get('mes'))
-    comisiones = (Comision.objects.filter(vendedor=vendedor, fecha__gte=mes, fecha__lt=_siguiente_mes(mes))
-                  .select_related('presupuesto__cliente', 'liquidacion').order_by('-fecha', '-pk'))
+    comisiones = list(Comision.objects.filter(vendedor=vendedor, fecha__gte=mes, fecha__lt=_siguiente_mes(mes))
+                      .exclude(presupuesto__modalidad_comision=servicios.MODO.PROPORCIONAL)
+                      .select_related('presupuesto__cliente', 'liquidacion').order_by('-fecha', '-pk'))
+    movimientos = MovimientoComision.objects.filter(comision__vendedor=vendedor, fecha__gte=mes,
+                                                    fecha__lt=_siguiente_mes(mes))
+    comisiones.extend(movimientos.select_related('comision__presupuesto__cliente', 'liquidacion'))
+    comisiones.sort(key=lambda c: (c.fecha, c.pk), reverse=True)
     for c in comisiones:
         if c.liquidacion_id:
             c.estado, c.css = f'Liquidada ({c.liquidacion.numero})', 'success' if c.liquidacion.pagada else 'info'
-        elif perfil.comision_requiere_pago and not c.presupuesto.pagado:
+        elif isinstance(c, MovimientoComision) and not c.presupuesto.validado_en:
+            c.estado, c.css = 'Espera validación de la venta', 'warning'
+        elif not c.presupuesto.pagado and c.presupuesto.modalidad_comision in servicios.modalidades_cobradas(perfil):
             p = c.presupuesto
             c.estado = (f'Espera pago completo · faltan {usd(p.saldo_usd)}' if p.abono_parcial
                         else 'Espera pago completo')
@@ -95,7 +102,7 @@ def detalle_vendedor(request, vendedor_id=None):
         'comisiones': comisiones, 'ajustes': ajustes, 'mes': mes, 'mes_anterior': (mes - timedelta(days=1)).replace(day=1),
         'mes_siguiente': _siguiente_mes(mes) if _siguiente_mes(mes) <= timezone.localdate() else None,
         'total_mes': total_mes, 'base_mes': base_mes, 'disponible': disponible,
-        'porcentaje': fila.porcentaje if fila else None,
+        'porcentaje': fila.porcentaje if fila else None, 'perfil': perfil,
         'liquidaciones': Liquidacion.objects.filter(vendedor=vendedor)[:10],
         'es_propio': vendedor == request.user,
     })
@@ -171,6 +178,9 @@ def liquidar(request, vendedor_id):
             return redirect('comisiones:liquidacion', pk=liq.pk)
     comisiones = list(servicios.disponibles(perfil, vendedor, hasta)
                       .select_related('presupuesto__cliente').order_by('fecha', 'pk'))
+    comisiones.extend(servicios.movimientos_disponibles(vendedor, hasta)
+                      .select_related('comision__presupuesto__cliente'))
+    comisiones.sort(key=lambda c: (c.fecha, c.pk))
     ajustes = list(servicios.ajustes_aplicables(perfil, vendedor, hasta)
                    .select_related('devolucion__presupuesto__cliente').order_by('fecha', 'pk'))
     total = (sum((c.monto_usd for c in comisiones), Decimal('0'))
@@ -206,7 +216,10 @@ def liquidacion(request, pk):
         except (servicios.ErrorComision, ValueError) as e:
             messages.error(request, str(e))
         return redirect('comisiones:liquidacion', pk=pk)
-    comisiones = Comision.objects.filter(liquidacion=liq).select_related('presupuesto__cliente').order_by('fecha', 'pk')
+    comisiones = list(Comision.objects.filter(liquidacion=liq).select_related('presupuesto__cliente'))
+    comisiones.extend(MovimientoComision.objects.filter(liquidacion=liq)
+                      .select_related('comision__presupuesto__cliente'))
+    comisiones.sort(key=lambda c: (c.fecha, c.pk))
     ajustes = (AjusteComision.objects.filter(liquidacion=liq)
                .select_related('devolucion__presupuesto__cliente').order_by('fecha', 'pk'))
     return render(request, 'comisiones/liquidacion.html', {'titulo': liq.numero, 'liq': liq, 'comisiones': comisiones,

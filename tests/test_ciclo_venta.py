@@ -60,6 +60,7 @@ class ConValidacionTests(CicloBase):
 
     def test_cobrar_sin_entregar_pasa_a_por_validar_y_sigue_por_entregar(self):
         self.client.post(self.pago, {'pagado': '1', 'metodo_pago': 'ZELLE'})
+        self.confirmar_abonos(self.p)
         self.p.refresh_from_db()
         self.assertEqual(self.p.estado, E.POR_VALIDAR)
         self.assertTrue(self.en('POR_VALIDAR') and self.en('por_entregar'))
@@ -72,6 +73,7 @@ class ConValidacionTests(CicloBase):
 
     def test_validada_sin_entregar_sigue_por_entregar(self):
         self.client.post(self.pago, {'pagado': '1', 'metodo_pago': 'ZELLE'})
+        self.confirmar_abonos(self.p)
         self.client.post(reverse('ventas:accion', args=[self.p.pk, 'validar']))
         self.p.refresh_from_db()
         self.assertEqual(self.p.estado, E.VALIDADA)

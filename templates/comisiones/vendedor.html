@@ -7,7 +7,7 @@
     <div class="small text-muted">{% if porcentaje is not None %}Porcentaje: {{ porcentaje|floatformat:"-2" }} %{% else %}Sin porcentaje asignado{% endif %}</div></div>
   {% if 'comisiones.liquidar' in permisos and disponible %}<a href="{% url 'comisiones:liquidar' vendedor.pk %}" class="btn btn-primary btn-sm">Liquidar {{ disponible|usd }}</a>{% endif %}
 </div>
-{% if perfil.comision_requiere_pago %}<div class="alert alert-info py-2 small"><i class="bi bi-info-circle me-1"></i><b>¿Cuándo se paga la comisión?</b> Solo cuando la venta está <b>pagada por completo</b>. Si el cliente paga por partes, la comisión espera al último abono.</div>{% endif %}
+{% if perfil.modalidad_comision_vigente == 'PROPORCIONAL' %}<p class="small text-muted">Los abonos confirmados generan comisión. Queda disponible para liquidar al validar la venta.</p>{% endif %}
 <div class="row g-3 mb-3">
   <div class="col-6"><div class="card card-body"><div class="small text-muted">Comisión de {{ mes|date:"F Y" }}</div><div class="fs-4 fw-bold text-success">{{ total_mes|usd }}</div><div class="small text-muted">sobre {{ base_mes|usd }} vendidos</div></div></div>
   <div class="col-6"><div class="card card-body"><div class="small text-muted">Por liquidar (total)</div><div class="fs-4 fw-bold text-primary">{{ disponible|usd }}</div></div></div>
@@ -22,7 +22,7 @@
   <div class="table-responsive"><table class="table align-middle mb-0">
     <thead class="table-light"><tr><th>Venta</th><th class="d-none d-md-table-cell">Cliente</th><th class="text-end d-none d-sm-table-cell">Base</th><th class="text-end">Comisión</th><th>Estado</th></tr></thead>
     <tbody>{% for c in comisiones %}<tr>
-      <td><a href="{% url 'ventas:detalle' c.presupuesto_id %}" class="fw-semibold">{{ c.presupuesto.numero }}</a><div class="small text-muted">{{ c.fecha|date:"d/m/Y" }}</div></td>
+      <td><a href="{% url 'ventas:detalle' c.presupuesto_id %}" class="fw-semibold">{{ c.presupuesto.numero }}</a><div class="small text-muted">{{ c.fecha|date:"d/m/Y" }}{% if c.descripcion %} · {{ c.descripcion }}{% endif %}</div></td>
       <td class="d-none d-md-table-cell">{{ c.presupuesto.cliente.nombre }}</td>
       <td class="text-end d-none d-sm-table-cell">{{ c.base_usd|usd }}</td>
       <td class="text-end fw-semibold">{{ c.monto_usd|usd }}</td>
@@ -36,7 +36,7 @@
       <td><span class="badge text-bg-{% if a.liquidacion_id %}success{% else %}danger{% endif %}">{% if a.liquidacion_id %}Descontado ({{ a.liquidacion.numero }}){% else %}Por descontar{% endif %}</span></td>
     </tr>{% endfor %}</tbody>
   </table></div>
-  {% else %}<div class="card-body text-muted">Sin ventas validadas en este mes.</div>{% endif %}
+  {% else %}<div class="card-body text-muted">Sin movimientos de comisión en este mes.</div>{% endif %}
 </div>
 {% if liquidaciones %}
 <div class="card"><div class="card-header bg-white fw-semibold">Liquidaciones</div>

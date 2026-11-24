@@ -1,0 +1,29 @@
+{% if a.estado == 'PENDIENTE' %}
+  <div class="d-flex flex-column gap-2">
+    {% if puede_revisar_abonos and p.confirmada %}
+    <form method="post" action="{% url 'ventas:revisar_abono' p.pk a.pk %}">{% csrf_token %}
+      <button class="btn btn-sm btn-outline-success" name="accion" value="confirmar">Confirmar</button>
+      {% if puede_validar and p.estado == 'POR_PAGAR' and a.monto_usd == p.saldo_usd %}
+      <button class="btn btn-sm btn-success" name="accion" value="confirmar_venta">Confirmar y validar venta</button>
+      {% endif %}
+    </form>
+    {% endif %}
+    {% if puede_revisar_abonos or a.registrado_por_id == request.user.pk %}
+    <form method="post" class="d-flex gap-1" action="{% if puede_revisar_abonos %}{% url 'ventas:revisar_abono' p.pk a.pk %}{% else %}{% url 'ventas:anular_abono' p.pk a.pk %}{% endif %}">{% csrf_token %}
+      <input class="form-control form-control-sm" name="motivo" maxlength="250" required placeholder="Motivo" aria-label="Motivo">
+      <button class="btn btn-sm btn-outline-danger" name="accion" value="rechazar">{% if puede_revisar_abonos %}Rechazar{% else %}Retirar{% endif %}</button>
+    </form>
+    {% endif %}
+  </div>
+{% elif a.estado == 'CONFIRMADO' %}
+  {% if puede_revisar_abonos %}
+  <form method="post" class="d-flex gap-1" action="{% url 'ventas:revisar_abono' p.pk a.pk %}">{% csrf_token %}
+    <input class="form-control form-control-sm" name="motivo" maxlength="250" required placeholder="Motivo de reversión" aria-label="Motivo de reversión">
+    <button class="btn btn-sm btn-outline-danger" name="accion" value="revertir">Revertir</button>
+  </form>
+  {% elif not perfil.requiere_validacion and a.origen == 'AUTO' and a.registrado_por_id == request.user.pk and p.estado != 'VALIDADA' and p.modalidad_comision != 'PROPORCIONAL' %}
+  <form method="post" action="{% url 'ventas:anular_abono' p.pk a.pk %}">{% csrf_token %}
+    <button class="btn btn-sm btn-outline-danger">Quitar</button>
+  </form>
+  {% endif %}
+{% endif %}

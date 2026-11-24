@@ -111,6 +111,10 @@ color_hex = RegexValidator(r'^#[0-9A-Fa-f]{6}$', 'Usa un color en formato #RRGGB
 
 
 class PerfilEmpresa(models.Model):
+    class ModalidadComision(models.TextChoices):
+        VALIDADA = 'VALIDADA', 'Al validar la venta'
+        COBRADA = 'COBRADA', 'Venta validada y totalmente cobrada'
+        PROPORCIONAL = 'PROPORCIONAL', 'Proporcional a la cobranza confirmada'
     class ModoPrecio(models.TextChoices):
         FIJO = 'FIJO', 'Fijo: lo define el administrador'
         LIBRE = 'LIBRE', 'Libre: lo define el vendedor'
@@ -174,6 +178,17 @@ class PerfilEmpresa(models.Model):
         'Los vendedores ven todos los clientes', default=False,
         help_text='Si está apagado, cada vendedor ve solo los clientes que creó o tiene asignados.')
     comision_requiere_pago = models.BooleanField('La comisión exige venta cobrada', default=False)
+    modalidad_comision = models.CharField('Modalidad de comisión', max_length=15,
+                                          choices=ModalidadComision.choices, blank=True, default='')
+
+    @property
+    def modalidad_comision_vigente(self):
+        modos = self.ModalidadComision
+        return self.modalidad_comision or (modos.COBRADA if self.comision_requiere_pago else modos.VALIDADA)
+
+    @property
+    def modalidad_comision_etiqueta(self):
+        return self.ModalidadComision(self.modalidad_comision_vigente).label
     multialmacen = models.BooleanField(
         'Varios almacenes', default=False,
         help_text='Stock por almacén y traslados entre ellos. Lo que ya existe queda en «Sin almacén» hasta '

@@ -1,11 +1,13 @@
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlencode
+from uuid import UUID, uuid4
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import Lower
 from django.http import HttpResponse
@@ -214,16 +216,28 @@ def detalle(request, pk):
         i.lista_reservas = reservas.get(i.pk, [])
     perfil = request.empresa.perfil
     comision = None
-    if p.es_venta and (tiene_permiso(request, 'comisiones.liquidar') or p.vendedor_id == request.user.pk):
-        from apps.comisiones.models import AjusteComision, Comision
+    proporcional = p.modalidad_comision == 'PROPORCIONAL'
+    movimientos_comision = []
+    devengado = Decimal('0')
+    if (p.es_venta or proporcional) and (tiene_permiso(request, 'comisiones.liquidar') or p.vendedor_id == request.user.pk):
+        from apps.comisiones.models import AjusteComision, Comision, MovimientoComision
         comision = Comision.objects.filter(presupuesto=p).select_related('liquidacion').first()
-        if comision:
+        if comision and proporcional:
+            movimientos_comision = list(MovimientoComision.objects.filter(comision=comision).select_related('liquidacion'))
+            devengado = sum((m.monto_usd for m in movimientos_comision), Decimal('0'))
+            comision = None
+        elif comision:
             comision.lista_ajustes = list(AjusteComision.objects.filter(comision=comision).select_related('devolucion'))
             comision.neto = comision.monto_usd + sum(a.monto_usd for a in comision.lista_ajustes)
     from .models import Devolucion
     tasa_abono = servicios.tasa_para_abono(p) if p.confirmada else None
+    abonos = list(Abono.objects.filter(presupuesto=p).select_related('registrado_por', 'confirmado_por', 'cerrado_por'))
+    pendiente = sum((a.monto_usd for a in abonos if a.estado == Abono.Estado.PENDIENTE), Decimal('0'))
+    saldo_registro = max(p.saldo_usd - pendiente, Decimal('0'))
+    metodos_excluidos = {'MIXTO', 'CREDITO'} if perfil.requiere_validacion or proporcional else {'MIXTO'}
     return render(request, 'ventas/detalle.html', {
         'comision': comision,
+        'movimientos_comision': movimientos_comision, 'devengado': devengado,
         'devoluciones': Devolucion.objects.filter(presupuesto=p).order_by('creada_en') if p.es_venta else [],
         'puede_devolver': tiene_permiso(request, 'ventas.devolver'),
         'puede_facturar': tiene_permiso(request, 'ventas.facturar'),
@@ -231,9 +245,11 @@ def detalle(request, pk):
         'montos_bs': montos_bs, 'base_imponible': p.base_usd - p.exento_usd, 'total_unidades': sum(i.cantidad for i in items), 'tasa_referencial': tasa_referencial,
         'puede_fijar': tiene_permiso(request, 'precios.fijar'),
         'puede_validar': tiene_permiso(request, 'ventas.validar'),
+        'puede_revisar_abonos': tiene_permiso(request, 'cobranza.validar'),
         'precio_editable': perfil.modo_precio != 'FIJO' or tiene_permiso(request, 'precios.fijar'),
-        'metodos': [m for m in Presupuesto.MetodoPago.choices if m[0] != 'MIXTO'], 'bancos': BANCOS,
-        'abonos': list(Abono.objects.filter(presupuesto=p).select_related('registrado_por')),
+        'metodos': [m for m in Presupuesto.MetodoPago.choices if m[0] not in metodos_excluidos], 'bancos': BANCOS,
+        'abonos': abonos, 'pendiente_revision_usd': pendiente, 'saldo_registro': saldo_registro,
+        'clave_abono': uuid4(),
         'tasa_hoy': tasa_abono,
         'tasa_de_venta': perfil.tasa_abonos == 'VENTA' and bool(p.tasa_bs),
         'almacenes': _almacenes(perfil),
@@ -364,7 +380,7 @@ def accion(request, pk, nombre):
     else:
         if nombre == 'confirmar':
             mensaje = {E.VALIDADA: 'Venta confirmada y validada.',
-                       E.POR_PAGAR: 'Venta confirmada. Queda por cobrar y por entregar: al registrar el pago pasa a validación.',
+                       E.POR_PAGAR: 'Venta confirmada. Queda por cobrar y por entregar. Al confirmar el cobro total pasa a validación.',
                        }.get(p.estado, 'Venta confirmada. Queda pendiente de validación.')
         messages.success(request, mensaje)
     destino = request.POST.get('volver')
@@ -398,19 +414,21 @@ def eliminar(request, pk):
 def pago_entrega(request, pk):
     p = _presupuesto(request, pk)
     try:
-        if 'pagado' in request.POST:
-            fecha = request.POST.get('fecha_pago') or None
-            monto = leer_decimal(request.POST.get('monto_pago'))
-            servicios.registrar_pago(p, request.POST.get('pagado') == '1', request.POST.get('metodo_pago', ''),
-                                     date.fromisoformat(fecha) if fecha else None,
-                                     banco=request.POST.get('banco_pago', ''),
-                                     referencia=request.POST.get('referencia_pago', ''),
-                                     monto=monto,
-                                     moneda=request.POST.get('moneda_pago', ''), usuario=request.user)
-        if 'entregado' in request.POST:
-            if request.empresa.perfil.despacho_por_almacen:
-                raise servicios.ErrorVenta('La entrega la registra almacén (gestión de despacho activa).')
-            servicios.registrar_entrega(p, request.POST.get('entregado') == '1')
+        with transaction.atomic():
+            if 'pagado' in request.POST:
+                fecha = request.POST.get('fecha_pago') or None
+                monto = leer_decimal(request.POST.get('monto_pago'))
+                servicios.registrar_pago(p, request.POST.get('pagado') == '1', request.POST.get('metodo_pago', ''),
+                                         date.fromisoformat(fecha) if fecha else None,
+                                         banco=request.POST.get('banco_pago', ''),
+                                         referencia=request.POST.get('referencia_pago', ''),
+                                         monto=monto,
+                                         moneda=request.POST.get('moneda_pago', ''), usuario=request.user,
+                                         tasa=_decimal_post(request, 'tasa'), clave=_clave_abono(request))
+            if 'entregado' in request.POST:
+                if request.empresa.perfil.despacho_por_almacen:
+                    raise servicios.ErrorVenta('La entrega la registra almacén (gestión de despacho activa).')
+                servicios.registrar_entrega(p, request.POST.get('entregado') == '1')
         messages.success(request, 'Actualizado.')
     except servicios.ErrorVenta as e:
         messages.error(request, str(e))
@@ -425,6 +443,16 @@ def por_validar(request):
     ventas = (Presupuesto.objects.filter(estado=E.POR_VALIDAR).select_related('cliente', 'vendedor', 'pago_registrado_por')
               .order_by('confirmado_en'))
     return render(request, 'ventas/por_validar.html', {'titulo': 'Ventas por validar', 'ventas': ventas})
+
+
+@login_required
+@requiere('cobranza.validar')
+def abonos_por_validar(request):
+    abonos = (Abono.objects.filter(estado=Abono.Estado.PENDIENTE, presupuesto__in=visibles(request))
+              .select_related('presupuesto__cliente', 'registrado_por').order_by('registrado_en', 'pk'))
+    return render(request, 'ventas/abonos_por_validar.html', {
+        'titulo': 'Abonos por revisar', 'abonos': Paginator(abonos, 50).get_page(request.GET.get('pagina')),
+    })
 
 
 @login_required
@@ -515,6 +543,11 @@ def _decimal_post(request, campo):
     return leer_decimal(request.POST.get(campo, ''))
 
 
+def _clave_abono(request):
+    texto = request.POST.get('clave_abono')
+    return UUID(texto) if texto else None
+
+
 @login_required
 @requiere('presupuestos.crear')
 @require_POST
@@ -523,20 +556,24 @@ def abonar(request, pk):
     p = _presupuesto(request, pk)
     try:
         moneda = request.POST.get('moneda', 'USD')
-        monto = p.saldo_usd if request.POST.get('todo') == '1' and moneda == 'USD' else _decimal_post(request, 'monto')
-        if monto is None:
+        todo = request.POST.get('todo') == '1' and moneda == 'USD'
+        monto = None if todo else _decimal_post(request, 'monto')
+        if monto is None and not todo:
             raise servicios.ErrorVenta('Escribe el monto del abono.')
         fecha = request.POST.get('fecha') or None
         p = servicios.registrar_abono(p, monto, moneda, request.POST.get('metodo', ''), request.user,
                                       fecha=date.fromisoformat(fecha) if fecha else None,
                                       banco=request.POST.get('banco', ''), referencia=request.POST.get('referencia', ''),
-                                      tasa=_decimal_post(request, 'tasa') if moneda == 'BS' else None)
+                                      tasa=_decimal_post(request, 'tasa') if moneda == 'BS' else None,
+                                      clave=_clave_abono(request), todo=todo)
     except servicios.ErrorVenta as e:
         messages.error(request, str(e))
     except (ValueError, InvalidOperation):
         messages.error(request, 'Revisa la fecha, el monto y la tasa.')
     else:
-        if p.pagado:
+        if p.empresa.perfil.requiere_validacion:
+            messages.success(request, 'Abono registrado para revisión.')
+        elif p.pagado:
             messages.success(request, 'Pago registrado: la venta quedó pagada por completo.')
         else:
             from apps.core.templatetags.ordo import usd
@@ -551,9 +588,38 @@ def anular_abono(request, pk, abono_id):
     """Quitar un abono: el dueño/administrador siempre; quien lo registró, mientras la venta no esté validada."""
     p = _presupuesto(request, pk)
     abono = get_object_or_404(Abono, pk=abono_id, presupuesto=p)
-    if not (tiene_permiso(request, 'ventas.validar') or (abono.registrado_por_id == request.user.pk and p.estado != E.VALIDADA)):
+    if not (tiene_permiso(request, 'cobranza.validar') or
+            (abono.registrado_por_id == request.user.pk and
+             (abono.estado == Abono.Estado.PENDIENTE or p.estado != E.VALIDADA))):
         messages.error(request, 'Solo el administrador puede quitar este abono.')
         return redirect('ventas:detalle', pk=pk)
-    servicios.anular_abono(abono, request.user)
-    messages.success(request, 'Abono eliminado.')
+    try:
+        servicios.anular_abono(abono, request.user, request.POST.get('motivo', ''))
+    except servicios.ErrorVenta as e:
+        messages.error(request, str(e))
+    else:
+        messages.success(request, 'Abono actualizado.')
+    return redirect('ventas:detalle', pk=pk)
+
+
+@login_required
+@requiere('cobranza.validar')
+@require_POST
+def revisar_abono(request, pk, abono_id):
+    p = _presupuesto(request, pk)
+    abono = get_object_or_404(Abono, pk=abono_id, presupuesto=p)
+    acciones = {
+        'confirmar': Abono.Estado.CONFIRMADO, 'confirmar_venta': Abono.Estado.CONFIRMADO,
+        'rechazar': Abono.Estado.RECHAZADO, 'revertir': Abono.Estado.REVERTIDO,
+    }
+    accion = request.POST.get('accion')
+    if accion not in acciones:
+        raise PermissionDenied
+    try:
+        servicios.revisar_abono(abono, request.user, acciones[accion], request.POST.get('motivo', ''),
+                               validar_venta=accion == 'confirmar_venta')
+    except servicios.ErrorVenta as e:
+        messages.error(request, str(e))
+    else:
+        messages.success(request, 'Revisión del abono guardada.')
     return redirect('ventas:detalle', pk=pk)

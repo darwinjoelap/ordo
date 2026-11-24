@@ -32,6 +32,7 @@ PERMISOS = {
     'presupuestos.ver_todos': GESTION,
     'precios.fijar': GESTION,
     'ventas.validar': GESTION,
+    'cobranza.validar': GESTION,
     'ventas.devolver': GESTION,
     'ventas.facturar': GESTION,
     'reportes.ver': GESTION,

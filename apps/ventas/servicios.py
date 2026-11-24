@@ -5,11 +5,14 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.db import transaction
+from django.db.models import Sum
 from django.dispatch import Signal
 from django.utils import timezone
 
 from apps.core.secuencias import liberar_numero_presupuesto, siguiente_numero, siguiente_numero_presupuesto
+from apps.core.permisos import PERMISOS
 from apps.core.tenancy import usando_empresa
+from apps.empresas.models import Membresia, PerfilEmpresa
 from apps.inventario import servicios as inventario
 from apps.tasas.servicios import tasa_vigente
 
@@ -301,6 +304,12 @@ def _liberar_reservas(p, usuario, motivo):
 def desapartar(p, usuario):
     p = _bloquear(p)
     _exigir(p, E.APARTADO)
+    _exigir_sin_abonos_activos(p)
+    if p.modalidad_comision == PerfilEmpresa.ModalidadComision.PROPORCIONAL:
+        from apps.comisiones.models import Comision, MovimientoComision
+        if MovimientoComision.objects.filter(comision__presupuesto=p).exists():
+            raise ErrorVenta('La venta tiene historial de comisiones. Cancélala para emitir otro presupuesto.')
+        Comision.objects.filter(presupuesto=p).delete()
     _liberar_reservas(p, usuario, 'Desapartado')
     p.estado, p.apartado_hasta = E.EMITIDO, None
     p.save(update_fields=['estado', 'apartado_hasta'])
@@ -314,15 +323,22 @@ def confirmar(p, usuario, empresa):
     if p.estado in (E.BORRADOR, E.EMITIDO):
         p = apartar(p, usuario, empresa)
     _exigir(p, E.APARTADO)
+    perfil = p.empresa.perfil
+    if not p.confirmado_en and not p.modalidad_comision:
+        p.modalidad_comision = perfil.modalidad_comision_vigente
     p.confirmado_en, p.motivo_rechazo = timezone.now(), ''
-    if not empresa.perfil.requiere_validacion:
+    campos = ['estado', 'confirmado_en', 'motivo_rechazo', 'modalidad_comision']
+    if p.modalidad_comision == PerfilEmpresa.ModalidadComision.PROPORCIONAL:
+        from apps.comisiones.servicios import registrar
+        registrar(p)
+    if not perfil.requiere_validacion:
         # Sin validación: la venta cuenta de una vez y queda por cobrar hasta registrar el pago
         p.estado = E.POR_VALIDAR
-        p.save(update_fields=['estado', 'confirmado_en', 'motivo_rechazo'])
+        p.save(update_fields=campos)
         return validar(p, usuario, exigir_pago=False)
     # Con validación: a la cola de «Por validar» entra SOLO con el pago registrado; si no, queda «Por cobrar»
     p.estado = E.POR_VALIDAR if p.pagado else E.POR_PAGAR
-    p.save(update_fields=['estado', 'confirmado_en', 'motivo_rechazo'])
+    p.save(update_fields=campos)
     return p
 
 
@@ -331,6 +347,7 @@ def desconfirmar(p, usuario, empresa):
     """Una venta «Por cobrar» que no se va a cobrar vuelve a Apartado (desde ahí se puede liberar o cancelar)."""
     p = _bloquear(p)
     _exigir(p, E.POR_PAGAR)
+    _exigir_sin_abonos_activos(p)
     if Entrega.todos.filter(presupuesto=p).exists():
         raise ErrorVenta('Ya tiene entregas registradas: no puede volver a apartado.')
     if p.entregado:
@@ -343,13 +360,13 @@ def desconfirmar(p, usuario, empresa):
 
 @transaction.atomic
 def validar(p, usuario, exigir_pago=True):
-    """Administrador: la venta cuenta. Sale del stock lo apartado. Solo se valida una venta con pago registrado."""
+    """Valida comercialmente la venta y consume el stock reservado."""
     p = _bloquear(p)
     if p.estado == E.POR_PAGAR:
-        raise ErrorVenta('Esta venta está por cobrar: registra el pago antes de validarla.')
+        raise ErrorVenta('Esta venta está por cobrar: confirma los abonos antes de validarla.')
     _exigir(p, E.POR_VALIDAR)
-    if exigir_pago and not p.pagado:
-        raise ErrorVenta('Registra el pago antes de validar la venta.')
+    if (exigir_pago or p.empresa.perfil.requiere_validacion) and not p.pagado:
+        raise ErrorVenta('Confirma el pago antes de validar la venta.')
     for r in Reserva.objects.filter(item__presupuesto=p).select_related('lote'):
         inventario.descontar_apartado(r.lote, r.cantidad, usuario, referencia_tipo='Venta', referencia_id=p.pk,
                                       motivo=f'Venta {p.numero}')
@@ -362,7 +379,12 @@ def validar(p, usuario, exigir_pago=True):
 @transaction.atomic
 def rechazar(p, usuario, motivo, devolver_a_apartado=True, empresa=None):
     p = _bloquear(p)
-    _exigir(p, E.POR_VALIDAR)
+    if devolver_a_apartado:
+        _exigir(p, E.POR_VALIDAR)
+    else:
+        _exigir(p, E.POR_VALIDAR, E.POR_PAGAR)
+        if p.entregado or Entrega.objects.filter(presupuesto=p).exists():
+            raise ErrorVenta('Resuelve las entregas registradas antes de rechazar la venta.')
     if not (motivo or '').strip():
         raise ErrorVenta('Indica el motivo del rechazo.')
     p.motivo_rechazo = motivo.strip()[:250]
@@ -371,6 +393,7 @@ def rechazar(p, usuario, motivo, devolver_a_apartado=True, empresa=None):
         dias = empresa.perfil.dias_apartado if empresa else 15
         p.apartado_hasta = timezone.now() + timedelta(days=dias)
     else:
+        _exigir_sin_abonos_activos(p)
         _liberar_reservas(p, usuario, 'Rechazada')
         p.estado, p.apartado_hasta = E.RECHAZADA, None
     p.save(update_fields=['estado', 'motivo_rechazo', 'apartado_hasta'])
@@ -381,6 +404,7 @@ def rechazar(p, usuario, motivo, devolver_a_apartado=True, empresa=None):
 def cancelar(p, usuario):
     p = _bloquear(p)
     _exigir(p, E.BORRADOR, E.EMITIDO, E.APARTADO, E.RECHAZADA)
+    _exigir_sin_abonos_activos(p)
     if not p.numero:
         raise ErrorVenta('Este borrador aún no tiene número: elimínalo en lugar de cancelarlo.')
     _liberar_reservas(p, usuario, 'Cancelado')
@@ -391,17 +415,48 @@ def cancelar(p, usuario):
 
 TOLERANCIA = Decimal('0.01')
 CONFIRMADAS = (E.POR_PAGAR, E.POR_VALIDAR, E.VALIDADA)
+A = Abono.Estado
 
 
-def _actualizar_cobro(p, usuario):
+def _tiene_abonos_activos(p):
+    abonos = Abono.objects.filter(presupuesto=p, estado__in=(A.PENDIENTE, A.CONFIRMADO))
+    if not p.empresa.perfil.requiere_validacion:
+        abonos = abonos.exclude(origen=Abono.Origen.AUTOMATICO)
+    return abonos.exists()
+
+
+def _exigir_sin_abonos_activos(p):
+    if _tiene_abonos_activos(p):
+        raise ErrorVenta('Resuelve los abonos pendientes o confirmados antes de cerrar la operación.')
+
+
+def pendiente_revision_usd(p):
+    total = Abono.objects.filter(presupuesto=p, estado=A.PENDIENTE).aggregate(t=Sum('monto_usd'))['t']
+    return redondear(total or Decimal('0'))
+
+
+def saldo_para_registrar(p):
+    return max(p.saldo_usd - pendiente_revision_usd(p), Decimal('0'))
+
+
+def _es_reintento(p, clave, usuario):
+    if not clave:
+        return False
+    previo = Abono.objects.filter(presupuesto=p, clave_registro=clave).first()
+    if previo and previo.registrado_por_id != getattr(usuario, 'pk', None):
+        raise ErrorVenta('La clave de registro ya está en uso.')
+    return previo is not None
+
+
+def _actualizar_cobro(p, usuario, auto_validar=True):
     """
     Recalcula lo abonado y si la venta quedó pagada. El pago completo mueve la venta entre bandejas:
     pagada → «Por validar»; deja de estarlo → vuelve a «Por cobrar». Los campos *_pago guardan el ÚLTIMO abono
     (los usan reportes y PDF).
     """
-    from django.db.models import Sum
-    abonos = list(Abono.objects.filter(presupuesto=p).order_by('fecha', 'pk'))
-    p.abonado_usd = sum((a.monto_usd for a in abonos), Decimal('0'))
+    abonos = list(Abono.objects.filter(presupuesto=p, estado=A.CONFIRMADO).order_by('fecha', 'pk'))
+    cobrado = sum((a.monto_usd for a in abonos), Decimal('0')) - _reembolsado_en_cobranza(p)
+    p.abonado_usd = max(cobrado, Decimal('0'))
     p.pagado = bool(abonos) and p.abonado_usd >= p.neto_usd - TOLERANCIA
     ultimo = abonos[-1] if abonos else None
     p.fecha_pago = ultimo.fecha if ultimo else None
@@ -419,7 +474,7 @@ def _actualizar_cobro(p, usuario):
     p.save(update_fields=['abonado_usd', 'pagado', 'metodo_pago', 'fecha_pago', 'banco_pago', 'referencia_pago',
                           'monto_pago', 'moneda_pago', 'estado', 'pago_registrado_por', 'pago_registrado_en'])
     # Si la empresa no exige validación, la venta que quedó cubierta se valida sola
-    if p.estado == E.POR_VALIDAR and p.pagado and usuario is not None and not p.empresa.perfil.requiere_validacion:
+    if auto_validar and p.estado == E.POR_VALIDAR and p.pagado and usuario is not None and not p.empresa.perfil.requiere_validacion:
         p = validar(p, usuario)
     return p
 
@@ -433,19 +488,32 @@ def tasa_para_abono(p):
 
 
 @transaction.atomic
-def registrar_abono(p, monto, moneda, metodo, usuario, fecha=None, banco='', referencia='', tasa=None):
+def registrar_abono(p, monto, moneda, metodo, usuario, fecha=None, banco='', referencia='', tasa=None,
+                    clave=None, todo=False):
     """
     Registra un pago (parcial o el saldo completo). monto en la moneda indicada; si es Bs se convierte con `tasa`
     (o la que diga Mi empresa: la del día o la de la venta). No se acepta más de lo que falta por cobrar.
     """
     p = _bloquear(p)
+    if _es_reintento(p, clave, usuario):
+        return p
     _exigir(p, *CONFIRMADAS)
     if p.pagado:
         raise ErrorVenta('Esta venta ya está pagada por completo.')
     if metodo not in Presupuesto.MetodoPago.values:
         raise ErrorVenta('Elige el método de pago.')
+    revision = p.empresa.perfil.requiere_validacion
+    proporcional = p.modalidad_comision == PerfilEmpresa.ModalidadComision.PROPORCIONAL
+    if (revision or proporcional) and metodo in (Presupuesto.MetodoPago.CREDITO, Presupuesto.MetodoPago.MIXTO):
+        raise ErrorVenta('Registra cada pago con el método efectivo utilizado.')
     if moneda not in ('USD', 'BS'):
         raise ErrorVenta('Indica si el monto es en USD o en Bs.')
+    saldo = saldo_para_registrar(p)
+    if saldo <= 0:
+        raise ErrorVenta('Los pagos registrados ya cubren el saldo disponible.')
+    monto = saldo if todo and moneda == 'USD' else monto
+    if monto is None or not Decimal(monto).is_finite():
+        raise ErrorVenta('Indica un monto válido.')
     monto = redondear(monto)
     if monto <= 0:
         raise ErrorVenta('El monto debe ser mayor que cero.')
@@ -453,44 +521,129 @@ def registrar_abono(p, monto, moneda, metodo, usuario, fecha=None, banco='', ref
     if moneda == 'BS':
         if tasa is None:
             tasa = tasa_para_abono(p)
-        if not tasa or tasa <= 0:
+        if not tasa or not Decimal(tasa).is_finite() or tasa <= 0:
             raise ErrorVenta('No hay tasa del día para convertir el abono en Bs. Indica la tasa.')
-        tasa_usada = Decimal(tasa)
+        tasa_usada = Decimal(tasa).quantize(Decimal('0.0001'))
+        if not tasa_usada:
+            raise ErrorVenta('La tasa es demasiado pequeña.')
         monto_usd = redondear(monto / tasa_usada)
     else:
         monto_usd = monto
-    saldo = p.saldo_usd
+    if monto_usd <= 0:
+        raise ErrorVenta('El equivalente del abono debe ser mayor que cero.')
     if monto_usd > saldo + TOLERANCIA:
         raise ErrorVenta(f'El abono ({monto_usd} USD) supera lo que falta por cobrar ({saldo} USD).')
     if saldo - monto_usd <= TOLERANCIA:          # un centavo de redondeo no deja la venta abierta
         monto_usd = saldo
-    Abono.objects.create(presupuesto=p, fecha=fecha or timezone.localdate(), metodo=metodo,
-                         banco=(banco or '').strip()[:60], referencia=(referencia or '').strip()[:40], moneda=moneda,
-                         monto=monto, tasa_bs=tasa_usada, monto_usd=monto_usd, registrado_por=usuario)
-    return _actualizar_cobro(p, usuario)
+    abono = Abono.objects.create(
+        presupuesto=p, fecha=fecha or timezone.localdate(), metodo=metodo,
+        banco=(banco or '').strip()[:60], referencia=(referencia or '').strip()[:40], moneda=moneda,
+        monto=monto, tasa_bs=tasa_usada, monto_usd=monto_usd, registrado_por=usuario, clave_registro=clave,
+        origen=Abono.Origen.MANUAL if revision else Abono.Origen.AUTOMATICO,
+        estado=A.PENDIENTE if revision else A.CONFIRMADO)
+    return p if revision else _aplicar_cobro(p, usuario, f'abono:{abono.pk}:confirmado', abono.fecha)
+
+
+def _aplicar_cobro(p, usuario, origen, fecha, auto_validar=True):
+    from apps.comisiones.servicios import actualizar_proporcional
+    p = _actualizar_cobro(p, usuario, auto_validar)
+    actualizar_proporcional(p, origen, fecha)
+    return p
+
+
+def _puede_revisar(p, usuario, permiso='cobranza.validar'):
+    return usuario is not None and Membresia.objects.filter(
+        empresa_id=p.empresa_id, usuario=usuario, activa=True, rol__in=PERMISOS[permiso]).exists()
 
 
 @transaction.atomic
-def anular_abono(abono, usuario):
-    """Elimina un abono mal registrado. Si la venta deja de estar pagada, vuelve a «por cobrar»."""
+def revisar_abono(abono, usuario, estado, motivo='', validar_venta=False):
     p = _bloquear(abono.presupuesto)
+    abono = Abono.objects.select_for_update().filter(pk=abono.pk, presupuesto=p).first()
+    if abono is None:
+        raise ErrorVenta('El abono ya no está disponible.')
+    retira_propio = estado == A.RETIRADO and usuario is not None and abono.registrado_por_id == usuario.pk
+    if not (retira_propio or _puede_revisar(p, usuario)):
+        raise ErrorVenta('Tu rol no permite revisar este abono.')
+    if validar_venta and (estado != A.CONFIRMADO or not _puede_revisar(p, usuario, 'ventas.validar')):
+        raise ErrorVenta('Tu rol no permite validar la venta en esta operación.')
+    if abono.estado == estado:
+        if validar_venta and p.estado == E.POR_VALIDAR:
+            return validar(p, usuario)
+        return p
+    esperado = {A.CONFIRMADO: A.PENDIENTE, A.RECHAZADO: A.PENDIENTE,
+                A.RETIRADO: A.PENDIENTE, A.REVERTIDO: A.CONFIRMADO}
+    if esperado.get(estado) != abono.estado:
+        raise ErrorVenta('El estado actual del abono no permite esta acción.')
+    if validar_venta and (p.estado != E.POR_PAGAR or abono.monto_usd < p.saldo_usd - TOLERANCIA):
+        raise ErrorVenta('Este abono debe cubrir el saldo para validar también la venta.')
+    if estado == A.REVERTIDO and abono.monto_usd > p.abonado_usd and _reembolsado_en_cobranza(p):
+        raise ErrorVenta('El abono respalda un reembolso ya registrado.')
+    ahora = timezone.now()
+    abono.estado = estado
+    if estado == A.CONFIRMADO:
+        _exigir(p, *CONFIRMADAS)
+        if p.pagado or abono.monto_usd > p.saldo_usd:
+            raise ErrorVenta('El abono supera el saldo confirmado pendiente.')
+        abono.confirmado_en, abono.confirmado_por = ahora, usuario
+        abono.save(update_fields=['estado', 'confirmado_en', 'confirmado_por'])
+    else:
+        motivo = motivo.strip()
+        if not motivo:
+            raise ErrorVenta('Indica el motivo.')
+        abono.cerrado_en, abono.cerrado_por, abono.motivo_cierre = ahora, usuario, motivo[:250]
+        abono.save(update_fields=['estado', 'cerrado_en', 'cerrado_por', 'motivo_cierre'])
+    if estado in (A.CONFIRMADO, A.REVERTIDO):
+        p = _aplicar_cobro(p, usuario, f'abono:{abono.pk}:{estado.lower()}', timezone.localdate(ahora),
+                          auto_validar=False)
+    if validar_venta and p.estado == E.POR_VALIDAR:
+        p = validar(p, usuario)
+    return p
+
+
+@transaction.atomic
+def anular_abono(abono, usuario, motivo=''):
+    """Retira un pendiente o corrige un cobro según la política aplicable."""
+    p = _bloquear(abono.presupuesto)
+    abono = Abono.objects.select_for_update().filter(pk=abono.pk, presupuesto=p).first()
+    if abono is None:
+        return p
+    if abono.estado in (A.RECHAZADO, A.RETIRADO, A.REVERTIDO):
+        return p
+    if abono.estado == A.PENDIENTE:
+        return revisar_abono(abono, usuario, A.RETIRADO, motivo)
+    if (p.empresa.perfil.requiere_validacion or abono.origen == Abono.Origen.MANUAL
+            or p.modalidad_comision == PerfilEmpresa.ModalidadComision.PROPORCIONAL or _reembolsado_en_cobranza(p)):
+        return revisar_abono(abono, usuario, A.REVERTIDO, motivo)
     abono.delete()
     return _actualizar_cobro(p, usuario)
 
 
 @transaction.atomic
-def registrar_pago(p, pagado, metodo='', fecha=None, banco='', referencia='', monto=None, moneda='', usuario=None):
+def registrar_pago(p, pagado, metodo='', fecha=None, banco='', referencia='', monto=None, moneda='', usuario=None,
+                   clave=None, tasa=None):
     """
-    Atajo: pagado=True registra un abono por TODO el saldo (en USD); pagado=False anula todos los abonos.
-    monto/moneda, si vienen, quedan como lo recibido en el abono.
+    Atajo de registro de pago. Con revisión activa, aplica el flujo de abonos individuales.
+    El atajo de anulación masiva queda para ventas con el comportamiento anterior.
     """
     p = _bloquear(p)
+    if _es_reintento(p, clave, usuario):
+        return p
     _exigir(p, *CONFIRMADAS)
+    revision = p.empresa.perfil.requiere_validacion
+    proporcional = p.modalidad_comision == PerfilEmpresa.ModalidadComision.PROPORCIONAL
     if not pagado:
+        if (revision or proporcional or _reembolsado_en_cobranza(p)
+                or Abono.objects.filter(presupuesto=p, origen=Abono.Origen.MANUAL).exists()):
+            raise ErrorVenta('Revisa y corrige cada abono individualmente.')
         Abono.objects.filter(presupuesto=p).delete()
         return _actualizar_cobro(p, usuario)
     if p.pagado:
         return p
+    if revision or proporcional:
+        return registrar_abono(p, monto, moneda or 'USD', metodo or Presupuesto.MetodoPago.TRANSFERENCIA,
+                               usuario, fecha=fecha, banco=banco, referencia=referencia, tasa=tasa,
+                               clave=clave, todo=monto is None)
     saldo = p.saldo_usd
     if saldo <= 0:
         return _actualizar_cobro(p, usuario)
@@ -499,7 +652,8 @@ def registrar_pago(p, pagado, metodo='', fecha=None, banco='', referencia='', mo
     Abono.objects.create(presupuesto=p, fecha=fecha or timezone.localdate(), metodo=metodo or Presupuesto.MetodoPago.TRANSFERENCIA,
                          banco=(banco or '').strip()[:60], referencia=(referencia or '').strip()[:40],
                          moneda=moneda if monto is not None and moneda in ('USD', 'BS') else 'USD',
-                         monto=redondear(monto) if monto is not None else saldo, monto_usd=saldo, registrado_por=usuario)
+                         monto=redondear(monto) if monto is not None else saldo, monto_usd=saldo,
+                         registrado_por=usuario, clave_registro=clave)
     return _actualizar_cobro(p, usuario)
 
 
@@ -591,15 +745,32 @@ def _validar_reembolso(reembolso, total):
         return {}
     monto = reembolso.get('monto_usd')
     monto = total if monto in (None, '') else Decimal(monto)
-    if monto <= 0:
+    if not monto.is_finite() or redondear(monto) <= 0:
         raise ErrorVenta('El monto del reembolso debe ser mayor que cero.')
+    monto = redondear(monto)
     if monto > total:
         raise ErrorVenta(f'El reembolso no puede superar el total devuelto ({total} USD).')
-    if not reembolso.get('metodo'):
+    if reembolso.get('metodo') not in Presupuesto.MetodoPago.values:
         raise ErrorVenta('Indica el método del reembolso.')
     return {'reembolsado': True, 'reembolso_usd': monto, 'reembolso_metodo': reembolso['metodo'],
             'reembolso_fecha': reembolso.get('fecha') or timezone.localdate(),
             'reembolso_referencia': (reembolso.get('referencia') or '')[:80]}
+
+
+def _reembolsado_en_cobranza(p):
+    total = Devolucion.objects.filter(presupuesto=p, reembolso_en_cobranza=True).aggregate(t=Sum('reembolso_usd'))['t']
+    return redondear(total or Decimal('0'))
+
+
+def _imputar_reembolso(p, datos):
+    perfil = p.empresa.perfil
+    if datos and (perfil.requiere_validacion or p.modalidad_comision == PerfilEmpresa.ModalidadComision.PROPORCIONAL
+                  or Abono.objects.filter(presupuesto=p, origen=Abono.Origen.MANUAL).exists()):
+        if datos['reembolso_usd'] > p.abonado_usd:
+            raise ErrorVenta('El reembolso supera el importe confirmado disponible.')
+        if datos['reembolso_metodo'] in (Presupuesto.MetodoPago.CREDITO, Presupuesto.MetodoPago.MIXTO):
+            raise ErrorVenta('Indica el método efectivo del reembolso.')
+        datos['reembolso_en_cobranza'] = True
 
 
 @transaction.atomic
@@ -635,6 +806,7 @@ def devolver(p, usuario, lineas, motivo, fecha=None, reembolso=None):
     exento = sum((redondear(cant * items[i].precio_usd) for i, (cant, _) in pedidas.items() if items[i].exento_iva), Decimal('0'))
     montos = _totales_devolucion(p, subtotal, completa, exento)
     datos_reembolso = _validar_reembolso(reembolso, montos['total_usd'])
+    _imputar_reembolso(p, datos_reembolso)
 
     perfil = p.empresa.perfil
     dev = Devolucion.objects.create(
@@ -666,14 +838,20 @@ def devolver(p, usuario, lineas, motivo, fecha=None, reembolso=None):
 @transaction.atomic
 def registrar_reembolso(dev, monto_usd, metodo, fecha=None, referencia=''):
     """Reembolso registrado después de crear la devolución."""
-    dev = Devolucion.objects.select_for_update().get(pk=dev.pk)
+    p = _bloquear(dev.presupuesto)
+    dev = Devolucion.objects.select_for_update().get(pk=dev.pk, presupuesto=p)
     if dev.reembolsado:
         raise ErrorVenta('Esta devolución ya tiene su reembolso registrado.')
     datos = _validar_reembolso({'monto_usd': monto_usd, 'metodo': metodo, 'fecha': fecha, 'referencia': referencia},
                                dev.total_usd)
+    _imputar_reembolso(p, datos)
     for campo, valor in datos.items():
         setattr(dev, campo, valor)
     dev.save(update_fields=list(datos))
+    if dev.reembolso_en_cobranza:
+        _actualizar_cobro(p, None)
+    from apps.comisiones.servicios import actualizar_proporcional
+    actualizar_proporcional(p, f'reembolso:{dev.pk}', dev.reembolso_fecha)
     return dev
 
 
@@ -685,7 +863,7 @@ def vencer_apartados():
     for p in vencidos:
         with usando_empresa(p.empresa), transaction.atomic():
             p = _bloquear(p)
-            if p.estado != E.APARTADO:
+            if p.estado != E.APARTADO or _tiene_abonos_activos(p):
                 continue
             _liberar_reservas(p, p.vendedor, 'Vencimiento de apartado')
             p.estado = E.VENCIDO
