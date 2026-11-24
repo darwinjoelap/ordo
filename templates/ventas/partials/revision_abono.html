@@ -2,7 +2,7 @@
   <div class="d-flex flex-column gap-2">
     {% if puede_revisar_abonos and p.confirmada %}
     <form method="post" action="{% url 'ventas:revisar_abono' p.pk a.pk %}">{% csrf_token %}
-      {% if desde_bandeja %}<input type="hidden" name="volver" value="abonos_por_validar">{% endif %}
+      {% if volver_revision or desde_bandeja %}<input type="hidden" name="volver" value="{{ volver_revision|default:'abonos_por_validar' }}">{% endif %}
       {% if puede_validar and p.estado == 'POR_PAGAR' and a.monto_usd == p.saldo_usd %}
       <button class="btn btn-sm btn-success" name="accion" value="confirmar">Confirmar y validar venta</button>
       {% else %}
@@ -12,7 +12,7 @@
     {% endif %}
     {% if puede_revisar_abonos or a.registrado_por_id == request.user.pk %}
     <form method="post" class="d-flex gap-1" action="{% if puede_revisar_abonos %}{% url 'ventas:revisar_abono' p.pk a.pk %}{% else %}{% url 'ventas:anular_abono' p.pk a.pk %}{% endif %}">{% csrf_token %}
-      {% if desde_bandeja %}<input type="hidden" name="volver" value="abonos_por_validar">{% endif %}
+      {% if volver_revision or desde_bandeja %}<input type="hidden" name="volver" value="{{ volver_revision|default:'abonos_por_validar' }}">{% endif %}
       <input class="form-control form-control-sm" name="motivo" maxlength="250" required placeholder="Motivo" aria-label="Motivo">
       <button class="btn btn-sm btn-outline-danger" name="accion" value="rechazar">{% if puede_revisar_abonos %}Rechazar{% else %}Retirar{% endif %}</button>
     </form>

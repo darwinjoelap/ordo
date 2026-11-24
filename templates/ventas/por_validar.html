@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load ordo %}
 {% block contenido %}
-<a class="btn btn-sm btn-outline-primary mb-3" href="{% url 'ventas:abonos_por_validar' %}">Abonos por revisar</a>
+{% if puede_revisar_abonos %}<a class="btn btn-sm btn-outline-primary mb-3" href="{% url 'ventas:abonos_por_validar' %}">Abonos por revisar</a>{% endif %}
 <a href="{% url 'ventas:lista' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Presupuestos</a>
 <h1 class="h3 mt-2 mb-1">Ventas por validar</h1>
 <p class="text-muted small">La validación registra la venta en los reportes y descuenta el stock apartado. Los abonos confirmados pueden generar comisión proporcional antes de ese paso.</p>
@@ -18,16 +18,30 @@
       </div>
       <div class="text-end"><div class="fs-5 fw-bold">{{ p.total_usd|usd }}</div>{% if p.total_bs %}<div class="small text-muted">Bs {{ p.total_bs|floatformat:"2g" }}</div>{% endif %}</div>
     </div>
+    {% for a in p.abonos_por_revisar %}
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 border-top pt-2 mt-2">
+      <div>
+        <span class="badge text-bg-warning">{% if p.estado == 'POR_PAGAR' and a.monto_usd == p.saldo_usd %}Pago final por confirmar{% else %}Abono por confirmar{% endif %}</span>
+        <span class="fw-semibold">{{ a.monto_usd|usd }}</span>
+        <div class="small">{{ a.get_metodo_display }} · {{ a.fecha|date:"d/m/Y" }}{% if a.banco %} · {{ a.banco }}{% endif %}{% if a.referencia %} · Ref. {{ a.referencia }}{% endif %}</div>
+        {% if a.moneda == 'BS' %}<div class="small">Bs {{ a.monto|floatformat:"2g" }} a {{ a.tasa_bs|floatformat:"4g" }}</div>{% endif %}
+        {% if a.registrado_por %}<div class="small text-muted">Registrado por {{ a.registrado_por.nombre_visible }}</div>{% endif %}
+      </div>
+      {% include 'ventas/partials/revision_abono.html' with volver_revision='por_validar' %}
+    </div>
+    {% endfor %}
+    {% if p.estado == 'POR_VALIDAR' %}
     <div class="d-flex gap-2 flex-wrap mt-2">
       <form method="post" action="{% url 'ventas:accion' p.pk 'validar' %}">{% csrf_token %}<input type="hidden" name="volver" value="/ventas/por-validar/"><button class="btn btn-success btn-sm"><i class="bi bi-patch-check me-1"></i>Validar</button></form>
       <form method="post" action="{% url 'ventas:accion' p.pk 'rechazar' %}" class="d-flex gap-2 flex-grow-1">{% csrf_token %}<input type="hidden" name="volver" value="/ventas/por-validar/">
         <input name="motivo" class="form-control form-control-sm" placeholder="Motivo del rechazo" required maxlength="250" aria-label="Motivo del rechazo">
         <button class="btn btn-outline-danger btn-sm text-nowrap">Rechazar</button></form>
     </div>
+    {% endif %}
   </div>
   {% endfor %}
 </div>
 {% else %}
-<div class="card card-body text-center text-muted py-5"><i class="bi bi-patch-check fs-1"></i><p class="mt-2 mb-0">No hay ventas pendientes de validación.</p></div>
+<div class="card card-body text-center text-muted py-5"><i class="bi bi-patch-check fs-1"></i><p class="mt-2 mb-0">No hay ventas ni abonos pendientes de revisión.</p></div>
 {% endif %}
 {% endblock %}

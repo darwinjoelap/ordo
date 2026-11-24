@@ -20,6 +20,7 @@ def inicio(request):
     from apps.inventario.models import Producto
     from apps.ventas import cobranza
     from apps.ventas.models import Presupuesto
+    from apps.ventas.views import pendientes_de_validacion
 
     E = Presupuesto.Estado
     ahora = timezone.localtime()
@@ -35,7 +36,7 @@ def inicio(request):
             n=Count('pk', filter=Q(estado=E.VALIDADA)), usd=Sum(F('total_usd') - F('devuelto_usd')))
         ctx.update({
             'ventas_mes': mes,
-            'por_validar': docs.filter(estado=E.POR_VALIDAR).aggregate(n=Count('pk'), usd=Sum('total_usd')),
+            'por_validar': pendientes_de_validacion(request, docs).aggregate(n=Count('pk'), usd=Sum('total_usd')),
             'apartados': docs.filter(estado=E.APARTADO).count(),
             'por_vencer': docs.filter(estado=E.APARTADO, apartado_hasta__lte=ahora + timedelta(days=2))
                               .select_related('cliente').order_by('apartado_hasta')[:5],

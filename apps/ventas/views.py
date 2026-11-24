@@ -8,7 +8,7 @@ from django.core.exceptions import PermissionDenied
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, Exists, OuterRef, Prefetch, Q, Sum
 from django.db.models.functions import Lower
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -41,6 +41,19 @@ def visibles(request):
     if not tiene_permiso(request, 'presupuestos.ver_todos'):
         qs = qs.filter(vendedor=request.user)
     return qs
+
+
+def pendientes_de_validacion(request, docs):
+    """Agrupa las tareas de revisión por venta para la bandeja y su contador."""
+    pendientes = Q(estado=E.POR_VALIDAR)
+    if tiene_permiso(request, 'cobranza.validar'):
+        abonos = _abonos_pendientes().filter(presupuesto_id=OuterRef('pk'))
+        pendientes |= Q(Exists(abonos), estado__in=Presupuesto.CONFIRMADAS)
+    return docs.filter(pendientes)
+
+
+def _abonos_pendientes():
+    return Abono.objects.filter(estado=Abono.Estado.PENDIENTE)
 
 
 # Sugerencias para «Banco emisor» (el campo acepta cualquier texto)
@@ -440,15 +453,22 @@ def pago_entrega(request, pk):
 @login_required
 @requiere('ventas.validar')
 def por_validar(request):
-    ventas = (Presupuesto.objects.filter(estado=E.POR_VALIDAR).select_related('cliente', 'vendedor', 'pago_registrado_por')
-              .order_by('confirmado_en'))
-    return render(request, 'ventas/por_validar.html', {'titulo': 'Ventas por validar', 'ventas': ventas})
+    ventas = (pendientes_de_validacion(request, visibles(request)).select_related('pago_registrado_por')
+              .order_by('confirmado_en', 'pk'))
+    puede_revisar = tiene_permiso(request, 'cobranza.validar')
+    if puede_revisar:
+        abonos = _abonos_pendientes().select_related('registrado_por').order_by('registrado_en', 'pk')
+        ventas = ventas.prefetch_related(Prefetch('abonos', queryset=abonos, to_attr='abonos_por_revisar'))
+    return render(request, 'ventas/por_validar.html', {
+        'titulo': 'Ventas por validar', 'ventas': ventas,
+        'puede_revisar_abonos': puede_revisar, 'puede_validar': True,
+    })
 
 
 @login_required
 @requiere('cobranza.validar')
 def abonos_por_validar(request):
-    abonos = (Abono.objects.filter(estado=Abono.Estado.PENDIENTE, presupuesto__in=visibles(request))
+    abonos = (_abonos_pendientes().filter(presupuesto__in=visibles(request))
               .select_related('presupuesto__cliente', 'registrado_por').order_by('registrado_en', 'pk'))
     return render(request, 'ventas/abonos_por_validar.html', {
         'titulo': 'Abonos por revisar', 'abonos': Paginator(abonos, 50).get_page(request.GET.get('pagina')),
@@ -628,6 +648,7 @@ def revisar_abono(request, pk, abono_id):
             messages.success(request, 'Abono confirmado y venta validada.')
         else:
             messages.success(request, 'Revisión del abono guardada.')
-    if request.POST.get('volver') == 'abonos_por_validar':
-        return redirect('ventas:abonos_por_validar')
+    volver = request.POST.get('volver')
+    if volver in ('abonos_por_validar', 'por_validar'):
+        return redirect(f'ventas:{volver}')
     return redirect('ventas:detalle', pk=pk)

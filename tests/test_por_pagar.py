@@ -1,6 +1,9 @@
-"""Con «validar ventas» activo: Por pagar es un paso previo y estricto; a Por validar solo entra una venta pagada."""
+"""Estados de cobro y ventas que el validador puede atender desde la bandeja."""
+from decimal import Decimal
+
 from django.urls import reverse
 
+from apps.empresas.models import Membresia, Rol
 from apps.ventas import servicios as ventas
 from apps.ventas.models import Abono, Presupuesto
 
@@ -71,6 +74,66 @@ class PorPagarTests(Base):
         self.assertEqual(self.client.get(reverse('core:inicio')).context['por_cobrar']['n'], 0)
         self.client.post(reverse('ventas:accion', args=[self.p.pk, 'validar']))
         self.assertEqual(self.estado(), E.VALIDADA)
+
+    def test_bandeja_revisa_abonos_parciales_y_finales_sin_duplicarlos(self):
+        self.perfil.despacho_por_almacen = False
+        self.perfil.multialmacen = False
+        self.perfil.save(update_fields=['despacho_por_almacen', 'multialmacen'])
+        self.p.refresh_from_db()
+        parcial = Decimal('10.01')
+        with self.empresa_ctx():
+            ventas.registrar_abono(self.p, parcial, 'USD', 'ZELLE', self.vendedor, referencia='PARCIAL')
+            ventas.registrar_abono(self.p, self.p.saldo_usd - parcial, 'USD', 'ZELLE', self.vendedor,
+                                   referencia='FINAL')
+            primero, ultimo = Abono.objects.filter(presupuesto=self.p).order_by('pk')
+        inicio = reverse('core:inicio')
+        bandeja = reverse('ventas:por_validar')
+        detalle = reverse('ventas:detalle', args=[self.p.pk])
+        revisar_parcial = reverse('ventas:revisar_abono', args=[self.p.pk, primero.pk])
+        revisar_final = reverse('ventas:revisar_abono', args=[self.p.pk, ultimo.pk])
+
+        self.client.force_login(self.vendedor)
+        self.assertEqual(self.client.get(inicio).context['por_validar']['n'], 0)
+        self.assertEqual(self.client.get(bandeja).status_code, 403)
+        self.client.force_login(self.dueno)
+        self.assertEqual(self.client.get(inicio).context['por_validar'], {'n': 1, 'usd': self.p.total_usd})
+        r = self.client.get(bandeja)
+        self.assertEqual([p.pk for p in r.context['ventas']], [self.p.pk])
+        self.assertContains(r, 'Abono por confirmar', count=2)
+        self.assertContains(r, 'Ref. PARCIAL')
+        self.assertContains(r, 'Ref. FINAL')
+        self.assertContains(r, revisar_parcial)
+        self.assertContains(self.client.get(detalle), revisar_parcial)
+
+        confirmar = {'accion': 'confirmar'}
+        self.assertRedirects(self.client.post(revisar_parcial, {**confirmar, 'volver': 'por_validar'}), bandeja)
+        self.assertRedirects(self.client.post(revisar_parcial, confirmar), detalle)
+        self.assertEqual(self.estado(), E.POR_PAGAR)
+        self.assertEqual(self.p.abonado_usd, parcial)
+        self.assertEqual(self.stock(), (10, 2))
+        r = self.client.get(bandeja)
+        self.assertNotContains(r, 'Ref. PARCIAL')
+        self.assertContains(r, 'Pago final por confirmar')
+        self.assertContains(r, 'Confirmar y validar venta')
+        self.assertNotContains(r, reverse('ventas:accion', args=[self.p.pk, 'validar']))
+
+        self.perfil.despacho_por_almacen = True
+        self.perfil.multialmacen = True
+        self.perfil.save(update_fields=['despacho_por_almacen', 'multialmacen'])
+        Membresia.objects.filter(empresa=self.empresa, usuario=self.vendedor2).update(rol=Rol.ADMIN)
+        self.client.force_login(self.vendedor2)
+        self.assertEqual(self.client.get(inicio).context['por_validar']['n'], 1)
+        self.assertContains(self.client.get(bandeja), revisar_final)
+        self.assertContains(self.client.get(detalle), 'Confirmar y validar venta')
+        self.assertRedirects(self.client.post(revisar_final, confirmar), detalle)
+        self.assertRedirects(self.client.post(revisar_final, {**confirmar, 'volver': 'por_validar'}), bandeja)
+        self.assertEqual(self.estado(), E.VALIDADA)
+        self.assertEqual(self.p.abonado_usd, self.p.total_usd)
+        self.assertEqual(self.stock(), (8, 0))
+        self.assertEqual(list(Abono.todos.filter(presupuesto=self.p).values_list('estado', flat=True)),
+                         [Abono.Estado.CONFIRMADO] * 2)
+        self.assertEqual(self.client.get(inicio).context['por_validar']['n'], 0)
+        self.assertNotContains(self.client.get(bandeja), self.p.numero)
 
     def test_quitar_el_pago_la_saca_de_la_cola(self):
         self.client.post(self.pago, {'pagado': '1', 'metodo_pago': 'ZELLE'})
