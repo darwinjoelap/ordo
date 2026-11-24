@@ -11,7 +11,8 @@ import base64
 from collections import defaultdict
 
 from django.db import transaction
-from django.db.models import Exists, OuterRef, Sum
+from django.db.models import Exists, F, IntegerField, OuterRef, Subquery, Sum
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from .models import Entrega, ItemEntrega, ItemPresupuesto, Presupuesto
@@ -153,9 +154,13 @@ def anular(entrega):
 
 
 def bandeja(qs):
-    """Ventas confirmadas aún no entregadas, con su estado de despacho."""
-    con_mercancia = ItemPresupuesto.objects.filter(presupuesto=OuterRef('pk'), producto__tipo='PRODUCTO')
-    return qs.filter(estado__in=Presupuesto.CONFIRMADAS, entregado=False).filter(Exists(con_mercancia)) \
+    """Ventas confirmadas con alguna unidad física aún pendiente de despacho."""
+    despachado = (ItemEntrega.objects.filter(item=OuterRef('pk')).order_by()
+                  .values('item').annotate(total=Sum('cantidad')).values('total'))
+    faltantes = (ItemPresupuesto.objects.filter(presupuesto=OuterRef('pk'), producto__tipo='PRODUCTO')
+                 .alias(despachado=Coalesce(Subquery(despachado), 0, output_field=IntegerField()))
+                 .filter(cantidad__gt=F('despachado')))
+    return qs.filter(estado__in=Presupuesto.CONFIRMADAS, entregado=False).filter(Exists(faltantes)) \
         .select_related('cliente', 'vendedor') \
         .order_by('confirmado_en', 'pk')
 

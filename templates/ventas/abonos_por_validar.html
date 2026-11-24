@@ -1,19 +1,30 @@
 {% extends 'base.html' %}
 {% load ordo %}
 {% block contenido %}
-<h1 class="h3 mb-3">Abonos por revisar</h1>
+<a href="{% url 'ventas:por_validar' %}" class="small text-decoration-none">Ventas por validar</a>
+<h1 class="h3 mt-2 mb-2">Abonos por revisar</h1>
+{% if puede_validar %}<p class="text-muted small">Al confirmar el abono que completa el saldo, también validas la venta.</p>{% endif %}
 {% if abonos %}
 <div class="card table-responsive">
   <table class="table align-middle mb-0">
-    <thead><tr><th>Venta</th><th>Cliente</th><th>Registrado por</th><th>Método</th><th class="text-end">Importe</th></tr></thead>
+    <thead><tr><th>Venta</th><th>Cliente</th><th>Registrado por</th><th>Pago</th><th class="text-end">Importe</th><th>Revisión</th></tr></thead>
     <tbody>
       {% for abono in abonos %}
       <tr>
         <td><a href="{% url 'ventas:detalle' abono.presupuesto_id %}">{{ abono.presupuesto.numero }}</a></td>
         <td>{{ abono.presupuesto.cliente.nombre }}</td>
         <td>{{ abono.registrado_por.nombre_visible }} · {{ abono.registrado_en|date:"d/m/Y H:i" }}</td>
-        <td>{{ abono.get_metodo_display }}</td>
-        <td class="text-end">{{ abono.monto_usd|usd }}</td>
+        <td>
+          {{ abono.get_metodo_display }} · {{ abono.fecha|date:"d/m/Y" }}
+          {% if abono.banco %}<div class="small">{{ abono.banco }}</div>{% endif %}
+          {% if abono.referencia %}<div class="small">Ref. {{ abono.referencia }}</div>{% endif %}
+        </td>
+        <td class="text-end">
+          {{ abono.monto_usd|usd }}
+          {% if abono.moneda == 'BS' %}<div class="small">Bs {{ abono.monto|floatformat:"2g" }} a {{ abono.tasa_bs|floatformat:"4g" }}</div>{% endif %}
+          <div class="small text-muted">Saldo {{ abono.presupuesto.saldo_usd|usd }}</div>
+        </td>
+        <td>{% include 'ventas/partials/revision_abono.html' with a=abono p=abono.presupuesto desde_bandeja=True %}</td>
       </tr>
       {% endfor %}
     </tbody>

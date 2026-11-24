@@ -75,6 +75,24 @@ class ServicioTests(DespachoBase):
 
 
 class PantallasTests(DespachoBase):
+    def test_tablero_del_dueno_coincide_con_la_bandeja_en_cada_etapa(self):
+        self.client.force_login(self.dueno)
+        inicio = reverse('core:inicio')
+        bandeja = reverse('ventas:bandeja_despacho')
+        self.assertNotContains(self.client.get(inicio), '>Por entregar<')
+        self.assertEqual(self.client.get(inicio).context['despacho'], {'pendientes': 1, 'transito': 0})
+        with self.empresa_ctx():
+            primera = srv.registrar(self.p, self.almacen, self.cant(self.prod, 5), 'VENDEDOR')
+        self.assertEqual(self.client.get(inicio).context['despacho'], {'pendientes': 1, 'transito': 1})
+        self.assertEqual(len(self.client.get(bandeja).context['pendientes']), 1)
+        with self.empresa_ctx():
+            srv.registrar(self.p, self.almacen, self.cant(self.equipo, 1), 'CLIENTE', 'Ana', 'V-1')
+        self.assertEqual(self.client.get(inicio).context['despacho'], {'pendientes': 0, 'transito': 1})
+        self.assertEqual(len(self.client.get(bandeja).context['pendientes']), 0)
+        with self.empresa_ctx():
+            srv.confirmar_cliente(primera, self.vendedor, 'Pedro', 'V-9')
+        self.assertEqual(self.client.get(inicio).context['despacho'], {'pendientes': 0, 'transito': 0})
+
     def test_almacen_despacha(self):
         self.client.force_login(self.almacen)
         self.assertContains(self.client.get(reverse('ventas:bandeja_despacho')), self.p.numero)

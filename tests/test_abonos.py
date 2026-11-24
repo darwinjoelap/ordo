@@ -203,6 +203,36 @@ class AbonosConValidacionTests(Base):
         hoja = load_workbook(BytesIO(reporte.content)).active
         self.assertNotIn('REF-PRIVADA', [v for fila in hoja.values for v in fila])
 
+    def test_revision_desde_bandeja_y_detalle_cierra_el_cobro_y_valida_una_vez(self):
+        self.perfil.modalidad_comision = 'PROPORCIONAL'
+        self.perfil.save()
+        p = self.confirmada()
+        with self.empresa_ctx():
+            ventas.registrar_abono(p, Decimal('29'), 'USD', 'ZELLE', self.vendedor, referencia='REF-PRIMER-ABONO')
+            ventas.registrar_abono(p, Decimal('87'), 'USD', 'EFECTIVO_USD', self.vendedor)
+        primero, ultimo = Abono.todos.filter(presupuesto=p)
+        cola = reverse('ventas:abonos_por_validar')
+        primero_url = reverse('ventas:revisar_abono', args=[p.pk, primero.pk])
+        ultimo_url = reverse('ventas:revisar_abono', args=[p.pk, ultimo.pk])
+        self.client.force_login(self.dueno)
+        self.assertContains(self.client.get(cola), primero_url)
+        self.assertContains(self.client.get(cola), 'REF-PRIMER-ABONO')
+        r = self.client.post(primero_url, {'accion': 'confirmar', 'volver': 'abonos_por_validar'})
+        self.assertRedirects(r, cola)
+        p.refresh_from_db()
+        self.assertEqual((p.estado, p.saldo_usd), (Presupuesto.Estado.POR_PAGAR, Decimal('87')))
+        self.assertEqual(self.stock(), (10, 5))
+        r = self.client.get(reverse('comisiones:inicio'))
+        self.assertEqual(r.context['totales']['devengado_por_validar'], Decimal('1.25'))
+        self.assertEqual(r.context['totales']['disponible'], 0)
+        self.assertContains(self.client.get(reverse('ventas:detalle', args=[p.pk])), 'Confirmar y validar venta')
+        for _ in range(2):
+            self.client.post(ultimo_url, {'accion': 'confirmar'})
+        p.refresh_from_db()
+        self.assertEqual((p.estado, p.pagado, p.validado_por), (Presupuesto.Estado.VALIDADA, True, self.dueno))
+        self.assertEqual(self.stock(), (5, 0))
+        self.assertEqual(MovimientoComision.todos.filter(comision__presupuesto=p).count(), 2)
+
 
 class ComisionProporcionalDevolucionesTests(Base):
     def test_devuelve_lineas_y_reembolsa_sobre_el_cobro_confirmado(self):

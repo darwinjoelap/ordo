@@ -50,12 +50,16 @@ def inicio(request):
     perfil = request.empresa.perfil
     inicio_mes = timezone.localdate().replace(day=1)
     filas = servicios.resumen_por_vendedor(perfil, inicio_mes)
+    mostrar_devengo = perfil.modalidad_comision_vigente == servicios.MODO.PROPORCIONAL or any(
+        f['devengado_por_validar'] for f in filas)
     sin_porcentaje = vendedores(request.empresa).exclude(
         pk__in=PorcentajeVendedor.objects.values_list('vendedor_id', flat=True))
     return render(request, 'comisiones/inicio.html', {
         'titulo': 'Comisiones', 'filas': filas, 'perfil': perfil, 'sin_porcentaje': sin_porcentaje,
+        'mostrar_devengo': mostrar_devengo,
         'liquidaciones': Liquidacion.objects.select_related('vendedor')[:8],
-        'totales': {k: sum((f[k] for f in filas), Decimal('0')) for k in ('disponible', 'por_cobrar', 'mes')},
+        'totales': {k: sum((f[k] for f in filas), Decimal('0'))
+                    for k in ('disponible', 'por_cobrar', 'devengado_por_validar', 'mes')},
     })
 
 
@@ -82,7 +86,7 @@ def detalle_vendedor(request, vendedor_id=None):
         if c.liquidacion_id:
             c.estado, c.css = f'Liquidada ({c.liquidacion.numero})', 'success' if c.liquidacion.pagada else 'info'
         elif isinstance(c, MovimientoComision) and not c.presupuesto.validado_en:
-            c.estado, c.css = 'Espera validación de la venta', 'warning'
+            c.estado, c.css = 'Devengada · espera validación', 'warning'
         elif not c.presupuesto.pagado and c.presupuesto.modalidad_comision in servicios.modalidades_cobradas(perfil):
             p = c.presupuesto
             c.estado = (f'Espera pago completo · faltan {usd(p.saldo_usd)}' if p.abono_parcial

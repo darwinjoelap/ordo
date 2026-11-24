@@ -186,7 +186,7 @@ def resumen_por_vendedor(perfil, desde_mes):
 
     def fila(vid):
         return filas.setdefault(vid, {'vendedor_id': vid, 'disponible': Decimal('0'), 'n_disponible': 0,
-                                      'por_cobrar': Decimal('0'), 'mes': Decimal('0')})
+                                      'por_cobrar': CERO, 'devengado_por_validar': CERO, 'mes': CERO})
     for r in disponibles(perfil).values('vendedor_id').annotate(t=Sum('monto_usd'), n=Count('pk')):
         f = fila(r['vendedor_id'])
         f['disponible'], f['n_disponible'] = r['t'] or 0, r['n']
@@ -203,6 +203,10 @@ def resumen_por_vendedor(perfil, desde_mes):
         f = fila(r['comision__vendedor_id'])
         f['disponible'] += r['t'] or 0
         f['n_disponible'] += r['n']
+    sin_validar = MovimientoComision.objects.filter(liquidacion__isnull=True,
+                                                    comision__presupuesto__validado_en__isnull=True)
+    for r in sin_validar.values('comision__vendedor_id').annotate(t=Sum('monto_usd')):
+        fila(r['comision__vendedor_id'])['devengado_por_validar'] = redondear(r['t'] or CERO)
     movimientos = MovimientoComision.objects.filter(fecha__gte=desde_mes)
     for r in movimientos.values('comision__vendedor_id').annotate(t=Sum('monto_usd')):
         fila(r['comision__vendedor_id'])['mes'] += r['t'] or 0

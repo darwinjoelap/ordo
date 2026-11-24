@@ -56,8 +56,6 @@ def bandeja(request):
     for p in pendientes:
         p.estado_despacho = 'PARCIAL' if p.pk in con_entregas else 'PENDIENTE'
     transito = list(srv.transito_de(base))
-    transito_ids = {e.presupuesto_id for e in transito}
-    pendientes = [p for p in pendientes if not (p.pk in transito_ids and all(n == 0 for _, _, n in srv.pendientes(p)))]
     recientes = Entrega.objects.select_related('presupuesto__cliente', 'entregado_por').order_by('-entregado_en')[:15]
     return render(request, 'ventas/almacen_bandeja.html', {
         'titulo': 'Despacho', 'pendientes': pendientes, 'transito': transito, 'recientes': recientes, 'q': q,

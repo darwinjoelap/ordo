@@ -181,6 +181,9 @@
       {% if p.estado != 'APARTADO' %}
       <div class="mb-3">
         <div class="d-flex justify-content-between small"><span>Total a cobrar</span><b>{{ p.neto_usd|usd }}</b></div>
+        {% if p.confirmada and perfil.modalidad_comision_vigente == 'PROPORCIONAL' and p.modalidad_comision != 'PROPORCIONAL' %}
+        <p class="small text-muted mb-1">Esta venta conserva la modalidad de comisión que tenía al confirmarse.</p>
+        {% endif %}
         <div class="d-flex justify-content-between small"><span>Cobro confirmado</span><span class="text-success">{{ p.abonado_usd|usd }}</span></div>
         {% if pendiente_revision_usd %}
         <div class="d-flex justify-content-between small"><span>Pendiente de revisión</span><b>{{ pendiente_revision_usd|usd }}</b></div>

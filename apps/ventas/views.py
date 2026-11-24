@@ -452,6 +452,7 @@ def abonos_por_validar(request):
               .select_related('presupuesto__cliente', 'registrado_por').order_by('registrado_en', 'pk'))
     return render(request, 'ventas/abonos_por_validar.html', {
         'titulo': 'Abonos por revisar', 'abonos': Paginator(abonos, 50).get_page(request.GET.get('pagina')),
+        'puede_revisar_abonos': True, 'puede_validar': tiene_permiso(request, 'ventas.validar'),
     })
 
 
@@ -615,11 +616,18 @@ def revisar_abono(request, pk, abono_id):
     accion = request.POST.get('accion')
     if accion not in acciones:
         raise PermissionDenied
+    confirma = acciones[accion] == Abono.Estado.CONFIRMADO
+    validar_venta = confirma and tiene_permiso(request, 'ventas.validar')
     try:
-        servicios.revisar_abono(abono, request.user, acciones[accion], request.POST.get('motivo', ''),
-                               validar_venta=accion == 'confirmar_venta')
+        revisada = servicios.revisar_abono(abono, request.user, acciones[accion], request.POST.get('motivo', ''),
+                                          validar_venta=validar_venta)
     except servicios.ErrorVenta as e:
         messages.error(request, str(e))
     else:
-        messages.success(request, 'Revisión del abono guardada.')
+        if confirma and p.estado != E.VALIDADA and revisada.estado == E.VALIDADA:
+            messages.success(request, 'Abono confirmado y venta validada.')
+        else:
+            messages.success(request, 'Revisión del abono guardada.')
+    if request.POST.get('volver') == 'abonos_por_validar':
+        return redirect('ventas:abonos_por_validar')
     return redirect('ventas:detalle', pk=pk)

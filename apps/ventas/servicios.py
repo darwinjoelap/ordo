@@ -558,6 +558,7 @@ def _puede_revisar(p, usuario, permiso='cobranza.validar'):
 
 @transaction.atomic
 def revisar_abono(abono, usuario, estado, motivo='', validar_venta=False):
+    """Revisa un abono y, si corresponde, valida la venta cuando queda saldada."""
     p = _bloquear(abono.presupuesto)
     abono = Abono.objects.select_for_update().filter(pk=abono.pk, presupuesto=p).first()
     if abono is None:
@@ -575,8 +576,6 @@ def revisar_abono(abono, usuario, estado, motivo='', validar_venta=False):
                 A.RETIRADO: A.PENDIENTE, A.REVERTIDO: A.CONFIRMADO}
     if esperado.get(estado) != abono.estado:
         raise ErrorVenta('El estado actual del abono no permite esta acción.')
-    if validar_venta and (p.estado != E.POR_PAGAR or abono.monto_usd < p.saldo_usd - TOLERANCIA):
-        raise ErrorVenta('Este abono debe cubrir el saldo para validar también la venta.')
     if estado == A.REVERTIDO and abono.monto_usd > p.abonado_usd and _reembolsado_en_cobranza(p):
         raise ErrorVenta('El abono respalda un reembolso ya registrado.')
     ahora = timezone.now()

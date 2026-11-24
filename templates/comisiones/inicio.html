@@ -13,23 +13,27 @@
 {% endif %}
 <p class="small text-muted">Base sin IVA, después del descuento. Modalidad para nuevas ventas: <strong>{{ perfil.modalidad_comision_etiqueta }}</strong>.</p>
 <div class="row g-3 mb-3">
-  <div class="col-4"><div class="card card-body"><div class="small text-muted">Por liquidar</div><div class="fs-4 fw-bold text-primary">{{ totales.disponible|usd }}</div></div></div>
-  <div class="col-4"><div class="card card-body"><div class="small text-muted">Esperan pago completo</div><div class="fs-4 fw-bold {% if totales.por_cobrar %}text-warning{% endif %}">{{ totales.por_cobrar|usd }}</div></div></div>
-  <div class="col-4"><div class="card card-body"><div class="small text-muted">Generado este mes</div><div class="fs-4 fw-bold">{{ totales.mes|usd }}</div></div></div>
+  <div class="col-6 col-md"><div class="card card-body h-100"><div class="small text-muted">Por liquidar</div><div class="fs-4 fw-bold text-primary">{{ totales.disponible|usd }}</div></div></div>
+  {% if mostrar_devengo %}
+  <div class="col-6 col-md"><div class="card card-body h-100"><div class="small text-muted">Devengado en ventas por validar</div><div class="fs-4 fw-bold text-warning-emphasis">{{ totales.devengado_por_validar|usd }}</div></div></div>
+  {% endif %}
+  <div class="col-6 col-md"><div class="card card-body h-100"><div class="small text-muted">Esperan pago completo</div><div class="fs-4 fw-bold {% if totales.por_cobrar %}text-warning{% endif %}">{{ totales.por_cobrar|usd }}</div></div></div>
+  <div class="col-6 col-md"><div class="card card-body h-100"><div class="small text-muted">Generado este mes</div><div class="fs-4 fw-bold">{{ totales.mes|usd }}</div></div></div>
 </div>
 <div class="card mb-3"><div class="card-header bg-white fw-semibold">Por vendedor</div>
   {% if filas %}
   <div class="table-responsive"><table class="table align-middle mb-0">
-    <thead class="table-light"><tr><th>Vendedor</th><th class="text-end">Por liquidar</th><th class="text-end d-none d-sm-table-cell">Esperan pago completo</th><th class="text-end d-none d-md-table-cell">Este mes</th><th></th></tr></thead>
+    <thead class="table-light"><tr><th>Vendedor</th><th class="text-end">Por liquidar</th>{% if mostrar_devengo %}<th class="text-end">Devengado en ventas por validar</th>{% endif %}<th class="text-end d-none d-sm-table-cell">Esperan pago completo</th><th class="text-end d-none d-md-table-cell">Este mes</th><th></th></tr></thead>
     <tbody>{% for f in filas %}<tr>
       <td><a href="{% url 'comisiones:vendedor' f.vendedor_id %}">{{ f.vendedor.nombre_visible }}</a></td>
       <td class="text-end fw-semibold">{{ f.disponible|usd }} <span class="small text-muted">({{ f.n_disponible }})</span></td>
+      {% if mostrar_devengo %}<td class="text-end">{{ f.devengado_por_validar|usd }}</td>{% endif %}
       <td class="text-end d-none d-sm-table-cell">{{ f.por_cobrar|usd }}</td>
       <td class="text-end d-none d-md-table-cell">{{ f.mes|usd }}</td>
       <td class="text-end">{% if f.disponible %}<a href="{% url 'comisiones:liquidar' f.vendedor_id %}" class="btn btn-sm btn-primary">Liquidar</a>{% endif %}</td>
     </tr>{% endfor %}</tbody>
   </table></div>
-  {% else %}<div class="card-body text-muted">Aún no hay comisiones. Se generan al validar ventas.</div>{% endif %}
+  {% else %}<div class="card-body text-muted">Aún no hay comisiones.</div>{% endif %}
 </div>
 <div class="card"><div class="card-header bg-white fw-semibold">Últimas liquidaciones</div>
   {% if liquidaciones %}

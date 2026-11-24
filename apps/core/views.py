@@ -24,6 +24,8 @@ def inicio(request):
     E = Presupuesto.Estado
     ahora = timezone.localtime()
     inicio_mes = ahora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    perfil = request.empresa.perfil
+    gestiona_despacho = perfil.despacho_por_almacen and tiene_permiso(request, 'despacho.gestionar')
     docs = Presupuesto.objects.all()
     if not tiene_permiso(request, 'presupuestos.ver_todos'):
         docs = docs.filter(vendedor=request.user)
@@ -41,13 +43,13 @@ def inicio(request):
             'ultimos': docs.select_related('cliente').order_by('-actualizado_en')[:6],
             'por_cobrar': cobranza.por_cobrar(docs),
             'ingresos': cobranza.tablero(docs),
-            'por_entregar': docs.filter(estado__in=Presupuesto.CONFIRMADAS, entregado=False).count(),
         })
-    if tiene_permiso(request, 'despacho.gestionar') and request.empresa.perfil.despacho_por_almacen:
+        if not gestiona_despacho:
+            ctx['por_entregar'] = docs.filter(estado__in=Presupuesto.CONFIRMADAS, entregado=False).count()
+    if gestiona_despacho:
         from apps.ventas import entregas
         todas = Presupuesto.objects.all()
         ctx['despacho'] = {'pendientes': entregas.bandeja(todas).count(), 'transito': entregas.transito_de(todas).count()}
-    perfil = request.empresa.perfil
     if perfil.maneja_servicios and perfil.recordatorio_servicios and tiene_permiso(request, 'servicios.gestionar'):
         from apps.ventas import agenda
         from apps.ventas.views import visibles
